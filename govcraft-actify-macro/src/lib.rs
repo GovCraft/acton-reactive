@@ -139,7 +139,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
         Fields::Unnamed(_) => panic!("govcraft_actor does not support tuple structs."),
     };
     let gen = quote! {
-            struct #name #lifetime_declarations #struct_body
+            pub(crate) struct #name #lifetime_declarations #struct_body
 
             impl #lifetime_declarations #name #lifetime_declarations {
                 // Public constructor
@@ -185,7 +185,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             //Actor Context Object
             #[derive(Debug)]
-            struct #context_name {
+            pub(crate) struct #context_name {
                 sender: tokio::sync::mpsc::Sender<#type_path>,
             }
             impl #context_name {
@@ -195,12 +195,6 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     tokio::spawn(async move { actor.run().await });
                     Self {sender}
                 }
-               // pub async fn broadcast_message(&self, message: #type_path) {
-               //      // broadcast::Sender::send returns a Result with the number of subscribers that received the message
-               //      // or an error (e.g., if there are no subscribers)
-               //      println!("broadcasting");
-               //      let _ = self.sender.send(message);
-               //  }
             }
 
 
