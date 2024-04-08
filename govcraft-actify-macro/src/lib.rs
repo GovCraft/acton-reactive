@@ -149,7 +149,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #new_args_defaults
                     }
                 }
-                async fn run(&mut self) {
+                async fn run(&mut self) -> anyhow::Result<()> {
                     loop {
                         if let Some(internal) = self.__internal.as_mut() {
                                     tokio::select! {
@@ -171,6 +171,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                                 eprintln!("internal was none");
                             }
                     }
+                Ok(())
                 }
             }
 
@@ -189,14 +190,14 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 sender: tokio::sync::mpsc::Sender<#type_path>,
             }
             impl #context_name {
-                pub fn new(broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Self {
+                pub fn new(broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> anyhow::Result<Self> {
                     let (sender, receiver) = tokio::sync::mpsc::channel(255);
                     let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver}), #new_args_defaults );
-                    tokio::spawn(async move {
-                    actor.pre_run().await;
-                    actor.run().await;
+                    tokio::spawn( async move {
+                    actor.pre_run().await.expect("Could not execute actor pre_run");
+                    actor.run().await.expect("Could not execute actor run");
                 });
-                    Self {sender}
+                    Ok(Self {sender})
                 }
             }
 

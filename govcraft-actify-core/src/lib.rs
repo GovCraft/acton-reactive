@@ -1,6 +1,10 @@
 use std::sync::Arc;
 use tokio::sync::Barrier;
 use async_trait::async_trait as govcraft_async;
+use anyhow::Result;
+pub use tokio::main as govcraft_main;
+pub use tokio::runtime::Builder;
+pub use tokio::*;
 
 pub mod prelude {
     // Re-exporting Tokio types
@@ -13,10 +17,8 @@ pub mod prelude {
     // If you have custom types or traits that are frequently used,
     // you should re-export them here as well.
     // pub use crate::your_module::{YourType, YourTrait};
+    pub use anyhow::Result;
 }
-pub use tokio::main as govcraft_main;
-pub use tokio::runtime::Builder;
-pub use tokio::*;
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
@@ -30,6 +32,6 @@ pub enum ActorMessage {
 #[govcraft_async]
 pub trait GovcraftActor {
     type T: Send + 'static;
-    async fn handle_message(&mut self, message: Self::T);
-    async fn pre_run(&mut self) {  }
+    async fn handle_message(&mut self, message: Self::T) -> anyhow::Result<()>;
+    async fn pre_run(&mut self)  -> anyhow::Result<()> { Ok(()) }
 }
