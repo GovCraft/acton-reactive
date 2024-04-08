@@ -12,6 +12,9 @@ struct MyActor {
 impl GovcraftActor for MyActor {
     type T = MyMsg;
 
+    async fn pre_run(&mut self) {
+        println!("from pre_run");
+    }
     async fn handle_message(&mut self, message: Self::T) {
         println!("messaged {} for actor with name {}", message.0, self.name);
     }

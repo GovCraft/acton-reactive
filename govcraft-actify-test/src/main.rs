@@ -6,7 +6,7 @@ use crate::actors::MyActorContext;
 // use govcraft_actify_core::govcraft_main;
 
 #[derive(Clone)]
-struct MyMsg(String);
+pub struct MyMsg(String);
 
 
 #[tokio::main]

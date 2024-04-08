@@ -31,4 +31,5 @@ pub enum ActorMessage {
 pub trait GovcraftActor {
     type T: Send + 'static;
     async fn handle_message(&mut self, message: Self::T);
+    async fn pre_run(&mut self) {  }
 }
