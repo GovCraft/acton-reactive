@@ -1,0 +1,13 @@
+[package]
+name = "govcraft-actify-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+govcraft-actify = { path = "../govcraft-actify-macro" }
+govcraft-actify-core = { path = "../govcraft-actify-core" }
+
+[dev-dependencies]
+trybuild = "1.0.91"
