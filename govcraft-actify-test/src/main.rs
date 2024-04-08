@@ -1,16 +1,36 @@
 use govcraft_actify::govcraft_actor;
 use govcraft_actify_core::prelude::*;
+// use govcraft_actify_core::govcraft_main;
 
-pub struct MyMessage(String);
 #[govcraft_actor]
 struct MyActor {
-    name: &'a str,
+    name: String,
 }
 
+#[govcraft_async]
+impl GovcraftActor for MyActor {
+    type T = ActorMessage;
 
-fn main() {
-    // let actor = MyActor{name: String::from("me"), me: "" };
-    println!("another Actor created!");
+    async fn handle_message(&mut self, message: Self::T) {
+        match message {
+            ActorMessage::NewRecord(_record) => {
+                // Add logic to process a new record here.
+                println!("new record received for {}", self.name);
+            }
+            ActorMessage::ProcessingComplete(_barrier) => {
+                println!("processing complete received");
+            }
+            _ => {}
+        }
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let (sender, _) = tokio::sync::broadcast::channel(512); // Adjust capacity as needed
+    let name = "Dummy Processor Actor".to_string();
+    let _ = MyActorContext::new(sender.subscribe(), name.clone());
+    let _ = sender.send(ActorMessage::NewRecord(name));
 }
 
 #[test]

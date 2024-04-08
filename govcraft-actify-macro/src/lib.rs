@@ -3,7 +3,7 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use std::collections::HashSet;
 use quote::quote;
-use syn::{parse_macro_input, ItemStruct, Fields, Lifetime, Type, Lit, Meta, MetaNameValue, Path, LitStr, token};
+use syn::{parse_macro_input, ItemStruct, Fields, Lifetime, Type, Path, LitStr, token};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
 
@@ -14,7 +14,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
     let type_path = extract_type_from_attr(attr);
     let name = &input.ident;
     let internal_name = syn::Ident::new(&format!("{}Internal", name), name.span()); // Name for the internal struct
-    let context_name = syn::Ident::new(&format!("{}ActorContext", name), name.span()); // Name for the internal struct
+    let context_name = syn::Ident::new(&format!("{}Context", name), name.span()); // Name for the internal struct
 
     // Collect unique lifetimes from all fields
     let mut lifetimes_set = HashSet::new();
@@ -105,10 +105,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 // For structs with named fields, generate the field declarations
                 let field_names = fields.named.iter().map(|f| &f.ident);
                 quote! {
-
-                        // The internal, private struct containing macro-generated fields
                         #( #field_names),*
-
                 }
             }
         }
@@ -121,32 +118,90 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
         Fields::Unnamed(_) => panic!("govcraft_actor does not support tuple structs."),
     };
 
+    let args_sans_lifetimes = match &input.fields {
+        Fields::Named(fields) => {
+            if fields.named.is_empty() {
+                quote!()
+            } else {
+                // Generate the field declarations without lifetimes
+                let fields_sans_lifetimes = fields.named.iter().map(|f| {
+                    let mut field_sans_lifetime = f.clone();
+                    field_sans_lifetime.ty = type_sans_lifetimes(&f.ty);
+                    field_sans_lifetime
+                });
+
+                quote! {
+                    #( #fields_sans_lifetimes ),*
+                }
+            }
+        },
+        Fields::Unit => quote! {},
+        Fields::Unnamed(_) => panic!("govcraft_actor does not support tuple structs."),
+    };
     let gen = quote! {
             struct #name #lifetime_declarations #struct_body
 
             impl #lifetime_declarations #name #lifetime_declarations {
                 // Public constructor
-                pub fn new(#public_func_args) -> Self {
+                pub fn new(internal: Option<#internal_name>, #public_func_args) -> Self {
                 Self {
-                     __internal:None,
+                     __internal:internal,
                     #new_args_defaults
                     }
                 }
-                // Other public methods that interact with the internal fields
-                // ...
+                async fn run(&mut self) {
+                    loop {
+                        if let Some(internal) = self.__internal.as_mut() {
+                                    tokio::select! {
+                                        Some(msg) = internal.receiver.recv() => {
+                                            // Handle personal messages
+                                            self.handle_message(msg).await;
+                                        },
+                                        Ok(msg) = internal.broadcast_receiver.recv() => {
+                                            // Handle broadcasted messages
+                                            self.handle_message(msg).await;
+                                        },
+                                        else => {
+                                            // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                                // println!("nope");
+                                        break;
+                                    },
+                                    }
+                                } else {
+                                eprintln!("internal was none");
+                            }
+                    }
+                }
             }
 
 
+
+
             struct #internal_name {
-                broadcast_receiver: govcraft_actify_core::prelude::Receiver<#type_path>
+                broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path> ,
+                receiver: tokio::sync::mpsc::Receiver<#type_path>
                 // Add other internal fields here
             }
 
             //Actor Context Object
             #[derive(Debug)]
             struct #context_name {
-                sender: govcraft_actify_core::prelude::Sender<#type_path>,
-        }
+                sender: tokio::sync::mpsc::Sender<#type_path>,
+            }
+            impl #context_name {
+                pub fn new(broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Self {
+                    let (sender, receiver) = tokio::sync::mpsc::channel(255);
+                    let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver}), #new_args_defaults );
+                    tokio::spawn(async move { actor.run().await });
+                    Self {sender}
+                }
+               // pub async fn broadcast_message(&self, message: #type_path) {
+               //      // broadcast::Sender::send returns a Result with the number of subscribers that received the message
+               //      // or an error (e.g., if there are no subscribers)
+               //      println!("broadcasting");
+               //      let _ = self.sender.send(message);
+               //  }
+            }
 
 
     };
@@ -177,9 +232,9 @@ fn extract_lifetimes(ty: &Type) -> Vec<Lifetime> {
         }
         _ => {}
     }
-
     lifetimes
 }
+
 fn extract_type_from_attr(attr: TokenStream) -> Path {
     // Define a parser for the attribute input
     let parser = Punctuated::<LitStr, token::Comma>::parse_terminated;
@@ -195,10 +250,28 @@ fn extract_type_from_attr(attr: TokenStream) -> Path {
                 // No attributes provided, default to ActorMessage
                 syn::parse_str("govcraft_actify_core::ActorMessage").unwrap()
             }
-        },
+        }
         Err(_) => {
             // If parsing fails, default to ActorMessage
             syn::parse_str("govcraft_actify_core::ActorMessage").unwrap()
         }
+    }
+}
+
+// Helper function to remove lifetimes from a type
+fn type_sans_lifetimes(ty: &Type) -> Type {
+    match ty {
+        // Handle reference types specifically
+        Type::Reference(type_reference) => {
+            let elem = Box::new(type_sans_lifetimes(&type_reference.elem));
+            Type::Reference(syn::TypeReference {
+                and_token: type_reference.and_token,
+                lifetime: None, // Remove the lifetime
+                mutability: type_reference.mutability,
+                elem,
+            })
+        },
+        // Add other type cases as needed
+        _ => ty.clone(),
     }
 }
