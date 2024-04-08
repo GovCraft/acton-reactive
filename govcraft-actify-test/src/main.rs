@@ -1,23 +1,13 @@
+mod actors;
+
 use govcraft_actify::govcraft_actor;
 use govcraft_actify_core::prelude::*;
+use crate::actors::MyActorContext;
 // use govcraft_actify_core::govcraft_main;
 
 #[derive(Clone)]
 struct MyMsg(String);
 
-#[govcraft_actor("self::MyMsg")]
-struct MyActor {
-    name: String,
-}
-
-#[govcraft_async]
-impl GovcraftActor for MyActor {
-    type T = MyMsg;
-
-    async fn handle_message(&mut self, message: Self::T) {
-        println!("messaged {} for actor with name {}", message.0, self.name);
-    }
-}
 
 #[tokio::main]
 async fn main() {

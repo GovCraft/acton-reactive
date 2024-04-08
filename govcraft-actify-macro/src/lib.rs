@@ -139,7 +139,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
         Fields::Unnamed(_) => panic!("govcraft_actor does not support tuple structs."),
     };
     let gen = quote! {
-            pub(crate) struct #name #lifetime_declarations #struct_body
+            pub struct #name #lifetime_declarations #struct_body
 
             impl #lifetime_declarations #name #lifetime_declarations {
                 // Public constructor
@@ -185,7 +185,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             //Actor Context Object
             #[derive(Debug)]
-            pub(crate) struct #context_name {
+            pub struct #context_name {
                 sender: tokio::sync::mpsc::Sender<#type_path>,
             }
             impl #context_name {
