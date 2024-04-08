@@ -192,7 +192,10 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 pub fn new(broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Self {
                     let (sender, receiver) = tokio::sync::mpsc::channel(255);
                     let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver}), #new_args_defaults );
-                    tokio::spawn(async move { actor.run().await });
+                    tokio::spawn(async move {
+                    actor.pre_run().await;
+                    actor.run().await;
+                });
                     Self {sender}
                 }
             }
