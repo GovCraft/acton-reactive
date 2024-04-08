@@ -187,9 +187,9 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
-                sender: tokio::sync::mpsc::Sender<#type_path>,
-                broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
-                actors: Vec<JoinHandle<()>>,
+                pub sender: tokio::sync::mpsc::Sender<#type_path>,
+                pub broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
+                pub actors: Vec<JoinHandle<()>>,
             }
             impl #context_name {
                 pub fn new(broadcast_sender: tokio::sync::broadcast::Sender<#type_path>, broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Arc<Mutex<Self>> {
