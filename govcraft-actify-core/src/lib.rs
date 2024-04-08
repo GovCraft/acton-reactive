@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::Barrier;
 use async_trait::async_trait as govcraft_async;
-use anyhow::Result;
 pub use tokio::main as govcraft_main;
 pub use tokio::runtime::Builder;
 pub use tokio::*;
@@ -18,6 +17,8 @@ pub mod prelude {
     // you should re-export them here as well.
     // pub use crate::your_module::{YourType, YourTrait};
     pub use anyhow::Result;
+    pub use std::sync::{Arc, Mutex};
+    pub use tokio::task::JoinHandle;
 }
 
 #[non_exhaustive]

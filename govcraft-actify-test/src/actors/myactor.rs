@@ -1,6 +1,5 @@
 use govcraft_actify::govcraft_actor;
-use govcraft_actify_core::GovcraftActor;
-use govcraft_actify_core::prelude::govcraft_async;
+use govcraft_actify_core::prelude::*;
 use crate::MyMsg;
 
 #[govcraft_actor("self::MyMsg")]
@@ -13,11 +12,25 @@ impl GovcraftActor for MyActor {
     type T = MyMsg;
 
     async fn handle_message(&mut self, message: Self::T)-> anyhow::Result<()>{
-        println!("messaged {} for actor with name {}", message.0, self.name);
+        match message {
+            MyMsg::Message(msg) => {
+                println!("messaged {} for actor with name {}, now whispering...", msg, self.name);
+                if let Some(internal) = &self.__internal {
+                    let ctx = internal.context.lock().unwrap();
+                    let _ = ctx.broadcast_sender.send(MyMsg::Whisper("pssst...hey".to_string()))?;
+                }
+                
+            }
+            _ => {}
+        }
         Ok(())
     }
     async fn pre_run(&mut self) -> anyhow::Result<()> {
-        println!("from pre_run");
+        if let Some(internal) = &self.__internal {
+            let ctx = internal.context.lock().unwrap();
+            let count= ctx.actors.len();
+            println!("{} context has {} handles", self.name, count);
+        }
         Ok(())
     }
 }

@@ -134,7 +134,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     #( #fields_sans_lifetimes ),*
                 }
             }
-        },
+        }
         Fields::Unit => quote! {},
         Fields::Unnamed(_) => panic!("govcraft_actor does not support tuple structs."),
     };
@@ -179,25 +179,37 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
 
             struct #internal_name {
-                broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path> ,
-                receiver: tokio::sync::mpsc::Receiver<#type_path>
-                // Add other internal fields here
+                broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>,
+                receiver: tokio::sync::mpsc::Receiver<#type_path>,
+                context: Arc<Mutex<#context_name>>
             }
 
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
                 sender: tokio::sync::mpsc::Sender<#type_path>,
+                broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
+                actors: Vec<JoinHandle<()>>,
             }
             impl #context_name {
-                pub fn new(broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> anyhow::Result<Self> {
+                pub fn new(broadcast_sender: tokio::sync::broadcast::Sender<#type_path>, broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Arc<Mutex<Self>> {
                     let (sender, receiver) = tokio::sync::mpsc::channel(255);
-                    let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver}), #new_args_defaults );
-                    tokio::spawn( async move {
-                    actor.pre_run().await.expect("Could not execute actor pre_run");
-                    actor.run().await.expect("Could not execute actor run");
-                });
-                    Ok(Self {sender})
+                    let context = Arc::new(Mutex::new(Self {
+                        sender,broadcast_sender, actors: vec![],
+                    }));
+
+                    let actor_context = Arc::clone(&context);
+                    let handle = tokio::spawn( async move {
+                            let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver, context:actor_context}), #new_args_defaults );
+                            actor.pre_run().await.expect("Could not execute actor pre_run");
+                            actor.run().await.expect("Could not execute actor run");
+                    });
+                    {
+                        let mut ctx = context.lock().unwrap();
+                        ctx.actors.push(handle);
+                    }
+
+                    context
                 }
             }
 
@@ -268,7 +280,7 @@ fn type_sans_lifetimes(ty: &Type) -> Type {
                 mutability: type_reference.mutability,
                 elem,
             })
-        },
+        }
         // Add other type cases as needed
         _ => ty.clone(),
     }
