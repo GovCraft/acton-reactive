@@ -35,4 +35,5 @@ pub trait GovcraftActor {
     type T: Send + 'static;
     async fn handle_message(&mut self, message: Self::T) -> anyhow::Result<()>;
     async fn pre_run(&mut self)  -> anyhow::Result<()> { Ok(()) }
+    async fn shutdown(&mut self)  -> anyhow::Result<()> { Ok(()) }
 }
