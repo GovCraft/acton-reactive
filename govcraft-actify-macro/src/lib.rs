@@ -152,14 +152,16 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 async fn run(&mut self) -> anyhow::Result<()> {
                     loop {
                         if let Some(internal) = self.__internal.as_mut() {
+                            let remaining_supervisor_messages = internal.supervisor_receiver.len();
+                            let remaining_broadcast_messages = internal.broadcast_receiver.len();
                                     tokio::select! {
-                                        Some(msg) = internal.receiver.recv() => {
+                                        Some(msg) = internal.supervisor_receiver.recv() => {
                                             // Handle personal messages
-                                            self.handle_supervisor_message(msg).await;
+                                            self.handle_supervisor_message(msg, remaining_supervisor_messages).await;
                                         },
                                         Ok(msg) = internal.broadcast_receiver.recv() => {
                                             // Handle broadcasted messages
-                                            self.handle_message(msg).await;
+                                            self.handle_message(msg, remaining_broadcast_messages).await;
                                         },
                                         else => {
                                             // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -180,27 +182,27 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             struct #internal_name {
                 broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>,
-                receiver: tokio::sync::mpsc::Receiver<govcraft_actify_core::ActorSupervisorMessage>,
+                supervisor_receiver: tokio::sync::mpsc::Receiver<govcraft_actify_core::ActorSupervisorMessage>,
                 context: Arc<Mutex<#context_name>>
             }
 
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
-                pub sender: tokio::sync::mpsc::Sender<govcraft_actify_core::ActorSupervisorMessage>,
+                pub supervisor_sender: tokio::sync::mpsc::Sender<govcraft_actify_core::ActorSupervisorMessage>,
                 pub broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
                 pub actors: Vec<JoinHandle<()>>,
             }
             impl #context_name {
                 pub fn new(broadcast_sender: tokio::sync::broadcast::Sender<#type_path>, broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Arc<Mutex<Self>> {
-                    let (sender, receiver) = tokio::sync::mpsc::channel(255);
+                    let (supervisor_sender, supervisor_receiver) = tokio::sync::mpsc::channel(255);
                     let context = Arc::new(Mutex::new(Self {
-                        sender,broadcast_sender, actors: vec![],
+                        supervisor_sender,broadcast_sender, actors: vec![],
                     }));
 
                     let actor_context = Arc::clone(&context);
                     let handle = tokio::spawn( async move {
-                            let mut actor = #name ::new(Some(#internal_name {receiver, broadcast_receiver, context:actor_context}), #new_args_defaults );
+                            let mut actor = #name ::new(Some(#internal_name {supervisor_receiver, broadcast_receiver, context:actor_context}), #new_args_defaults );
                             actor.pre_run().await.expect("Could not execute actor pre_run");
                             actor.run().await.expect("Could not execute actor run");
                     });
@@ -213,7 +215,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 }
 
                 pub fn shutdown(&self){
-                    self.sender.send(govcraft_actify_core::ActorSupervisorMessage::Shutdown);
+                    // self.supervisor_sender.send(govcraft_actify_core::ActorSupervisorMessage::Shutdown);
                 }
             }
 

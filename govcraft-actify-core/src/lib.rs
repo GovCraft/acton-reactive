@@ -1,3 +1,4 @@
+
 use std::sync::Arc;
 use tokio::sync::Barrier;
 use async_trait::async_trait as govcraft_async;
@@ -40,8 +41,8 @@ pub enum ActorSupervisorMessage {
 #[govcraft_async]
 pub trait GovcraftActor {
     type T: Send + 'static;
-    async fn handle_message(&mut self, message: Self::T) -> anyhow::Result<()>;
-    async fn handle_supervisor_message(&mut self, message: ActorSupervisorMessage) -> anyhow::Result<()>{
+    async fn handle_message(&mut self, message: Self::T, remaining: usize) -> anyhow::Result<()>;
+    async fn handle_supervisor_message(&mut self, message: ActorSupervisorMessage, remaining: usize) -> anyhow::Result<()>{
         Ok(())
     }
     async fn pre_run(&mut self)  -> anyhow::Result<()> { Ok(()) }
