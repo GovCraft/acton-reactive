@@ -1,5 +1,4 @@
-use govcraft_actify::govcraft_actor;
-use govcraft_actify_core::prelude::*;
+use govcraft_actify::prelude::*;
 use crate::MyMsg;
 
 #[govcraft_actor("self::MyMsg")]

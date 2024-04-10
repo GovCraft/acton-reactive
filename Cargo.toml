@@ -1,9 +1,11 @@
 [workspace]
 resolver = "2"
 
-members = ["govcraft-actify-core",
+members = [
+    "govcraft-actify-core",
     "govcraft-actify-macro",
-    "govcraft-actify-test",
+    "govcraft-actify",
+    "govcraft-actify-test"
 ]
 
 
