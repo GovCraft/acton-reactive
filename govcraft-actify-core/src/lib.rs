@@ -10,6 +10,7 @@ pub mod prelude {
     pub use tokio::sync::{broadcast, mpsc, mpsc::channel};
     pub use tokio::{spawn, select};
     pub use super::ActorMessage;
+    pub use super::ActorSupervisorMessage;
     pub use super::GovcraftActor;
     // pub use std::thread::Builder;
     pub use async_trait::async_trait as govcraft_async;
@@ -30,9 +31,19 @@ pub enum ActorMessage {
     ProcessingComplete(Arc<Barrier>),
 }
 
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum ActorSupervisorMessage {
+    Shutdown
+}
+
 #[govcraft_async]
 pub trait GovcraftActor {
     type T: Send + 'static;
     async fn handle_message(&mut self, message: Self::T) -> anyhow::Result<()>;
+    async fn handle_supervisor_message(&mut self, message: ActorSupervisorMessage) -> anyhow::Result<()>{
+        Ok(())
+    }
     async fn pre_run(&mut self)  -> anyhow::Result<()> { Ok(()) }
+    async fn shutdown(&mut self)  -> anyhow::Result<()> { Ok(()) }
 }

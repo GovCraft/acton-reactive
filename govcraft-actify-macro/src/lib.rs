@@ -155,7 +155,7 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                                     tokio::select! {
                                         Some(msg) = internal.receiver.recv() => {
                                             // Handle personal messages
-                                            self.handle_message(msg).await;
+                                            self.handle_supervisor_message(msg).await;
                                         },
                                         Ok(msg) = internal.broadcast_receiver.recv() => {
                                             // Handle broadcasted messages
@@ -180,14 +180,14 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             struct #internal_name {
                 broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>,
-                receiver: tokio::sync::mpsc::Receiver<#type_path>,
+                receiver: tokio::sync::mpsc::Receiver<govcraft_actify_core::ActorSupervisorMessage>,
                 context: Arc<Mutex<#context_name>>
             }
 
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
-                pub sender: tokio::sync::mpsc::Sender<#type_path>,
+                pub sender: tokio::sync::mpsc::Sender<govcraft_actify_core::ActorSupervisorMessage>,
                 pub broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
                 pub actors: Vec<JoinHandle<()>>,
             }
@@ -210,6 +210,10 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     }
 
                     context
+                }
+
+                pub fn shutdown(&self){
+                    self.sender.send(govcraft_actify_core::ActorSupervisorMessage::Shutdown);
                 }
             }
 
