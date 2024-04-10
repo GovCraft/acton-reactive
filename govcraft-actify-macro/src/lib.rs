@@ -182,14 +182,14 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             struct #internal_name {
                 broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>,
-                supervisor_receiver: tokio::sync::mpsc::Receiver<govcraft_actify_core::ActorSupervisorMessage>,
+                supervisor_receiver: tokio::sync::mpsc::Receiver<govcraft_actify::prelude::ActorSupervisorMessage>,
                 context: Arc<Mutex<#context_name>>
             }
 
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
-                pub supervisor_sender: tokio::sync::mpsc::Sender<govcraft_actify_core::ActorSupervisorMessage>,
+                pub supervisor_sender: tokio::sync::mpsc::Sender<govcraft_actify::prelude::ActorSupervisorMessage>,
                 pub broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
                 pub actors: Vec<JoinHandle<()>>,
             }

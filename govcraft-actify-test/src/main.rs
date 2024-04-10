@@ -1,7 +1,7 @@
 mod actors;
 
 use tokio::signal;
-use govcraft_actify_core::prelude::*;
+use govcraft_actify::prelude::*;
 use crate::actors::{DebugActorContext, MyActorContext};
 // use govcraft_actify_core::govcraft_main;
 
