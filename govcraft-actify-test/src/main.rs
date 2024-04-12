@@ -1,8 +1,16 @@
 mod actors;
 
-use tokio::signal;
+// use std::time::Duration;
+// use tokio::signal;
+use tracing::Level;
+use tracing::trace;
+use tracing_subscriber;
+use tracing_subscriber::FmtSubscriber;
 use govcraft_actify::prelude::*;
-use crate::actors::{DebugActorContext, MyActorContext};
+use govcraft_actify::prelude::SystemMessage;
+// use govcraft_actify_macro::govcraft_actor;
+// use govcraft_actify_core::prelude::*;
+// use crate::actors::{DebugActorContext, MyActorContext};
 // use govcraft_actify_core::govcraft_main;
 
 #[derive(Clone, Debug)]
@@ -15,23 +23,23 @@ pub enum MyMsg
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (sender, _) = broadcast::channel(512); // Adjust capacity as needed
-    let name = "MyActor".to_string();
-    let _ = MyActorContext::new(sender.clone(), sender.subscribe(), name.clone());
-    let _ = DebugActorContext::new(sender.clone(), sender.subscribe(), "Debug".to_string());
-    let _ = sender.send(MyMsg::Message("hello".to_string()))?;
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
 
-    match signal::ctrl_c().await {
-        Ok(()) => {},
-        Err(err) => {
-            eprintln!("Unable to listen for shutdown signal: {}", err);
-        },
-    }
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let mut system = GovcraftSystem::new().await?;
+    system.init().await?;
+
+    system.await_shutdown().await?;
+
     Ok(())
 }
-
-#[test]
-fn ui() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/ui/*.rs");
-}
+// match signal::ctrl_c().await {
+//     Ok(()) => {},
+//     Err(err) => {
+//         eprintln!("Unable to listen for shutdown signal: {}", err);
+//     },
+// }
