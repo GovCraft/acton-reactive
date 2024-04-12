@@ -7,7 +7,7 @@ edition = "2021"
 supervisor=[]
 
 [dependencies]
-govcraft-actify-macro = { path = "../govcraft-actify-macro" }
+#govcraft-actify-macro = { path = "../govcraft-actify-macro" }
 govcraft-actify-core = { path = "../govcraft-actify-core" }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"

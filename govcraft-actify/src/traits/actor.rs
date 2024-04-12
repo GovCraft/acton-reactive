@@ -1,25 +1,22 @@
-use std::any::Any;
+use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
-use tracing::info;
+use tokio::time::{timeout, Duration};
+use tracing::{debug, error, info, instrument, warn};
 use govcraft_actify_core::sync::Mutex;
-use crate::common::{ActorBuilder, ActorContext, BroadcastContext};
-use govcraft_actify_core::prelude::*;
-use crate::messages::SupervisorMessage;
+use crate::common::{ActorContext, BroadcastContext};
+use crate::messages::{SupervisorMessage, SystemMessage};
 use crate::traits::message::GovcraftMessage;
 
-// pub type SupervisorMessageHandler = dyn FnMut(&mut dyn Actor<SupervisorMessage>, SupervisorMessage) -> Result<()> + Send + Sync;
-// pub type SafeSupervisorMessageHandler = Arc<Mutex<SupervisorMessageHandler>>;
-// pub type DirectMessageHandler<T> = dyn FnMut(T) -> Result<()> + Send;
 pub type DirectMessageHandler<T> = Arc<dyn FnMut(T) -> Pin<Box<dyn Future<Output=Result<()>> + Send>> + Send + Sync>;
 
 #[async_trait]
-pub trait Actor: Send + Sync {
-    type BroadcastMessage: GovcraftMessage;
-    type ActorMessage: GovcraftMessage;
+pub trait Actor: Send + Sync + Debug {
+    type BroadcastMessage: GovcraftMessage + Clone;
+    type ActorMessage: GovcraftMessage + Clone;
     async fn handle_supervisor_message(&self, message: SupervisorMessage) -> Result<()> {
         match message {
             SupervisorMessage::Start => {
@@ -40,7 +37,7 @@ pub trait Actor: Send + Sync {
     async fn pre_run(&self) -> Result<()> {
         Ok(())
     }
-
+    // #[instrument]
     async fn run(&self, context: Arc<Mutex<ActorContext<Self::ActorMessage>>>, broadcast_context: Arc<Mutex<BroadcastContext<Self::BroadcastMessage>>>) -> anyhow::Result<()> {
         loop {
             info!("looping");
@@ -53,15 +50,15 @@ pub trait Actor: Send + Sync {
             tokio::select! {
             Some(msg) = admin_recv_fut => {
                 info!("Admin msg");
-                self.handle_supervisor_message(msg).await?;
+                // self.handle_supervisor_message(msg).await?;
             },
             Some(msg) = direct_recv_fut => {
-                info!("Direct msg");
-                self.handle_direct_message(msg).await?;
+                debug!("Direct msg");
+                // self.handle_direct_message(msg).await?;
             },
             Ok(msg) = broadcast_recv_fut => {
                 info!("Broadcast msg");
-                self.handle_broadcast_message(msg).await?;
+                // self.handle_broadcast_message(msg).await?;
             },
             else => {
                 info!("else");
@@ -71,14 +68,39 @@ pub trait Actor: Send + Sync {
         }
     }
 
-    async fn recv_admin_message(&self, context: Arc<Mutex<ActorContext<<Self as Actor>::ActorMessage>>>) -> Option<SupervisorMessage> {
+    #[instrument]
+    async fn recv_admin_message(&self, context: Arc<Mutex<ActorContext<<Self as Actor>::ActorMessage>>>) -> Option<SystemMessage> {
+        // debug!("locking context");
         let mut locked_context = context.lock().await;
+        // debug!("receiving");
+        // drop(locked_context);
         locked_context.admin_mailbox.recv().await
-    }
 
+    }
+    #[instrument]
     async fn recv_direct_message(&self, context: Arc<Mutex<ActorContext<Self::ActorMessage>>>) -> Option<Self::ActorMessage> {
+        debug!("locking context for {:?}", self);
         let mut locked_context = context.lock().await;
-        locked_context.mailbox.recv().await
+        // locked_context.mailbox.recv().await
+        let recv_result = timeout(Duration::from_secs(1), locked_context.mailbox.recv()).await;
+        drop(locked_context);
+        match recv_result {
+            Ok(Some(msg)) => {
+                // handle message
+                debug!("message received");
+                Some(msg)
+            }
+            Ok(None) => {
+                warn!("no message");
+                // channel closed, consider shutting down the actor
+                None
+            }
+            Err(_) => {
+                error!("timeout");
+                // timeout, consider retrying or shutting down
+                None
+            }
+        }
     }
 
     async fn recv_broadcast_message(&self, broadcast_context: Arc<Mutex<BroadcastContext<Self::BroadcastMessage>>>) -> Result<Self::BroadcastMessage, tokio::sync::broadcast::error::RecvError> {
@@ -88,58 +110,3 @@ pub trait Actor: Send + Sync {
 }
 
 
-#[cfg(test)]
-mod tests {
-    use crate::common::ActorRef;
-    use super::*;
-
-
-    #[derive(Clone, Debug)]
-    enum Msg {
-        Hello,
-        Alright,
-    }
-
-    impl GovcraftMessage for Msg {}
-
-    #[derive(Clone, Debug)]
-    enum BroadcastMsg {
-        Hello,
-        Alright,
-    }
-
-    impl GovcraftMessage for BroadcastMsg {}
-
-    #[derive(Clone, Debug)]
-    struct MyActor {}
-
-    impl Actor for MyActor {
-        type BroadcastMessage = BroadcastMsg;
-        type ActorMessage = Msg;
-    }
-
-
-    #[test]
-    fn test() {
-        // let (_gms, gmr) = tokio::sync::broadcast::channel(16);
-        // let (_ams, amr) = tokio::sync::mpsc::channel(16);
-        // let (_mbs, mbr) = tokio::sync::mpsc::channel(16);
-        // let actor = MyActor {};
-        // let context = ActorContext {
-        //     group_mailbox: gmr,
-        //     admin_mailbox: amr,
-        //     mailbox: mbr,
-        // };
-        // let actor = ActorBuilder::<Msg>::new("my name")
-        //     .set_actor(Box::new(actor))
-        //     .set_context(context)
-        //     .set_message_handler(&move |context, message| -> Result<()> {
-        //
-        //         Ok(())
-        //     }).build();
-        //
-        //
-
-        assert!(true);
-    }
-}

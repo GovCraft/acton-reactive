@@ -1,6 +1,6 @@
 use crate::traits::message::GovcraftMessage;
 
-#[derive(Clone,Debug)]
+#[derive(Debug, Clone)]
 pub enum SupervisorMessage{
     Start
 }
