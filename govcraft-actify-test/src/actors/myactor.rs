@@ -10,7 +10,7 @@ struct MyActor {
 impl GovcraftActor for MyActor {
     type T = MyMsg;
 
-    async fn handle_message(&mut self, message: Self::T, remaining: usize)-> anyhow::Result<()>{
+    async fn handle_message(&mut self, message: Self::T)-> anyhow::Result<()>{
         match message {
             MyMsg::Message(msg) => {
                 println!("messaged {} for actor with name {}, now whispering...", msg, self.name);

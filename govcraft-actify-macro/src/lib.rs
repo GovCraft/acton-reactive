@@ -152,16 +152,14 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                 async fn run(&mut self) -> anyhow::Result<()> {
                     loop {
                         if let Some(internal) = self.__internal.as_mut() {
-                            let remaining_supervisor_messages = internal.supervisor_receiver.len();
-                            let remaining_broadcast_messages = internal.broadcast_receiver.len();
                                     tokio::select! {
                                         Some(msg) = internal.supervisor_receiver.recv() => {
                                             // Handle personal messages
-                                            self.handle_supervisor_message(msg, remaining_supervisor_messages).await;
+                                            self.handle_supervisor_message(msg).await;
                                         },
                                         Ok(msg) = internal.broadcast_receiver.recv() => {
-                                            // Handle broadcasted messages
-                                            self.handle_message(msg, remaining_broadcast_messages).await;
+                                            // Handle broadcast messages
+                                            self.handle_message_internal(msg).await;
                                         },
                                         else => {
                                             // tokio::time::sleep(std::time::Duration::from_millis(100)).await;

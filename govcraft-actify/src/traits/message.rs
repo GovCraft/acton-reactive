@@ -1,0 +1,1 @@
+pub trait GovcraftMessage: 'static + Clone + Send + Sized {}

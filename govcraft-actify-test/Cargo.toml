@@ -10,6 +10,8 @@ govcraft-actify = { path = "../govcraft-actify" }
 async-trait = "0.1.79"
 tokio = { version = "1.37.0", features = ["full"] }
 anyhow = "1.0.81"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 
 [dev-dependencies]
 trybuild = "1.0.91"

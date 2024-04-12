@@ -6,9 +6,12 @@ pub use tokio::main as govcraft_main;
 pub use tokio::runtime::Builder;
 pub use tokio::*;
 
+mod message_tracking;
+mod context;
+
 pub mod prelude {
     // Re-exporting Tokio types
-    pub use tokio::sync::{broadcast, mpsc, mpsc::channel};
+    pub use tokio::sync::{broadcast, mpsc, mpsc::channel, Notify};
     pub use tokio::{spawn, select};
     pub use super::ActorMessage;
     pub use super::ActorSupervisorMessage;
@@ -41,10 +44,21 @@ pub enum ActorSupervisorMessage {
 #[govcraft_async]
 pub trait GovcraftActor {
     type T: Send + 'static;
-    async fn handle_message(&mut self, message: Self::T, remaining: usize) -> anyhow::Result<()>;
-    async fn handle_supervisor_message(&mut self, message: ActorSupervisorMessage, remaining: usize) -> anyhow::Result<()>{
+    async fn handle_message(&mut self, message: Self::T) -> anyhow::Result<()>;
+    async fn handle_supervisor_message(&mut self, _message: ActorSupervisorMessage) -> anyhow::Result<()>{
         Ok(())
     }
     async fn pre_run(&mut self)  -> anyhow::Result<()> { Ok(()) }
     async fn shutdown(&mut self)  -> anyhow::Result<()> { Ok(()) }
+    async fn handle_message_internal(&mut self, message: Self::T) -> anyhow::Result<()> {
+        println!("internal");
+        self.handle_message(message).await?;
+        Ok(())
+    }
+}
+
+mod private {
+    // This trait is private and acts as a seal.
+    // Only types within the `actor` module can implement it.
+    pub trait Sealed {}
 }

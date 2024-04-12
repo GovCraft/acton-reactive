@@ -1,7 +1,12 @@
 mod actors;
 
+use std::time::Duration;
 use tokio::signal;
+use tracing::Level;
+use tracing_subscriber;
+use tracing_subscriber::FmtSubscriber;
 use govcraft_actify::prelude::*;
+use govcraft_actify::prelude::message::GovcraftMessage;
 use crate::actors::{DebugActorContext, MyActorContext};
 // use govcraft_actify_core::govcraft_main;
 
@@ -15,11 +20,15 @@ pub enum MyMsg
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let (sender, _) = broadcast::channel(512); // Adjust capacity as needed
-    let name = "MyActor".to_string();
-    let _ = MyActorContext::new(sender.clone(), sender.subscribe(), name.clone());
-    let _ = DebugActorContext::new(sender.clone(), sender.subscribe(), "Debug".to_string());
-    let _ = sender.send(MyMsg::Message("hello".to_string()))?;
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let mut system = GovcraftSystem::new().await?;
+    system.init().await?;
 
     match signal::ctrl_c().await {
         Ok(()) => {},
@@ -28,10 +37,4 @@ async fn main() -> Result<()> {
         },
     }
     Ok(())
-}
-
-#[test]
-fn ui() {
-    let t = trybuild::TestCases::new();
-    t.compile_fail("tests/ui/*.rs");
 }

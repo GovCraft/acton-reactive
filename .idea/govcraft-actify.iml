@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/govcraft-actify-macro/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/govcraft-actify-test/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/govcraft-actify/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/govcraft-actify/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
