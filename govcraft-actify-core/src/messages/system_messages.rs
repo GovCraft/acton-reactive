@@ -5,7 +5,8 @@ use crate::traits::message::GovcraftMessage;
 #[derive(Clone,Debug)]
 pub enum SystemMessage{
     Start,
-    Shutdown
+    Shutdown,
+    Terminate
 }
 
 impl GovcraftMessage for SystemMessage {

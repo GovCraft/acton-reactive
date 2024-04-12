@@ -1,14 +1,12 @@
 
-use std::sync::Arc;
-use tokio::sync::Barrier;
 pub use tokio::main as govcraft_main;
 pub use tokio::runtime::Builder;
 pub use tokio::*;
 
 mod message_tracking;
 mod context;
-pub mod messages;
-pub mod traits;
+mod messages;
+mod traits;
 
 pub mod prelude {
     // Re-exporting Tokio types
@@ -22,17 +20,17 @@ pub mod prelude {
     pub use crate::traits::actor::GovcraftActor;
 }
 
-#[non_exhaustive]
-#[derive(Clone, Debug)]
-pub enum ActorMessage {
-    /// Indicates a new record is ready to be processed.
-    NewRecord(String),
-    CountError,
-    ProcessingComplete(Arc<Barrier>),
-}
-
-#[non_exhaustive]
-#[derive(Clone, Debug)]
-pub enum ActorSupervisorMessage {
-    Shutdown
-}
+// #[non_exhaustive]
+// #[derive(Clone, Debug)]
+// pub enum ActorMessage {
+//     /// Indicates a new record is ready to be processed.
+//     NewRecord(String),
+//     CountError,
+//     ProcessingComplete(Arc<Barrier>),
+// }
+//
+// #[non_exhaustive]
+// #[derive(Clone, Debug)]
+// pub enum ActorSupervisorMessage {
+//     Shutdown
+// }

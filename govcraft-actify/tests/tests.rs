@@ -1,6 +1,3 @@
-use std::thread::sleep;
-use std::time::Duration;
-use tokio::signal;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::util::SubscriberInitExt;

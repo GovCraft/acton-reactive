@@ -3,8 +3,8 @@ use crate::traits::message::GovcraftMessage;
 // use govcraft_actify::traits::message::GovcraftMessage;
 #[derive(Debug, Clone)]
 pub enum SupervisorMessage{
-    Start,
-    Shutdown
+    Shutdown,
+    Terminate
 }
 
 impl GovcraftMessage for SupervisorMessage {

@@ -150,48 +150,39 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     }
                 }
                 async fn run(&mut self) -> anyhow::Result<()> {
-    loop {
-        // Assuming __internal stores the receivers or similar pattern
-        // Temporarily take them out or clone if possible (for Arc-wrapped types)
-        if let Some(internal) = self.__internal.as_mut() {
-            let supervisor_receiver = &mut internal.supervisor_receiver;
-            let broadcast_receiver = &mut internal.broadcast_receiver;
-            let shutdown_flag = internal.__shutdown.load(std::sync::atomic::Ordering::SeqCst);
+                    self.on_start().await?;
+                    loop {
+                        if let Some(internal) = self.__internal.as_mut() {
+                            let supervisor_receiver = &mut internal.supervisor_receiver;
+                            let broadcast_receiver = &mut internal.broadcast_receiver;
 
-            tokio::select! {
-                Some(msg) = supervisor_receiver.recv() => {
-        match msg {
-            SupervisorMessage::Shutdown => {
-                tracing::warn!("Received supervisor shutdown request...");
-                                        break;
-            }
-            _ => {
-            }
-        }
-                    self.handle_supervisor_message(msg).await;
-                },
-                Ok(msg) = broadcast_receiver.recv() => {
-                    self.handle_message_internal(msg).await;
-                },
-                else => {
-                    tracing::warn!("unknown message received");
-                },
-            }
-                    if shutdown_flag {
-                            tracing::warn!("shutdown");
-                        break;
-                    } else {
-                            tracing::trace!("no shutdown");
-                        // Sleep or other logic
-                        // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                            tokio::select! {
+                                Some(msg) = supervisor_receiver.recv() => {
+                                    self.handle_supervisor_message_internal(msg).await?;
+                                },
+                                Ok(msg) = broadcast_receiver.recv() => {
+                                    self.handle_message_internal(msg.clone()).await?;
+                                    match msg {
+                                        SystemMessage::Terminate => {
+                                            tracing::event!(target:"govcraft_actify_macro", tracing::Level::TRACE, ?msg, "Quitting actor message processing");
+                                            // tracing::warn!("Terminating actor due to Supervisor request {:?}.", self);
+                                            break;
+                                        }
+                                        _ => {
+                                        }
+                                    }
+                                },
+                                else => {
+                                    tracing::warn!("unknown message received");
+                                },
+                            }
+                        } else {
+                            tracing::error!("internal was none");
+                        }
                     }
-
-        } else {
-            tracing::error!("internal was none");
-        }
-    }
-    Ok(())
-}
+                    self.post_shutdown().await?;
+                    Ok(())
+                }
 
             }
 
@@ -200,33 +191,30 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             struct #internal_name {
                 broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>,
-                supervisor_receiver: tokio::sync::mpsc::Receiver<govcraft_actify_core::messages::SupervisorMessage>,
-                __shutdown: std::sync::atomic::AtomicBool,
+                supervisor_receiver: tokio::sync::mpsc::Receiver<SupervisorMessage>,
                 context: Arc<Mutex<#context_name>>
             }
 
             //Actor Context Object
             #[derive(Debug)]
             pub struct #context_name {
-                pub supervisor_sender: tokio::sync::mpsc::Sender<govcraft_actify_core::messages::SupervisorMessage>,
+                pub supervisor_sender: tokio::sync::mpsc::Sender<SupervisorMessage>,
                 pub broadcast_sender: tokio::sync::broadcast::Sender<#type_path>,
                 pub actors: Vec<JoinHandle<()>>,
             }
             impl #context_name {
-                pub async fn new(broadcast_sender: tokio::sync::broadcast::Sender<#type_path>, broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Arc<Mutex<Self>> {
+                pub async fn init(broadcast_sender: tokio::sync::broadcast::Sender<#type_path>, broadcast_receiver: tokio::sync::broadcast::Receiver<#type_path>, #args_sans_lifetimes) -> Arc<Mutex<Self>> {
                     let (supervisor_sender, supervisor_receiver) = tokio::sync::mpsc::channel(255);
 
                     let context = Arc::new(Mutex::new(Self {
                         supervisor_sender,broadcast_sender, actors: vec![],
-
                     }));
 
                     let actor_context = Arc::clone(&context);
                     let handle = tokio::spawn( async move {
-                            let mut actor = #name ::new(Some(#internal_name {supervisor_receiver, broadcast_receiver, context:actor_context,
-                    __shutdown:std::sync::atomic::AtomicBool::new(false)}),
+                            let mut actor = #name ::new(Some(#internal_name {supervisor_receiver, broadcast_receiver, context:actor_context}),
                                 #new_args_defaults );
-                            actor.pre_run().await.expect("Could not execute actor pre_run");
+                            actor.pre_start().await.expect("Could not execute actor pre_run");
                             actor.run().await.expect("Could not execute actor run");
                     });
                     {
@@ -237,12 +225,10 @@ pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
                     context
                 }
 
-                pub async fn shutdown(&self){
-                    // debug!("actor stopping");
-                    // if let Some(internal) = self.__internal.as_mut() {
-                    //     internal.__shutdown.store(true, std::sync::atomic::Ordering::SeqCst)
-                    // }
-                    self.supervisor_sender.send(SupervisorMessage::Shutdown).await;
+                pub async fn shutdown(&self) -> anyhow::Result<()>{
+                    self.supervisor_sender.send(SupervisorMessage::Shutdown).await?;
+                    self.broadcast_sender.send(SystemMessage::Terminate)?;
+                    Ok(())
                 }
             }
 
