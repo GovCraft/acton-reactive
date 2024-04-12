@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+#govcraft-actify-macro = { path = "../govcraft-actify-macro" }
+#govcraft-actify-core = { path = "../govcraft-actify-core" }
 govcraft-actify = { path = "../govcraft-actify" }
 async-trait = "0.1.79"
 tokio = { version = "1.37.0", features = ["full"] }

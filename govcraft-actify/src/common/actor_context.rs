@@ -1,5 +1,5 @@
 use tokio::sync::mpsc::Sender;
-use crate::messages::{SupervisorMessage, SystemMessage};
+use govcraft_actify_core::messages::{SupervisorMessage, SystemMessage};
 use crate::prelude::broadcast::Receiver as GroupReceiver;
 use crate::prelude::broadcast::Sender as GroupPost;
 use crate::prelude::mpsc::Receiver;

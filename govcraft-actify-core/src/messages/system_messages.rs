@@ -1,8 +1,11 @@
+// use govcraft_actify::traits::message::GovcraftMessage;
+
 use crate::traits::message::GovcraftMessage;
 
 #[derive(Clone,Debug)]
 pub enum SystemMessage{
-    Start
+    Start,
+    Shutdown
 }
 
 impl GovcraftMessage for SystemMessage {

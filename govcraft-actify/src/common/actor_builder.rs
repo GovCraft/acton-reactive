@@ -16,7 +16,7 @@ pub struct ActorBuilder<T> where T: GovcraftMessage {
     message_handler: Option<DirectMessageHandler<T>>,
     context: Option<Arc<Mutex<ActorContext<T>>>>,
     broadcast_context: Option<Arc<Mutex<BroadcastContext<T>>>>,
-    actor: Option<Arc<Mutex<ActorRef<T>>>>,
+    actor: Option<Box<dyn Actor<ActorMessage=T, BroadcastMessage=T>>>,
 
 }
 
@@ -47,10 +47,8 @@ impl<T: GovcraftMessage> ActorBuilder<T> {
         self.message_handler = Some(Arc::new(message_handler));
         self
     }
-    pub fn set_actor(mut self, actor: Arc<Mutex<dyn Actor<ActorMessage=T, BroadcastMessage=T>>>) -> ActorBuilder<T> {
-        let actor_ref = Arc::new(Mutex::from(ActorRef {
-            actor,
-        }));
+    pub fn set_actor(mut self, actor: Box<dyn Actor<ActorMessage=T, BroadcastMessage=T>>) -> ActorBuilder<T> {
+        let actor_ref =actor;
         self.actor = Some(actor_ref);
         self
     }
