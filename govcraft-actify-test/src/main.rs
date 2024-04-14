@@ -6,7 +6,7 @@ use tracing_subscriber::FmtSubscriber;
 use tracing_subscriber::util::SubscriberInitExt;
 use govcraft_actify::prelude::*;
 
-#[derive(Clone, Debug)]
+#[actify_message]
 pub enum MyMsg
 {
     Message(String),
@@ -22,15 +22,15 @@ async fn main() -> Result<()> {
 
     let system = GovcraftSystem::new().await?;
 
-    info!("Govcraft Actify running. Press CTRL-C to exit");
-    match signal::ctrl_c().await {
-        Ok(()) => {
-            system.await_shutdown().await?;
-            info!("Govcraft actify shutdown success. Goodbye.")
-        }
-        Err(err) => {
-            tracing::error!("Unable to listen for shutdown signal: {}", err);
-        }
-    }
+    // info!("Govcraft Actify running. Press CTRL-C to exit");
+    // match signal::ctrl_c().await {
+    //     Ok(()) => {
+    //         system.await_shutdown().await?;
+    //         info!("Govcraft actify shutdown success. Goodbye.")
+    //     }
+    //     Err(err) => {
+    //         tracing::error!("Unable to listen for shutdown signal: {}", err);
+    //     }
+    // }
     Ok(())
 }

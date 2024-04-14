@@ -3,9 +3,41 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use std::collections::HashSet;
 use quote::quote;
-use syn::{parse_macro_input, ItemStruct, Fields, Lifetime, Type, Path, LitStr, token};
+use syn::{parse_macro_input, ItemStruct, Fields, Lifetime, Type, Path, LitStr, token, DeriveInput};
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
+
+#[proc_macro_attribute]
+pub fn actify_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as DeriveInput);
+
+    let name = &input.ident;
+
+    let expanded = quote! {
+
+        #input
+
+        impl std::fmt::Debug for #name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, stringify!(#name))
+            }
+        }
+
+        impl Clone for #name {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
+
+        impl UserMessage for #name {
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
 
 #[proc_macro_attribute]
 pub fn govcraft_actor(attr: TokenStream, item: TokenStream) -> TokenStream {
