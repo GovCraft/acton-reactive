@@ -35,35 +35,57 @@ impl Quasar<QuasarDormant> {
 
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
     pub async fn spawn(actor: Quasar<QuasarDormant>) -> QuasarContext {
+        // Ensure the actor is initially in a dormant state
+        assert!(matches!(actor.ctx, ref QuasarDormant), "Actor must be dormant to spawn");
+
         // Convert the actor from MyActorIdle to MyActorRunning
         let mut actor = actor;
 
-        //handle any pre_start activities
-        let _ = (actor.ctx.on_before_start_reactor)(&actor.ctx);
-        Self::assign_lifecycle_reactors(&mut actor);
+        // Handle any pre_start activities
+        let pre_start_result = (actor.ctx.on_before_start_reactor)(&actor.ctx);
+        assert_eq!(pre_start_result, (), "Pre-start activities failed");
 
+        // Ensure reactors are correctly assigned
+        Self::assign_lifecycle_reactors(&mut actor);
+        assert!(!actor.ctx.lifecycle_reactor_map.is_empty(), "Lifecycle reactors must be assigned");
+        assert!(!actor.ctx.actor_reactor_map.is_empty(), "Actor message reactors must be assigned");
+
+        // Convert to QuasarRunning state
         let mut actor: Quasar<QuasarRunning> = actor.into();
+        assert!(matches!(actor.ctx, ref QuasarRunning), "Actor must be in running state after conversion");
 
         // Take reactor maps and inbox addresses before entering async context
-        let lifecycle_message_reactor_map = actor.ctx.lifecycle_message_reactor_map.take().expect("No reactors provided. This should never happen");
-        let actor_message_reactor_map = actor.ctx.actor_message_reactor_map.take().expect("No reactors provided. This should never happen");
+        let lifecycle_message_reactor_map = actor.ctx.lifecycle_message_reactor_map.take().expect("No lifecycle reactors provided. This should never happen");
+        let actor_message_reactor_map = actor.ctx.actor_message_reactor_map.take().expect("No actor message reactors provided. This should never happen");
+
+        // Assert that the taken maps are not empty
+        assert!(!lifecycle_message_reactor_map.is_empty(), "Lifecycle message reactor map must not be empty");
+        assert!(!actor_message_reactor_map.is_empty(), "Actor message reactor map must not be empty");
+
         let actor_inbox_address = actor.ctx.actor_inbox_address.clone();
+        assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
+
         let lifecycle_inbox_address = actor.ctx.lifecycle_inbox_address.clone();
+        assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
 
         let mut ctx = actor.ctx;
         let task_tracker = TaskTracker::new();
+
+        // Spawn task to listen to actor and lifecycle messages
         task_tracker.spawn(async move {
             ctx.actor_listen(actor_message_reactor_map, lifecycle_message_reactor_map).await
         });
         task_tracker.close();
+        assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 
-        // Create a new ActifyContext with pre-extracted data
+        // Create a new QuasarContext with pre-extracted data
         QuasarContext {
             actor_inbox_address,
             lifecycle_inbox_address,
             task_tracker,
         }
     }
+
 
     fn assign_lifecycle_reactors(actor: &mut Quasar<QuasarDormant>) {
         actor.ctx.act_on_lifecycle::<InternalMessage>(|actor, lifecycle_message| {
@@ -111,7 +133,6 @@ pub struct QuasarDormant {
     pub category: String,
     pub company: String,
     pub id: String,
-    supervisor: Option<&'static QuasarRunning>,
     begin_idle_time: SystemTime,
     on_before_start_reactor: LifecycleEventReactor<Self>,
     on_start_reactor: LifecycleEventReactor<QuasarRunning>,
@@ -127,6 +148,7 @@ pub struct QuasarRunning<> {
     pub domain: String,
     pub category: String,
     pub company: String,
+    supervisor: Option<&'static QuasarRunning>,
     lifecycle_message_reactor_map: Option<LifecycleReactorMap>,
     lifecycle_inbox: LifecycleInbox,
     lifecycle_inbox_address: LifecycleInboxAddress,
@@ -214,7 +236,6 @@ impl QuasarDormant {
             category: "system".to_string(),
             company: "govcraft".to_string(),
             id: "root".to_string(),
-            supervisor: None,
             begin_idle_time: SystemTime::now(),
             on_before_start_reactor: Box::new(|_| {}),
             on_start_reactor: Box::new(|_| {}),
@@ -252,6 +273,7 @@ impl From<Quasar<QuasarDormant>> for Quasar<QuasarRunning> {
                 domain: value.ctx.domain,
                 category: value.ctx.category,
                 company: value.ctx.company,
+                supervisor: None,
             },
         }
     }
