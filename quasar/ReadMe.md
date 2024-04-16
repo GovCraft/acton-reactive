@@ -8,7 +8,7 @@ The Quasar Resource Name (QRN) is a structured identifier used within the Quasar
 
 A QRN is composed of several parts, each representing a specific aspect of the resource:
 
-qrn:partition:service:account-id:hierarchy/path
+`qrn:partition:service:account-id:hierarchy/path`
 
 
 ### Components
@@ -23,14 +23,14 @@ qrn:partition:service:account-id:hierarchy/path
 
 ### Corporate Hierarchy Actor
 
-qrn:quasar-internal:hr:company123:root/departmentA/team1
+`qrn:quasar-internal:hr:company123:root/departmentA/team1`
 
 
 This QRN identifies an actor representing Team 1, which is part of Department A under the HR service, managed by account `company123`.
 
 ### IoT Device in a Network Topology
 
-qrn:quasar-external:iot:vendor456:root/region1/building5/floor3/device42
+`qrn:quasar-external:iot:vendor456:root/region1/building5/floor3/device42`
 
 
 This QRN points to Device 42 located on Floor 3 of Building 5 in Region 1, managed by IoT services for the vendor account `vendor456`.
