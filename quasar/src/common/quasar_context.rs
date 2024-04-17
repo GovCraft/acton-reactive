@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorInboxAddress, InternalMessage, LifecycleInboxAddress};
+use crate::common::{ActorInboxAddress, InternalMessage, LifecycleInboxAddress, QuasarRunning};
 use crate::traits::{ActorContext, LifecycleSupervisor};
 
 pub struct QuasarContext
@@ -19,6 +19,10 @@ impl ActorContext for QuasarContext {
     fn get_task_tracker(&mut self) -> &mut TaskTracker {
         &mut self.task_tracker
     }
+
+    // fn get_state<T, U>(&self) -> QuasarRunning<T, U> {
+    //
+    // }
 
     async fn stop(self) -> anyhow::Result<()> {
         self.lifecycle_inbox_address.send(Box::new(InternalMessage::Stop)).await?;

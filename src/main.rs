@@ -2,7 +2,7 @@ use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use quasar::*;
-use quasar::traits::{ActorContext, ActorMessage};
+use quasar::prelude::*;
 
 
 //region Main

@@ -2,9 +2,7 @@ use std::any::Any;
 use std::thread::sleep;
 use std::time::Duration;
 
-use quasar::{Quasar, QuasarSystem};
-use quasar::traits::{ActorContext, ActorMessage, KnownQuasar};
-use quasar_qrn::prelude::*;
+use quasar::prelude::*;
 
 // #[tokio::test]
 // async fn test_on_stop() -> anyhow::Result<()> {
@@ -56,8 +54,8 @@ async fn test_on_start() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_singularity_qrn() -> anyhow::Result<()> {
     let system = QuasarSystem::new().await;
-
-    // assert_eq!(system.singularity.qrn().value, "qrn:quasar:system:framework:root");
+    let c = system.singularity;
+    assert_eq!(system.singularity.qrn().value, "qrn:quasar:system:framework:root");
 
     Ok(())
 }

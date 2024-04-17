@@ -7,13 +7,7 @@ pub struct QuasarSystem {
 }
 impl QuasarSystem {
     pub async fn new() -> Self {
-        let qrn = QrnBuilder::new()
-            .add::<Domain>("quasar")
-            .add::<Category>("system")
-            .add::<Company>("framework")
-            .add::<Part>("root")
-            .build();
-        let system: Quasar<QuasarDormant<Singularity, Self>>= Quasar::new(qrn);
+        let system: Quasar<QuasarDormant<Singularity, Self>>= Quasar::new(Default::default());
         QuasarSystem { singularity: Quasar::spawn(system).await }
     }
 }

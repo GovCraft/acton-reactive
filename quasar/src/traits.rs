@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorInboxAddress, LifecycleInbox, LifecycleInboxAddress, LifecycleStopFlag, Quasar};
+use crate::common::{ActorInboxAddress, LifecycleInbox, LifecycleInboxAddress, LifecycleStopFlag, Quasar, QuasarRunning};
 
 //region Traits
 pub trait ActorMessage: Any + Sync + Send + Debug {
@@ -56,6 +56,8 @@ pub (crate) trait LifecycleSupervisor {
 pub trait ActorContext: Sized {
     fn get_actor_inbox_address(&mut self) -> &mut ActorInboxAddress;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
+
+    // fn get_state<T,U>(&self) -> &'static QuasarRunning<T, U>;
 
     async fn send(&mut self, message: impl ActorMessage) -> anyhow::Result<()> {
         self.get_actor_inbox_address().send(Box::new(message)).await?;
