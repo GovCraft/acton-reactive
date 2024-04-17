@@ -1,8 +1,9 @@
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use async_trait::async_trait;
+use quasar_qrn::prelude::*;
 use tokio_util::task::TaskTracker;
-use crate::{ActorInboxAddress, LifecycleInbox, LifecycleInboxAddress, LifecycleStopFlag};
+use crate::common::{ActorInboxAddress, LifecycleInbox, LifecycleInboxAddress, LifecycleStopFlag, Quasar};
 
 //region Traits
 pub trait ActorMessage: Any + Sync + Send + Debug {
@@ -24,6 +25,14 @@ pub trait Actor: Sized + Unpin + 'static {
     fn get_lifecycle_inbox(&mut self) -> &mut LifecycleInbox;
     fn get_lifecycle_stop_flag(&mut self) -> &mut LifecycleStopFlag;
     // async fn lifecycle_listen(&mut self, lifecycle_message_reactor_map: SystemMessageReactorMap);
+}
+
+pub trait KnownQuasar {
+    fn qrn(&self) -> &Qrn;
+}
+
+pub trait QuasarFactory{
+    fn new_quasar<S>(&self) -> Quasar<S>;
 }
 
 pub trait IdleActor {

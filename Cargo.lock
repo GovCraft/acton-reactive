@@ -225,6 +225,7 @@ dependencies = [
  "dashmap",
  "matchit",
  "quasar",
+ "quasar-qrn",
  "tokio",
  "tokio-util",
  "url-builder",
@@ -348,7 +349,7 @@ dependencies = [
 [[package]]
 name = "quasar-qrn"
 version = "0.1.0"
-source = "git+ssh://git@github.com/GovCraft/quasar-qrn.git#78a066f7675fa664c90c53605c2e0739b89f700e"
+source = "git+ssh://git@github.com/GovCraft/quasar-qrn.git#497e81fab84b8870beb6513e00ee769734227e63"
 
 [[package]]
 name = "quote"

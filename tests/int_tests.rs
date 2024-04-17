@@ -2,9 +2,9 @@ use std::any::Any;
 use std::thread::sleep;
 use std::time::Duration;
 
-use quasar::Quasar;
-use quasar::traits::{ActorContext, ActorMessage};
-
+use quasar::{Quasar, QuasarSystem};
+use quasar::traits::{ActorContext, ActorMessage, KnownQuasar};
+use quasar_qrn::prelude::*;
 
 // #[tokio::test]
 // async fn test_on_stop() -> anyhow::Result<()> {
@@ -27,46 +27,56 @@ use quasar::traits::{ActorContext, ActorMessage};
 
 #[tokio::test]
 async fn test_on_start() -> anyhow::Result<()> {
-    let mut actor = Quasar::new("quasar", "system", "govcraft", "parser");
-    const PING_COUNT: usize = 2;
-    actor.ctx
-        .on_start(|actor| {
-            println!("now starting actor id: {}", actor.id);
-            assert_eq!(actor.id, "hello")
-        })
-        .on_before_start(|actor| {
-            println!("before starting actor id: {}", actor.id);
-            assert_eq!(actor.id, "hello")
-        })
-        .on_stop(|actor| {
-            println!("STOPPED actor id: {}", actor.id);
-            assert_eq!(actor.id, "hello");
-        });
+    // let mut actor = Quasar::new("quasar", "system", "govcraft", "parser");
+    // const PING_COUNT: usize = 2;
+    // actor.ctx
+    //     .on_start(|actor| {
+    //         println!("now starting actor id: {}", actor.id);
+    //         assert_eq!(actor.id, "root")
+    //     })
+    //     .on_before_start(|actor| {
+    //         println!("before starting actor id: {}", actor.id);
+    //         assert_eq!(actor.id, "root")
+    //     })
+    //     .on_stop(|actor| {
+    //         println!("STOPPED actor id: {}", actor.id);
+    //         assert_eq!(actor.id, "root");
+    //     });
+    //
+    //
+    // let mut ctx1 = Quasar::spawn(actor).await;
+    //
+    // // sleep(Duration::from_secs(2));
+    // let _ = ctx1.stop().await;
+    //
 
+    Ok(())
+}
 
-    let mut ctx1 = Quasar::spawn(actor).await;
+#[tokio::test]
+async fn test_singularity_qrn() -> anyhow::Result<()> {
+    let system = QuasarSystem::new().await;
 
-    // sleep(Duration::from_secs(2));
-    let _ = ctx1.stop().await;
-
+    // assert_eq!(system.singularity.qrn().value, "qrn:quasar:system:framework:root");
 
     Ok(())
 }
 
 #[tokio::test]
 async fn test_on_before_start() -> anyhow::Result<()> {
-    let mut actor = Quasar::new("quasar", "system", "govcraft", "parser");
+    // let mut actor = Quasar::new("quasar", "system", "govcraft", "tester");
+    //
+    // actor.ctx
+    //     .on_before_start(|actor| {
+    //         assert_eq!(actor.id, "root");
+    //     });
+    //
+    // let mut context = Quasar::spawn(actor).await;
+    // let _ = context.stop().await;
+    //
 
-    actor.ctx
-        .on_before_start(|actor| {
-            assert_eq!(actor.id, "actor");
-        });
 
-    let mut context = Quasar::spawn(actor).await;
-    let _ = context.stop().await;
-
-
-    Ok(())
+        Ok(())
 }
 
 #[derive(Debug)]

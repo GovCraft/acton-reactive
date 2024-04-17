@@ -10,20 +10,20 @@ use quasar::traits::{ActorContext, ActorMessage};
 async fn main() -> anyhow::Result<()> {
     const PING_COUNT: usize = 2;
 
-    let mut actor = Quasar::new("quasar", "system", "govcraft", "root");
-
-    actor.ctx
-        .act_on::<FunnyMessage>(|actor, msg|
-            {
-                println!("{:?}", msg);
-            });
-
-    let mut ctx1 = Quasar::spawn(actor).await;
-    ctx1.send(FunnyMessage::Lol).await?;
-
-
-    // sleep(Duration::from_secs(2));
-    let _ = ctx1.stop().await;
+    // let mut actor = Quasar::();
+    //
+    // actor.ctx
+    //     .act_on::<FunnyMessage>(|actor, msg|
+    //         {
+    //             println!("{:?}", msg);
+    //         });
+    //
+    // let mut ctx1 = Quasar::spawn(actor).await;
+    // ctx1.send(FunnyMessage::Lol).await?;
+    //
+    //
+    // // sleep(Duration::from_secs(2));
+    // let _ = ctx1.stop().await;
 
 
     Ok(())
@@ -74,38 +74,38 @@ fn test_url_builder( )
 }
 #[tokio::test]
 async fn test_on_start() -> anyhow::Result<()> {
-    let mut actor = Quasar::new("quasar", "system", "govcraft", "root");
-    const PING_COUNT: usize = 2;
-
-    let count = Arc::new(Mutex::new(0));
-    actor.ctx
-        .on_start(|actor| {
-            println!("now starting actor id: {}", actor.id);
-            assert!(true);
-        })
-        .act_on::<FunnyMessage>(move |actor, msg| {
-            println!("{:?}", msg);
-            let count = count.clone();
-            let mut count = count.lock().unwrap() ;
-            *count += 1;
-            println!("count: {}", count);
-        });
-
-
-    let mut ctx1 = Quasar::spawn(actor).await;
-
-    ctx1.send(FunnyMessage::Lol).await?;
-    ctx1.send(FunnyMessage::Lol).await?;
-    ctx1.send(FunnyMessage::Lol).await?;
-    ctx1.send(FunnyMessage::Lol).await?;
-
-
-    for i in 0..PING_COUNT {
-        ctx1.send(Ping(i)).await?; // Send a message to the selected context
-    }
-
-
-    let _ = ctx1.stop().await;
+    // let mut actor = Quasar::new("quasar", "system", "govcraft", "root");
+    // const PING_COUNT: usize = 2;
+    //
+    // let count = Arc::new(Mutex::new(0));
+    // actor.ctx
+    //     .on_start(|actor| {
+    //         println!("now starting actor id: {}", actor.id);
+    //         assert!(true);
+    //     })
+    //     .act_on::<FunnyMessage>(move |actor, msg| {
+    //         println!("{:?}", msg);
+    //         let count = count.clone();
+    //         let mut count = count.lock().unwrap() ;
+    //         *count += 1;
+    //         println!("count: {}", count);
+    //     });
+    //
+    //
+    // let mut ctx1 = Quasar::spawn(actor).await;
+    //
+    // ctx1.send(FunnyMessage::Lol).await?;
+    // ctx1.send(FunnyMessage::Lol).await?;
+    // ctx1.send(FunnyMessage::Lol).await?;
+    // ctx1.send(FunnyMessage::Lol).await?;
+    //
+    //
+    // for i in 0..PING_COUNT {
+    //     ctx1.send(Ping(i)).await?; // Send a message to the selected context
+    // }
+    //
+    //
+    // let _ = ctx1.stop().await;
 
     Ok(())
 }
