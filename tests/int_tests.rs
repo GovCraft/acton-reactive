@@ -1,8 +1,11 @@
 use std::any::Any;
 use std::thread::sleep;
 use std::time::Duration;
+use tracing::{debug, Level};
+use tracing_subscriber::FmtSubscriber;
 
 use quasar::prelude::*;
+
 
 // #[tokio::test]
 // async fn test_on_stop() -> anyhow::Result<()> {
@@ -50,18 +53,67 @@ async fn test_on_start() -> anyhow::Result<()> {
 
     Ok(())
 }
-
+#[derive(Default, Debug)]
+pub struct MyCustomState {
+    data: String,
+}
 #[tokio::test]
 async fn test_singularity_qrn() -> anyhow::Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let my_state = MyCustomState {
+        data: "Initial State".to_string(),
+    };
+
+    //creates a new root actor (system singularity) and begins processing system messages
     let system = QuasarSystem::new().await;
-    let c = system.singularity;
-    assert_eq!(system.singularity.qrn().value, "qrn:quasar:system:framework:root");
+    //system singularity is type QuasarContext
+
+    //a QuasarDormant struct with my_state attached is created and added as a child of the
+    //root actor QuasarRunning<Singularity> (internally defined)
+
+    let mut dormant_actor = system.singularity.new_quasar::<MyCustomState>(my_state, "my_state");
+    assert_eq!(dormant_actor.ctx.qrn.value, "qrn:quasar:system:framework:root/my_state");
+    //
+    // //users pass closures for message processing specifying the type of message the closure handles
+    dormant_actor.ctx.on_before_start(|actor|{
+        debug!("before starting actor");
+    });
+    // dormant_actor.ctx
+    //     .act_on::<FunnyMessage>(|actor, msg|
+    //         {
+    //             assert_eq!("Initial States", actor.state.data);
+    //         });
+    //     .act_on::<Ping>(|_, msg| {
+    //         println!("Ping received.");
+    //     });
+    // // //consumes dormant_actor, uses into() to turn it into a QuasarRunning instance with a state field of some type to
+    // // // hold the instance of MyCustomState,
+    // // //spawns a Tokio task with the processing loop which consumes the QuasarRunning instance
+    // // //and returns a QuasarContext for supervising the actor
+    //
+    let mut context = Quasar::spawn(dormant_actor).await;
+
+    context.send(FunnyMessage::Lol).await?;
+
+    //
+    //
+    let _ = context.stop().await;
+    let _ = system.singularity.stop().await;
 
     Ok(())
 }
 
 #[tokio::test]
 async fn test_on_before_start() -> anyhow::Result<()> {
+    // let system = QuasarSystem::new().await;
+
+    // system.singularity.
     // let mut actor = Quasar::new("quasar", "system", "govcraft", "tester");
     //
     // actor.ctx

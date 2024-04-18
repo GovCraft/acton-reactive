@@ -7,31 +7,32 @@ use crate::common::{ActorInbox, ActorInboxAddress, ActorReactorMap, ActorStopFla
 use crate::common::*;
 use crate::traits::Actor;
 
-pub struct QuasarRunning<T:'static, U:'static> {
+pub struct QuasarRunning<T: 'static, U: 'static> {
     pub qrn: Qrn,
-    pub state: Option<&'static T>,
-    supervisor: Option<&'static QuasarRunning<T,U>>,
-    pub(crate) lifecycle_message_reactor_map: Option<LifecycleReactorMap<T,U>>,
+    pub state: T,
+    supervisor: Option<&'static QuasarRunning<T, U>>,
+    pub(crate) lifecycle_message_reactor_map: Option<LifecycleReactorMap<T, U>>,
     lifecycle_inbox: LifecycleInbox,
     pub(crate) lifecycle_inbox_address: LifecycleInboxAddress,
     lifecycle_stop_flag: LifecycleStopFlag,
-    on_start_reactor: LifecycleEventReactor<QuasarRunning<T,U>>,
-    on_stop_reactor: LifecycleEventReactor<QuasarRunning<T,U>>,
-    on_before_message_receive_reactor: LifecycleEventReactorMut<T,U>,
-    on_after_message_receive_reactor: LifecycleEventReactor<QuasarRunning<T,U>>,
-    pub(crate) actor_message_reactor_map: Option<ActorReactorMap<T,U>>,
+    on_start_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
+    on_stop_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
+    on_before_message_receive_reactor: LifecycleEventReactorMut<T, U>,
+    on_after_message_receive_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
+    pub(crate) actor_message_reactor_map: Option<ActorReactorMap<T, U>>,
     actor_inbox: ActorInbox,
     pub(crate) actor_inbox_address: ActorInboxAddress,
     actor_stop_flag: ActorStopFlag,
 }
 
-impl<T,U> QuasarRunning<T, U> {
-
+impl<T, U> QuasarRunning<T, U> {
     pub(crate) async fn actor_listen(&mut self, actor_message_reactor_map: ActorReactorMap<T, U>, lifecycle_message_reactor_map: LifecycleReactorMap<T, U>) {
         let _ = (self.on_start_reactor)(self);
+        assert!(!actor_message_reactor_map.is_empty() && !lifecycle_message_reactor_map.is_empty(), "listening with zero actor and system reactors: {}", self.qrn.value);
         loop {
             // Fetch and process actor messages if available
             while let Ok(actor_msg) = self.actor_inbox.try_recv() {
+                assert!(false, "{}", self.qrn.value);
                 let type_id = actor_msg.as_any().type_id();
                 if let Some(reactor) = actor_message_reactor_map.get(&type_id) {
                     {
@@ -71,8 +72,8 @@ impl<T,U> QuasarRunning<T, U> {
 }
 
 
-impl<T,U> From<Quasar<QuasarDormant<T, U>>> for Quasar<QuasarRunning<T, U>> {
-    fn from(value: Quasar<QuasarDormant<T,U>>) -> Quasar<QuasarRunning<T,U>> {
+impl<T: Default + Send + Sync, U: Send + Sync> From<Quasar<QuasarDormant<T, U>>> for Quasar<QuasarRunning<T, U>> {
+    fn from(value: Quasar<QuasarDormant<T, U>>) -> Quasar<QuasarRunning<T, U>> {
         let (actor_inbox_address, actor_inbox) = channel(255);
         let (lifecycle_inbox_address, lifecycle_inbox) = channel(255);
 
@@ -91,7 +92,7 @@ impl<T,U> From<Quasar<QuasarDormant<T, U>>> for Quasar<QuasarRunning<T, U>> {
                 actor_inbox_address,
                 actor_stop_flag: ActorStopFlag::new(false),
                 qrn: value.ctx.qrn,
-                state: None,
+                state: value.ctx.state,
                 supervisor: None,
             },
         }
@@ -99,7 +100,7 @@ impl<T,U> From<Quasar<QuasarDormant<T, U>>> for Quasar<QuasarRunning<T, U>> {
 }
 
 #[async_trait]
-impl<T,U> Actor for QuasarRunning<T, U> {
+impl<T: Unpin, U> Actor for QuasarRunning<T, U> {
     type Context = QuasarContext;
 
     fn get_lifecycle_inbox(&mut self) -> &mut LifecycleInbox {
@@ -112,4 +113,4 @@ impl<T,U> Actor for QuasarRunning<T, U> {
 }
 
 
-unsafe impl<T,U> Send for QuasarRunning<T,U> {}
+unsafe impl<T, U> Send for QuasarRunning<T, U> {}
