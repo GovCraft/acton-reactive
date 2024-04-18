@@ -42,9 +42,10 @@ impl<T, U> QuasarRunning<T, U> {
                 let type_id = actor_msg.as_any().type_id();
                 if let Some(reactor) = actor_message_reactor_map.get(&type_id) {
                     {
-                        trace!("executing actor message reactor {:?}", actor_msg);
-                        let _ = (&self.on_before_message_receive_reactor)(self, &*actor_msg);
-                        let _ = reactor(self, &*actor_msg);
+                        // let _ = (&self.on_before_message_receive_reactor)(self, &*actor_msg);
+                        trace!("executing reactor");
+                        let reactor_return = reactor(self, &*actor_msg);
+                        trace!("reactor_return {:?}", reactor_return);
                     }
                     // (self.on_after_message_receive_reactor)(self);
                 } else {

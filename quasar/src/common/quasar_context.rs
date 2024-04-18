@@ -4,6 +4,7 @@ use tokio_util::task::TaskTracker;
 use crate::common::{ActorInboxAddress, InternalMessage, LifecycleInboxAddress, Quasar, QuasarDormant, QuasarRunning, QuasarSystem};
 use crate::traits::{ActorContext, ActorFactory, LifecycleSupervisor};
 use quasar_qrn::{prelude, Qrn};
+use tracing::{debug, instrument};
 
 #[derive(Debug)]
 pub struct QuasarContext
@@ -51,7 +52,9 @@ impl ActorContext for QuasarContext {
         &self.qrn
     }
 
+    #[instrument(skip(self), fields(qrn = self.qrn.value))]
     async fn stop(self) -> anyhow::Result<()> {
+        debug!("Sending stop message to lifecycle address");
         self.lifecycle_inbox_address.send(Box::new(InternalMessage::Stop)).await?;
         self.task_tracker.wait().await;
         Ok(())

@@ -30,9 +30,9 @@ pub type ActorTaskHandle = JoinHandle<()>;
 pub type ActorChildMap<T, U> = DashMap<TypeId, ActorReactor<T, U>>;
 
 pub type LifecycleEventReactorMut<T: Debug, U: Debug> = Box<dyn Fn(&QuasarRunning<T, U>, &dyn ActorMessage) + Send + Sync>;
-pub type LifecycleEventReactor<T: Debug> = Box<dyn Fn(&T) + Send + Sync>;
+pub type LifecycleEventReactor<T> = Box<dyn Fn(&T) + Send + Sync>;
 // type ActorReactor = Box<dyn Fn(&mut MyActorRunning, &dyn ActorMessage) + Send + Sync>;
-pub type LifecycleReactor<T: Debug, U: Debug> = Box<dyn Fn(&mut QuasarRunning<T, U>, &dyn LifecycleMessage) + Send + Sync>;
-pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;
-pub type ActorReactor<T: Debug, U: Debug> = Box<dyn Fn(&mut QuasarRunning<T, U>, &dyn ActorMessage) + Send + Sync>;
+pub type LifecycleReactor<T, U> = Box<dyn Fn(&mut QuasarRunning<T, U>, &dyn LifecycleMessage) + Send + Sync>;
+// pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;
+pub type ActorReactor<T, U> = Box<dyn Fn(&mut QuasarRunning<T, U>, &dyn ActorMessage) + Send + Sync>;
 //endregion

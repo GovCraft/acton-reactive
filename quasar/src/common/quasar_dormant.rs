@@ -32,7 +32,7 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
     }
     //endregion
     #[instrument(skip(self, actor_message_reactor), qrn=&self.qrn.value)]
-    pub fn act_on<M: ActorMessage + 'static>(&mut self, actor_message_reactor: impl Fn(&mut QuasarRunning<T, U>, &M) + Sync + 'static + Send) -> &mut Self
+    pub fn act_on<M: ActorMessage + 'static>(&mut self, actor_message_reactor: impl Fn(&mut QuasarRunning<T, U>, &M) + Send + Sync + 'static) -> &mut Self
         where T: Default + Send,
               U: Send {
         // Extract the necessary data from self before moving it into the closure
@@ -41,7 +41,6 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
         // Create a boxed reactor that can be stored in the HashMap.
         let actor_message_reactor_box: ActorReactor<T, U> = Box::new(move |actor: &mut QuasarRunning<T, U>, actor_message: &dyn ActorMessage| {
             // Attempt to downcast the message to its concrete type.
-            assert!(false, "{}", qrn_value);
             if let Some(concrete_msg) = actor_message.as_any().downcast_ref::<M>() {
                 actor_message_reactor(actor, concrete_msg);
             } else {
@@ -65,8 +64,6 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
         // Return self to allow chaining.
         self
     }
-
-
 
     pub fn act_on_lifecycle<M: LifecycleMessage + 'static>(&mut self, lifecycle_message_reactor: impl Fn(&mut QuasarRunning<T, U>, &M) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
