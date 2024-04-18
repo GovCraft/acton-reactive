@@ -5,10 +5,10 @@
       <sourceFolder url="file://$MODULE_DIR$/govcraft-actify-core/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/quasar/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/govcraft-quasar-test/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/govcraft-quasar/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/govcraft-quasar/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/govcraft-quasar/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/quasar-core/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/quasar-macro/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/quasar/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/quasar/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
