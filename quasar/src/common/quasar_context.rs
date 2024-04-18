@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorInboxAddress, InternalMessage, LifecycleInboxAddress, Quasar, QuasarDormant, QuasarRunning, QuasarSystem};
-use crate::traits::{ActorContext, ActorFactory, LifecycleSupervisor};
-use quasar_qrn::{prelude, Qrn};
+use crate::common::{ActorInboxAddress, InternalMessage, LifecycleInboxAddress, Quasar, QuasarDormant};
+use crate::traits::{ActorContext, LifecycleSupervisor};
+use quasar_qrn::Qrn;
 use tracing::{debug, instrument};
 
 #[derive(Debug)]
@@ -15,25 +15,13 @@ pub struct QuasarContext
     pub(crate) qrn: Qrn,
 }
 
-// impl ActorFactory for QuasarContext {
-//     fn new_quasar<T: Default, U>(&self, actor: T, id: &str) -> Quasar<QuasarDormant<T, QuasarSystem, >> {
-//         //get the parent if it exists
-//         let mut qrn =self.singularity.qrn.clone();
-//         qrn.append_part(id);
-//
-//         let quasar = Quasar::new(qrn);
-//         quasar
-//     }
-//
-// }
 impl QuasarContext {
     pub fn new_quasar<T: Default + Send + Sync + Debug>(&self, actor: T, id: &str) -> Quasar<QuasarDormant<T, Self>> {
         //get the parent if it exists
         let mut qrn = self.qrn().clone();
         qrn.append_part(id);
 
-        let quasar = Quasar::new(qrn, actor);
-        quasar
+        Quasar::new(qrn, actor)
     }
 }
 

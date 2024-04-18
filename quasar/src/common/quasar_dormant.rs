@@ -2,9 +2,8 @@ use std::any::TypeId;
 use std::time::SystemTime;
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use tokio_util::task::TaskTracker;
 use tracing::{debug, error, instrument};
-use crate::common::{ActorReactor, ActorReactorMap, LifecycleEventReactor, LifecycleEventReactorMut, LifecycleReactor, LifecycleReactorMap};
+use crate::common::{ActorReactor, ActorReactorMap, LifecycleEventReactor, LifecycleReactor, LifecycleReactorMap};
 use crate::common::*;
 use crate::traits::{ActorMessage, LifecycleMessage};
 
@@ -16,8 +15,6 @@ pub struct QuasarDormant<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub(crate) on_before_start_reactor: LifecycleEventReactor<Self>,
     pub(crate) on_start_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
     pub(crate) on_stop_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
-    pub(crate) on_before_message_receive_reactor: LifecycleEventReactorMut<T, U>,
-    pub(crate) on_after_message_receive_reactor: LifecycleEventReactor<QuasarRunning<T, U>>,
     pub(crate) actor_reactor_map: ActorReactorMap<T, U>,
     pub(crate) lifecycle_reactor_map: LifecycleReactorMap<T, U>,
 }
@@ -31,7 +28,7 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
         }
     }
     //endregion
-    #[instrument(skip(self, actor_message_reactor), qrn=&self.qrn.value)]
+    #[instrument(skip(self, actor_message_reactor))]
     pub fn act_on<M: ActorMessage + 'static>(&mut self, actor_message_reactor: impl Fn(&mut QuasarRunning<T, U>, &M) + Send + Sync + 'static) -> &mut Self
         where T: Default + Send,
               U: Send {
@@ -112,8 +109,6 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
             on_before_start_reactor: Box::new(|_| {}),
             on_start_reactor: Box::new(|_| {}),
             on_stop_reactor: Box::new(|_| {}),
-            on_before_message_receive_reactor: Box::new(|_, _| {}),
-            on_after_message_receive_reactor: Box::new(|_| {}),
             actor_reactor_map: DashMap::new(),
             lifecycle_reactor_map: DashMap::new(),
         }

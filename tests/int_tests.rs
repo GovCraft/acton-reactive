@@ -1,7 +1,5 @@
 use std::any::Any;
 use std::sync::{Arc, Mutex};
-use std::thread::sleep;
-use std::time::Duration;
 use tracing::{debug, info, Level, trace, warn};
 use tracing_subscriber::FmtSubscriber;
 
@@ -87,7 +85,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let final_state = Arc::new(Mutex::new(String::new()));
     let final_state_clone = final_state.clone();  // Clone for use in the closure
 
-    dormant_actor.ctx.on_before_start(|actor| {
+    dormant_actor.ctx.on_before_start(|_actor| {
         trace!("before starting actor");
     })
         .act_on::<FunnyMessage>(move |actor, msg|
@@ -123,7 +121,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
-    let subscriber = FmtSubscriber::builder()
+    let _subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .compact()
         .with_line_number(true)
@@ -159,7 +157,7 @@ async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
     let second_final_state = Arc::new(Mutex::new(String::new()));
     let second_final_state_clone = second_final_state.clone();  // Clone for use in the closure
 
-    dormant_actor.ctx.on_before_start(|actor| {
+    dormant_actor.ctx.on_before_start(|_actor| {
         trace!("before starting actor");
     })
         .act_on::<FunnyMessage>(move |actor, msg|
@@ -181,7 +179,7 @@ async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
                 info!("Actor mutation count {}", actor.state.mutation_count);
             });
 
-    second_dormant_actor.ctx.on_stop(|actor| {
+    second_dormant_actor.ctx.on_stop(|_actor| {
         info!("after stopping actor");
     })
         .act_on::<Message>(move |actor, msg|
@@ -212,6 +210,8 @@ async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
     context.send(FunnyMessage::Haha).await?;
     second_context.send(Message::Hola).await?;
 
+    let _ = context.stop().await;
+    let _ = second_context.stop().await;
     let _ = system.singularity.stop().await;
 
     let final_result = final_state.lock().unwrap(); // Lock to access data safely
@@ -280,7 +280,7 @@ impl ActorMessage for FunnyMessage {
 }
 
 #[derive(Debug)]
-pub struct Ping(usize);
+pub struct Ping;
 
 impl ActorMessage for Ping {
     fn as_any(&self) -> &dyn Any {

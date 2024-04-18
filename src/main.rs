@@ -1,14 +1,12 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
-use quasar::*;
 use quasar::prelude::*;
 
 
 //region Main
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    const PING_COUNT: usize = 2;
+    // const PING_COUNT: usize = 2;
 
     // let mut actor = Quasar::();
     //
@@ -148,7 +146,7 @@ impl ActorMessage for FunnyMessage {
 }
 
 #[derive(Debug)]
-pub struct Ping(usize);
+pub struct Ping;
 
 impl ActorMessage for Ping {
     fn as_any(&self) -> &dyn Any {

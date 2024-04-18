@@ -1,7 +1,6 @@
 use quasar_qrn::Qrn;
 use tokio_util::task::TaskTracker;
 use crate::common::{InternalMessage, QuasarContext, QuasarDormant, QuasarRunning};
-use Clone;
 use tracing::{debug, instrument, warn};
 
 pub struct Quasar<S> {
@@ -18,22 +17,18 @@ impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
     #[instrument(skip(actor))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
     pub async fn spawn(actor: Quasar<QuasarDormant<T, U>>) -> QuasarContext {
-        // Ensure the actor is initially in a dormant state
-        assert!(matches!(actor.ctx, ref QuasarDormant), "Actor must be dormant to spawn");
 
         // Convert the actor from MyActorIdle to MyActorRunning
         let mut actor = actor;
 
         // Handle any pre_start activities
-        let pre_start_result = (actor.ctx.on_before_start_reactor)(&actor.ctx);
-        assert_eq!(pre_start_result, (), "Pre-start activities failed");
+        (actor.ctx.on_before_start_reactor)(&actor.ctx);
 
         // Ensure reactors are correctly assigned
         Self::assign_lifecycle_reactors(&mut actor);
 
         // Convert to QuasarRunning state
         let mut actor: Quasar<QuasarRunning<T, U>> = actor.into();
-        assert!(matches!(actor.ctx, ref QuasarRunning), "Actor must be in running state after conversion");
 
         // Take reactor maps and inbox addresses before entering async context
         let lifecycle_message_reactor_map = actor.ctx.lifecycle_message_reactor_map.take().expect("No lifecycle reactors provided. This should never happen");
