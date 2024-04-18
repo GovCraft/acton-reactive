@@ -1,0 +1,19 @@
+[package]
+name = "govcraft-actify"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+supervisor=[]
+
+[dependencies]
+govcraft-actify-macro = { path = "../govcraft-actify-macro" }
+quasar = { path = "../quasar" }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+anyhow = "1.0.81"
+async-trait = "0.1.79"
+tokio = "1.37.0"
+petgraph = "0.6.4"
+futures = "0.3.30"
+log = "0.4.21"
