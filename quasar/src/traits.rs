@@ -3,67 +3,54 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorInboxAddress, LifecycleInbox, LifecycleInboxAddress, LifecycleStopFlag, Quasar, QuasarDormant, QuasarSystem};
+use crate::common::{WormholeEntrance, SingularityWormhole, SingularityWormholeEntrance, GalacticCoreHaltSignal, Quasar, QuasarDormant, QuasarCore};
 
 //region Traits
-pub trait ActorMessage: Any + Sync + Send + Debug {
+pub trait PhotonPacket: Any + Sync + Send + Debug {
     fn as_any(&self) -> &dyn Any;
     fn type_id(&self) -> TypeId { TypeId::of::<Self>() }
 }
 
-pub trait LifecycleMessage: Any + Sync + Send + Debug {
+pub trait SingularitySignal: Any + Sync + Send + Debug {
     fn as_any(&self) -> &dyn Any;
 }
 
 //endregion
 #[async_trait]
-pub trait Actor: Sized + Unpin + 'static {
+pub trait EventHorizon: Sized + Unpin + 'static {
     /// Actor execution context type
-    type Context: ActorContext;
+    type Context: Entanglement;
     // fn new() -> Self;
 
-    fn get_lifecycle_inbox(&mut self) -> &mut LifecycleInbox;
-    fn get_lifecycle_stop_flag(&mut self) -> &mut LifecycleStopFlag;
+    fn get_lifecycle_inbox(&mut self) -> &mut SingularityWormhole;
+    fn get_lifecycle_stop_flag(&mut self) -> &mut GalacticCoreHaltSignal;
     // async fn lifecycle_listen(&mut self, lifecycle_message_reactor_map: SystemMessageReactorMap);
 }
 
-pub trait KnownQuasar {
-    fn qrn(&self) -> &Qrn;
-}
-
-pub trait QuasarFactory {
-    fn new_quasar<S>(&self) -> Quasar<S>;
-}
-
-pub trait IdleActor {
-    // type State: IdleState;
-    fn new() -> Self where Self: Sized;
-}
-
-pub trait IdleState {}
-
 #[async_trait]
-pub(crate) trait LifecycleSupervisor {
-    fn get_lifecycle_inbox_address(&mut self) -> &mut LifecycleInboxAddress;
-    async fn send_lifecycle(&mut self, message: impl LifecycleMessage) -> anyhow::Result<()> {
-        self.get_lifecycle_inbox_address().send(Box::new(message)).await?;
+pub(crate) trait SpookyDistanceTarget {
+    fn get_singularity_wormhole_entrance(&mut self) -> &mut SingularityWormholeEntrance;
+    async fn send_lifecycle(&mut self, message: impl SingularitySignal) -> anyhow::Result<()> {
+        self.get_singularity_wormhole_entrance().send(Box::new(message)).await?;
         Ok(())
     }
 }
 
 pub trait ActorFactory {
-    fn new_quasar<T: Default + Send + Sync, U: Send + Sync>(&self, actor: T, id: &str) -> Quasar<QuasarDormant<T, QuasarSystem, >>;
+    fn new_quasar<T: Default + Send + Sync, U: Send + Sync>(&self, actor: T, id: &str) -> Quasar<QuasarDormant<T, QuasarCore, >>;
 }
 
 #[async_trait]
-pub trait ActorContext: Sized {
-    fn get_actor_inbox_address(&mut self) -> &mut ActorInboxAddress;
+pub trait Entanglement: Sized {
+
+
+    fn get_wormhole_entrance(&mut self) -> &mut WormholeEntrance;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
 
-    fn qrn(&self) -> &Qrn;
+    fn key(&self) -> &Qrn;
 
-    async fn send(&mut self, message: impl ActorMessage) -> anyhow::Result<()> {
-        self.get_actor_inbox_address().send(Box::new(message)).await?;
+    async fn emit(&mut self, message: impl PhotonPacket) -> anyhow::Result<()> {
+        self.get_wormhole_entrance().send(Box::new(message)).await?;
         Ok(())
     }
 
@@ -77,7 +64,6 @@ pub trait ActorContext: Sized {
     fn terminate(&mut self);
 
     fn start(&mut self);
-    // Retrieve the current Actor execution state.
-    // fn state(&self) -> ActorState;
+
 }
 

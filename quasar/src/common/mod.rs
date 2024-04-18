@@ -1,8 +1,8 @@
-mod quasar_system;
-pub use quasar_system::QuasarSystem;
+mod quasar_core;
+pub use quasar_core::QuasarCore;
 
-mod singularity;
-pub use singularity::Singularity;
+mod galactic_core;
+pub use galactic_core::GalacticCore;
 
 mod types;
 pub use types::*;
@@ -10,14 +10,14 @@ pub use types::*;
 mod quasar_dormant;
 pub use quasar_dormant::QuasarDormant;
 
-mod quasar_running;
-pub use quasar_running::QuasarRunning;
+mod quasar_active;
+pub use quasar_active::QuasarActive;
 
-mod internal_messages;
-pub use internal_messages::InternalMessage;
+mod dark_signal;
+pub use dark_signal::DarkSignal;
 
-mod quasar_context;
-pub use quasar_context::QuasarContext;
+mod quasar_entanglement_link;
+pub use quasar_entanglement_link::EntanglementLink;
 
 mod quasar;
 pub use quasar::Quasar;

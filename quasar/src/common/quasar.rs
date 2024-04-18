@@ -1,76 +1,75 @@
 use quasar_qrn::Qrn;
 use tokio_util::task::TaskTracker;
-use crate::common::{InternalMessage, QuasarContext, QuasarDormant, QuasarRunning};
+use crate::common::{DarkSignal, EntanglementLink, QuasarDormant, QuasarActive};
 use tracing::{debug, instrument, warn};
 
 pub struct Quasar<S> {
-    pub ctx: S,
+    pub entanglement_link: S,
 }
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
     pub(crate) fn new(qrn: Qrn, state:T) -> Self {
         Quasar {
-            ctx: QuasarDormant::new(qrn, state)
+            entanglement_link: QuasarDormant::new(qrn, state)
         }
     }
-    #[instrument(skip(actor))]
+    #[instrument(skip(dormant_quasar))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
-    pub async fn spawn(actor: Quasar<QuasarDormant<T, U>>) -> QuasarContext {
+    pub async fn spawn(dormant_quasar: Quasar<QuasarDormant<T, U>>) -> EntanglementLink {
 
         // Convert the actor from MyActorIdle to MyActorRunning
-        let mut actor = actor;
+        let mut actor = dormant_quasar;
 
         // Handle any pre_start activities
-        (actor.ctx.on_before_start_reactor)(&actor.ctx);
+        (actor.entanglement_link.on_before_start_photon_captures)(&actor.entanglement_link);
 
         // Ensure reactors are correctly assigned
         Self::assign_lifecycle_reactors(&mut actor);
 
         // Convert to QuasarRunning state
-        let mut actor: Quasar<QuasarRunning<T, U>> = actor.into();
+        let mut active_quasar: Quasar<QuasarActive<T, U>> = actor.into();
 
         // Take reactor maps and inbox addresses before entering async context
-        let lifecycle_message_reactor_map = actor.ctx.lifecycle_message_reactor_map.take().expect("No lifecycle reactors provided. This should never happen");
-        let actor_message_reactor_map = actor.ctx.actor_message_reactor_map.take().expect("No actor message reactors provided. This should never happen");
-        debug!("{} items in actor_reactor_map", actor_message_reactor_map.len());
+        let singularity_signal_responder_map = active_quasar.entanglement_link.singularity_signal_responder_map.take().expect("No lifecycle reactors provided. This should never happen");
+        let photon_responder_map = active_quasar.entanglement_link.photon_responder_map.take().expect("No actor message reactors provided. This should never happen");
+        debug!("{} items in actor_reactor_map", photon_responder_map.len());
 
-        let actor_inbox_address = actor.ctx.actor_inbox_address.clone();
+        let actor_inbox_address = active_quasar.entanglement_link.wormhole_entrance.clone();
         assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
 
-        let lifecycle_inbox_address = actor.ctx.lifecycle_inbox_address.clone();
+        let lifecycle_inbox_address = active_quasar.entanglement_link.singularity_wormhole_entrance.clone();
         assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
 
-        let qrn = actor.ctx.qrn.clone();
+        let qrn = active_quasar.entanglement_link.key.clone();
 
-        let mut ctx = actor.ctx;
         let task_tracker = TaskTracker::new();
 
-        // Spawn task to listen to actor and lifecycle messages
+        // Spawn task to listen to messages
         task_tracker.spawn(async move {
-            ctx.actor_listen(actor_message_reactor_map, lifecycle_message_reactor_map).await
+            active_quasar.entanglement_link.capture_photons(photon_responder_map, singularity_signal_responder_map).await
         });
         task_tracker.close();
         assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 
         // Create a new QuasarContext with pre-extracted data
-        QuasarContext {
-            actor_inbox_address,
-            lifecycle_inbox_address,
+        EntanglementLink {
+            wormhole_entrance: actor_inbox_address,
+            singularity_wormhole_entrance: lifecycle_inbox_address,
             task_tracker,
-            qrn,
+            key: qrn,
         }
     }
 
-    #[instrument(skip(actor), fields(qrn=actor.ctx.qrn.value))]
-    fn assign_lifecycle_reactors(actor: &mut Quasar<QuasarDormant<T, U>>) {
+    #[instrument(skip(dormant_quasar), fields(qrn=dormant_quasar.entanglement_link.key.value))]
+    fn assign_lifecycle_reactors(dormant_quasar: &mut Quasar<QuasarDormant<T, U>>) {
         debug!("assigning_lifeccycle reactors");
 
-        actor.ctx.act_on_lifecycle::<InternalMessage>(|actor, lifecycle_message| {
+        dormant_quasar.entanglement_link.observe_singularity_signal::<DarkSignal>(|active_quasar, lifecycle_message| {
             match lifecycle_message {
-                InternalMessage::Stop => {
+                DarkSignal::Stop => {
                     warn!("Received stop message");
-                    actor.stop();
+                    active_quasar.stop();
                 }
             }
         });

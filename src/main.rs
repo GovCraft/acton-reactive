@@ -115,7 +115,7 @@ pub enum Message {
     Hola,
 }
 
-impl ActorMessage for Message {
+impl PhotonPacket for Message {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -127,7 +127,7 @@ pub enum DifferentMessage {
     Suuuup,
 }
 
-impl ActorMessage for DifferentMessage {
+impl PhotonPacket for DifferentMessage {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -139,7 +139,7 @@ pub enum FunnyMessage {
     Lol,
 }
 
-impl ActorMessage for FunnyMessage {
+impl PhotonPacket for FunnyMessage {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -148,7 +148,7 @@ impl ActorMessage for FunnyMessage {
 #[derive(Debug)]
 pub struct Ping;
 
-impl ActorMessage for Ping {
+impl PhotonPacket for Ping {
     fn as_any(&self) -> &dyn Any {
         self
     }
