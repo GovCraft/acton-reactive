@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "quasar",
+    "govcraft-actify-macro",
+    "govcraft-actify",
+    "govcraft-actify-test"
+]
+
+
