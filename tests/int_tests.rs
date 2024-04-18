@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use std::time::Duration;
 use tracing::{debug, info, Level, trace, warn};
@@ -53,14 +54,17 @@ async fn test_on_start() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 #[derive(Default, Debug)]
 pub struct MyCustomState {
     data: String,
+    mutation_count:usize
 }
+
 #[tokio::test]
-async fn test_singularity_qrn() -> anyhow::Result<()> {
+async fn test_actor_mutation() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::INFO)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -71,45 +75,150 @@ async fn test_singularity_qrn() -> anyhow::Result<()> {
 
     let my_state = MyCustomState {
         data: "Initial State".to_string(),
+        mutation_count:0,
     };
 
     //creates a new root actor (system singularity) and begins processing system messages
     let system = QuasarSystem::new().await;
-    //system singularity is type QuasarContext
-
-    //a QuasarDormant struct with my_state attached is created and added as a child of the
-    //root actor QuasarRunning<Singularity> (internally defined)
 
     let mut dormant_actor = system.singularity.new_quasar::<MyCustomState>(my_state, "my_state");
     assert_eq!(dormant_actor.ctx.qrn.value, "qrn:quasar:system:framework:root/my_state");
-    //
-    // //users pass closures for message processing specifying the type of message the closure handles
-    dormant_actor.ctx.on_before_start(|actor|{
+
+    let final_state = Arc::new(Mutex::new(String::new()));
+    let final_state_clone = final_state.clone();  // Clone for use in the closure
+
+    dormant_actor.ctx.on_before_start(|actor| {
         trace!("before starting actor");
     })
-        // dormant_actor.ctx
-        .act_on::<FunnyMessage>(|actor, msg|
+        .act_on::<FunnyMessage>(move |actor, msg|
             {
-                info!("funny message received");
-                eprintln!("funny message received");
-                // assert_eq!("Initial States", actor.state.data);
+                warn!("MUTATING: actor was {}",actor.state.data);
+                match msg {
+                    FunnyMessage::Haha => {
+                        actor.state.data = "Haha".to_string();
+                    }
+                    FunnyMessage::Lol => {
+                        actor.state.data = "Lol".to_string();
+                    }
+                }
+                info!("actor now {}",actor.state.data.clone());
+                let mut state_lock = final_state_clone.lock().unwrap();
+                *state_lock = actor.state.data.clone();
             });
-    //     .act_on::<Ping>(|_, msg| {
-    //         println!("Ping received.");
-    //     });
-    // // //consumes dormant_actor, uses into() to turn it into a QuasarRunning instance with a state field of some type to
-    // // // hold the instance of MyCustomState,
-    // // //spawns a Tokio task with the processing loop which consumes the QuasarRunning instance
-    // // //and returns a QuasarContext for supervising the actor
-    //
+
     let mut context = Quasar::spawn(dormant_actor).await;
 
     context.send(FunnyMessage::Lol).await?;
-
+    context.send(FunnyMessage::Haha).await?;
     //
     //
     // let _ = context.stop().await;
     let _ = system.singularity.stop().await;
+
+    let final_result = final_state.lock().unwrap(); // Lock to access data safely
+    assert_eq!(*final_result, "Haha");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::INFO)
+        .compact()
+        .with_line_number(true)
+        .without_time()
+        .finish();
+
+    // tracing::subscriber::set_global_default(subscriber)
+    //     .expect("setting default subscriber failed");
+
+    let my_state = MyCustomState {
+        data: "Initial State".to_string(),
+        mutation_count:0,
+
+    };
+    let second_my_state = MyCustomState {
+        data: "I'm number two!".to_string(),
+        mutation_count:0,
+
+    };
+
+    //creates a new root actor (system singularity) and begins processing system messages
+    let system = QuasarSystem::new().await;
+
+    let mut dormant_actor = system.singularity.new_quasar::<MyCustomState>(my_state, "my_state");
+    let mut second_dormant_actor = system.singularity.new_quasar::<MyCustomState>(second_my_state, "second_my_state");
+    assert_eq!(dormant_actor.ctx.qrn.value, "qrn:quasar:system:framework:root/my_state");
+    assert_eq!(second_dormant_actor.ctx.qrn.value, "qrn:quasar:system:framework:root/second_my_state");
+
+    let final_state = Arc::new(Mutex::new(String::new()));
+    let final_state_clone = final_state.clone();  // Clone for use in the closure
+
+
+    let second_final_state = Arc::new(Mutex::new(String::new()));
+    let second_final_state_clone = second_final_state.clone();  // Clone for use in the closure
+
+    dormant_actor.ctx.on_before_start(|actor| {
+        trace!("before starting actor");
+    })
+        .act_on::<FunnyMessage>(move |actor, msg|
+            {
+                warn!("MUTATING: actor was {}",actor.state.data);
+                debug!("Actor {}",actor.qrn.value);
+                match msg {
+                    FunnyMessage::Haha => {
+                        actor.state.data = "Haha".to_string();
+                    }
+                    FunnyMessage::Lol => {
+                        actor.state.data = "Lol".to_string();
+                    }
+                }
+                info!("actor now {}",actor.state.data.clone());
+                actor.state.mutation_count +=1 ;
+                let mut state_lock = final_state_clone.lock().unwrap();
+                *state_lock = actor.state.data.clone();
+                info!("Actor mutation count {}", actor.state.mutation_count);
+            });
+
+    second_dormant_actor.ctx.on_stop(|actor| {
+        info!("after stopping actor");
+    })
+        .act_on::<Message>(move |actor, msg|
+            {
+                warn!("MUTATING: actor was {}",actor.state.data);
+                debug!("Actor {}",actor.qrn.value);
+                match msg {
+                    Message::Hello => {
+                        actor.state.data = "Hello".to_string();
+                    }
+                    Message::Hola => {
+                        actor.state.data = "Hola".to_string();
+                    }
+                }
+                info!("actor now {}",actor.state.data.clone());
+                actor.state.mutation_count +=1 ;
+                let mut state_lock = second_final_state_clone.lock().unwrap();
+                *state_lock = actor.state.data.clone();
+
+                info!("Actor mutation count {}", actor.state.mutation_count);
+            });
+
+    let mut context = Quasar::spawn(dormant_actor).await;
+    let mut second_context = Quasar::spawn(second_dormant_actor).await;
+
+    context.send(FunnyMessage::Lol).await?;
+    second_context.send(Message::Hello).await?;
+    context.send(FunnyMessage::Haha).await?;
+    second_context.send(Message::Hola).await?;
+
+    let _ = system.singularity.stop().await;
+
+    let final_result = final_state.lock().unwrap(); // Lock to access data safely
+    assert_eq!(*final_result, "Haha");
+
+    let second_final_result = second_final_state.lock().unwrap(); // Lock to access data safely
+    assert_eq!(*second_final_result, "Hola");
 
     Ok(())
 }
@@ -131,7 +240,7 @@ async fn test_on_before_start() -> anyhow::Result<()> {
     //
 
 
-        Ok(())
+    Ok(())
 }
 
 #[derive(Debug)]

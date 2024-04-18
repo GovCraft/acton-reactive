@@ -103,10 +103,10 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
         self
     }
 
-    pub fn new(qrn: Qrn) -> QuasarDormant<T, U> {
+    pub fn new(qrn: Qrn, state: T) -> QuasarDormant<T, U> {
         QuasarDormant {
             qrn,
-            state: Default::default(),
+            state,
             parent: None,
             begin_idle_time: SystemTime::now(),
             on_before_start_reactor: Box::new(|_| {}),

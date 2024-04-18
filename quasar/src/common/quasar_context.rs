@@ -32,7 +32,7 @@ impl QuasarContext {
         let mut qrn = self.qrn().clone();
         qrn.append_part(id);
 
-        let quasar = Quasar::new(qrn);
+        let quasar = Quasar::new(qrn, actor);
         quasar
     }
 }

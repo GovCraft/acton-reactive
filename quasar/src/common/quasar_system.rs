@@ -9,7 +9,7 @@ pub struct QuasarSystem {
 
 impl QuasarSystem {
     pub async fn new() -> Self {
-        let system: Quasar<QuasarDormant<Singularity, Self>> = Quasar::new(Default::default());
+        let system: Quasar<QuasarDormant<Singularity, Self>> = Quasar::new(Default::default(), Singularity);
         QuasarSystem { singularity: Quasar::spawn(system).await }
     }
 }

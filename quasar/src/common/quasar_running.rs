@@ -33,21 +33,17 @@ impl<T, U> QuasarRunning<T, U> {
         let _ = (self.on_start_reactor)(self);
         // assert!(!actor_message_reactor_map.is_empty() && !lifecycle_message_reactor_map.is_empty(), "listening with zero actor and system reactors: {}", self.qrn.value);
         loop {
-            debug!("{} items in actor_message_reactor_map", actor_message_reactor_map.len());
-            debug!("{} items in lifecycle_message_reactor_map", lifecycle_message_reactor_map.len());
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            trace!("{} items in actor_message_reactor_map", actor_message_reactor_map.len());
+            trace!("{} items in lifecycle_message_reactor_map", lifecycle_message_reactor_map.len());
+            // tokio::time::sleep(Duration::from_millis(2)).await;
             // Fetch and process actor messages if available
             while let Ok(actor_msg) = self.actor_inbox.try_recv() {
                 trace!("actor_msg {:?}", actor_msg);
                 let type_id = actor_msg.as_any().type_id();
                 if let Some(reactor) = actor_message_reactor_map.get(&type_id) {
                     {
-                        // let _ = (&self.on_before_message_receive_reactor)(self, &*actor_msg);
-                        trace!("executing reactor");
-                        let reactor_return = reactor(self, &*actor_msg);
-                        trace!("reactor_return {:?}", reactor_return);
+                        let _ = reactor(self, &*actor_msg);
                     }
-                    // (self.on_after_message_receive_reactor)(self);
                 } else {
                     error!("No handler for message type: {:?}", actor_msg);
                 }
@@ -61,6 +57,9 @@ impl<T, U> QuasarRunning<T, U> {
                 } else {
                     error!("No handler for message type: {:?}", lifecycle_msg);
                 }
+            }
+            else {
+                tokio::time::sleep(Duration::from_nanos(1)).await;
             }
 
             // Check the stop condition after processing messages

@@ -10,9 +10,9 @@ pub struct Quasar<S> {
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
-    pub(crate) fn new(qrn: Qrn) -> Self {
+    pub(crate) fn new(qrn: Qrn, state:T) -> Self {
         Quasar {
-            ctx: QuasarDormant::new(qrn)
+            ctx: QuasarDormant::new(qrn, state)
         }
     }
     #[instrument(skip(actor))]

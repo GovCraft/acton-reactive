@@ -235,6 +235,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "dashmap",
+ "log",
  "matchit",
  "quasar",
  "quasar-qrn",
