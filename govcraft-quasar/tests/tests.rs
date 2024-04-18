@@ -1,55 +1,9 @@
+
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, instrument, Level, trace, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use govcraft_actify::prelude::*;
-
-// #[tokio::test]
-// async fn test_on_stop() -> anyhow::Result<()> {
-//     let mut actor = MyActor::new("actor".to_string(), "rrrodzilla".to_string());
-//
-//     actor.ctx
-//         .on_stop(|actor| {
-//             assert_eq!(actor.id, "actor");
-//         });
-//
-//     let mut context = MyActor::spawn(actor).await;
-//
-//     // sleep(Duration::from_secs(2));
-//
-//     let _ = context.stop().await;
-//
-//
-//     Ok(())
-// }
-
-#[tokio::test]
-async fn test_on_start() -> anyhow::Result<()> {
-    // let mut actor = Quasar::new("quasar", "system", "govcraft", "parser");
-    // const PING_COUNT: usize = 2;
-    // actor.ctx
-    //     .on_start(|actor| {
-    //         println!("now starting actor id: {}", actor.id);
-    //         assert_eq!(actor.id, "root")
-    //     })
-    //     .on_before_start(|actor| {
-    //         println!("before starting actor id: {}", actor.id);
-    //         assert_eq!(actor.id, "root")
-    //     })
-    //     .on_stop(|actor| {
-    //         println!("STOPPED actor id: {}", actor.id);
-    //         assert_eq!(actor.id, "root");
-    //     });
-    //
-    //
-    // let mut ctx1 = Quasar::spawn(actor).await;
-    //
-    // // sleep(Duration::from_secs(2));
-    // let _ = ctx1.stop().await;
-    //
-
-    Ok(())
-}
+use govcraft_quasar::prelude::*;
 
 #[derive(Default, Debug)]
 pub struct RicksMemory {
