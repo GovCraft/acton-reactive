@@ -2,7 +2,7 @@
 resolver = "2"
 
 members = [
-    "govcraft-actify-core",
+    "quasar",
     "govcraft-actify-macro",
     "govcraft-actify",
     "govcraft-actify-test"
