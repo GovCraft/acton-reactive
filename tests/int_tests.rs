@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::thread::sleep;
 use std::time::Duration;
-use tracing::{debug, Level};
+use tracing::{debug, Level, trace, warn};
 use tracing_subscriber::FmtSubscriber;
 
 use quasar::prelude::*;
@@ -61,6 +61,9 @@ pub struct MyCustomState {
 async fn test_singularity_qrn() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::TRACE)
+        .compact()
+        .with_line_number(true)
+        .without_time()
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
@@ -82,13 +85,14 @@ async fn test_singularity_qrn() -> anyhow::Result<()> {
     //
     // //users pass closures for message processing specifying the type of message the closure handles
     dormant_actor.ctx.on_before_start(|actor|{
-        debug!("before starting actor");
-    });
-    // dormant_actor.ctx
-    //     .act_on::<FunnyMessage>(|actor, msg|
-    //         {
-    //             assert_eq!("Initial States", actor.state.data);
-    //         });
+        trace!("before starting actor");
+    })
+        // dormant_actor.ctx
+        .act_on::<FunnyMessage>(|actor, msg|
+            {
+                warn!("funny message received");
+                assert_eq!("Initial States", actor.state.data);
+            });
     //     .act_on::<Ping>(|_, msg| {
     //         println!("Ping received.");
     //     });

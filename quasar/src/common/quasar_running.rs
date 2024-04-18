@@ -1,8 +1,10 @@
 use std::io::Write;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 use async_trait::async_trait;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
+use tracing::{debug, error, instrument, trace};
 use crate::common::{ActorInbox, ActorInboxAddress, ActorReactorMap, ActorStopFlag, LifecycleEventReactor, LifecycleEventReactorMut, LifecycleInbox, LifecycleInboxAddress, LifecycleReactorMap, LifecycleStopFlag, QuasarDormant};
 use crate::common::*;
 use crate::traits::Actor;
@@ -26,22 +28,27 @@ pub struct QuasarRunning<T: 'static, U: 'static> {
 }
 
 impl<T, U> QuasarRunning<T, U> {
+    #[instrument(skip(self, actor_message_reactor_map, lifecycle_message_reactor_map), fields(qrn = & self.qrn.value, self.actor_inbox.is_closed = & self.actor_inbox.is_closed()))]
     pub(crate) async fn actor_listen(&mut self, actor_message_reactor_map: ActorReactorMap<T, U>, lifecycle_message_reactor_map: LifecycleReactorMap<T, U>) {
         let _ = (self.on_start_reactor)(self);
-        assert!(!actor_message_reactor_map.is_empty() && !lifecycle_message_reactor_map.is_empty(), "listening with zero actor and system reactors: {}", self.qrn.value);
+        // assert!(!actor_message_reactor_map.is_empty() && !lifecycle_message_reactor_map.is_empty(), "listening with zero actor and system reactors: {}", self.qrn.value);
         loop {
+            debug!("{} items in actor_message_reactor_map", actor_message_reactor_map.len());
+            debug!("{} items in lifecycle_message_reactor_map", lifecycle_message_reactor_map.len());
+            tokio::time::sleep(Duration::from_secs(2)).await;
             // Fetch and process actor messages if available
             while let Ok(actor_msg) = self.actor_inbox.try_recv() {
-                assert!(false, "{}", self.qrn.value);
+                trace!("actor_msg {:?}", actor_msg);
                 let type_id = actor_msg.as_any().type_id();
                 if let Some(reactor) = actor_message_reactor_map.get(&type_id) {
                     {
-                        (&self.on_before_message_receive_reactor)(self, &*actor_msg);
+                        trace!("executing actor message reactor {:?}", actor_msg);
+                        let _ = (&self.on_before_message_receive_reactor)(self, &*actor_msg);
+                        let _ = reactor(self, &*actor_msg);
                     }
-                    reactor(self, &*actor_msg);
                     // (self.on_after_message_receive_reactor)(self);
                 } else {
-                    eprintln!("No handler for message type: {:?}", actor_msg);
+                    error!("No handler for message type: {:?}", actor_msg);
                 }
             }
 
@@ -51,7 +58,7 @@ impl<T, U> QuasarRunning<T, U> {
                 if let Some(reactor) = lifecycle_message_reactor_map.get(&type_id) {
                     reactor(self, &*lifecycle_msg);
                 } else {
-                    eprintln!("No handler for message type: {:?}", lifecycle_msg);
+                    error!("No handler for message type: {:?}", lifecycle_msg);
                 }
             }
 
@@ -73,10 +80,11 @@ impl<T, U> QuasarRunning<T, U> {
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> From<Quasar<QuasarDormant<T, U>>> for Quasar<QuasarRunning<T, U>> {
+    #[instrument("from dormant to running", skip(value), ? value.ctx.actor_reactor_map)]
     fn from(value: Quasar<QuasarDormant<T, U>>) -> Quasar<QuasarRunning<T, U>> {
         let (actor_inbox_address, actor_inbox) = channel(255);
         let (lifecycle_inbox_address, lifecycle_inbox) = channel(255);
-
+        debug!("{} items in actor_reactor_map", value.ctx.actor_reactor_map.len());
         Quasar {
             ctx: QuasarRunning {
                 lifecycle_inbox_address,

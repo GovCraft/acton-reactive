@@ -3,6 +3,7 @@ use std::time::SystemTime;
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
 use tokio_util::task::TaskTracker;
+use tracing::{debug, error, instrument};
 use crate::common::{ActorReactor, ActorReactorMap, LifecycleEventReactor, LifecycleEventReactorMut, LifecycleReactor, LifecycleReactorMap};
 use crate::common::*;
 use crate::traits::{ActorMessage, LifecycleMessage};
@@ -30,12 +31,13 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
         }
     }
     //endregion
+    #[instrument(skip(self, actor_message_reactor), qrn=&self.qrn.value)]
     pub fn act_on<M: ActorMessage + 'static>(&mut self, actor_message_reactor: impl Fn(&mut QuasarRunning<T, U>, &M) + Sync + 'static + Send) -> &mut Self
         where T: Default + Send,
               U: Send {
         // Extract the necessary data from self before moving it into the closure
         let qrn_value = self.qrn.value.clone(); // Assuming `qrn.value` is cloneable
-        assert!(false, "{}", qrn_value);
+        debug!("{}", qrn_value);
         // Create a boxed reactor that can be stored in the HashMap.
         let actor_message_reactor_box: ActorReactor<T, U> = Box::new(move |actor: &mut QuasarRunning<T, U>, actor_message: &dyn ActorMessage| {
             // Attempt to downcast the message to its concrete type.
@@ -44,13 +46,21 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
                 actor_message_reactor(actor, concrete_msg);
             } else {
                 // If downcasting fails, log a warning.
-                eprintln!("Warning: Message type mismatch: {:?}", std::any::type_name::<M>());
+                error!("Warning: Message type mismatch: {:?}", std::any::type_name::<M>());
             }
         });
 
         // Use the type ID of the concrete message type M as the key in the handlers map.
         let type_id = TypeId::of::<M>();
-        self.actor_reactor_map.insert(type_id, actor_message_reactor_box);
+        match self.actor_reactor_map.insert(type_id, actor_message_reactor_box){
+            None => {
+                debug!("Inserted with no existing return value")
+            }
+            Some(_) => {
+                debug!("Added to the map")
+            }
+        };
+        debug!("{} reactor in actor_reactor_map", self.actor_reactor_map.len());
 
         // Return self to allow chaining.
         self
@@ -66,7 +76,7 @@ impl<T: std::default::Default + Send + Sync, U: Send + Sync> QuasarDormant<T, U>
                 lifecycle_message_reactor(actor, concrete_msg);
             } else {
                 // If downcasting fails, log a warning.
-                eprintln!("Warning: SystemMessage type mismatch: {:?}", std::any::type_name::<M>());
+                error!("Warning: SystemMessage type mismatch: {:?}", std::any::type_name::<M>());
             }
         });
 

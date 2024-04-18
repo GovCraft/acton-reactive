@@ -2,7 +2,7 @@ use quasar_qrn::Qrn;
 use tokio_util::task::TaskTracker;
 use crate::common::{InternalMessage, QuasarContext, QuasarDormant, QuasarRunning};
 use Clone;
-use tracing::debug;
+use tracing::{debug, instrument, warn};
 
 pub struct Quasar<S> {
     pub ctx: S,
@@ -15,7 +15,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
             ctx: QuasarDormant::new(qrn)
         }
     }
-
+    #[instrument(skip(actor))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
     pub async fn spawn(actor: Quasar<QuasarDormant<T, U>>) -> QuasarContext {
         // Ensure the actor is initially in a dormant state
@@ -38,6 +38,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
         // Take reactor maps and inbox addresses before entering async context
         let lifecycle_message_reactor_map = actor.ctx.lifecycle_message_reactor_map.take().expect("No lifecycle reactors provided. This should never happen");
         let actor_message_reactor_map = actor.ctx.actor_message_reactor_map.take().expect("No actor message reactors provided. This should never happen");
+        debug!("{} items in actor_reactor_map", actor_message_reactor_map.len());
 
         let actor_inbox_address = actor.ctx.actor_inbox_address.clone();
         assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
@@ -66,12 +67,14 @@ impl<T: Default + Send + Sync, U: Send + Sync> Quasar<QuasarDormant<T, U>> {
         }
     }
 
-
+    #[instrument(skip(actor), fields(qrn=actor.ctx.qrn.value))]
     fn assign_lifecycle_reactors(actor: &mut Quasar<QuasarDormant<T, U>>) {
         debug!("assigning_lifeccycle reactors");
+
         actor.ctx.act_on_lifecycle::<InternalMessage>(|actor, lifecycle_message| {
             match lifecycle_message {
                 InternalMessage::Stop => {
+                    warn!("Received stop message");
                     actor.stop();
                 }
             }
