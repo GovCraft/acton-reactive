@@ -17,7 +17,16 @@
  *
  */
 
+mod traits;
+mod common;
+
 pub mod prelude {
-    pub use quasar_macro::photon_packet;
-    pub use quasar::prelude::*;
+    pub use crate::common::{Quasar, QuasarCore};
+    pub use crate::traits::*;
 }
+
+
+
+
+
+

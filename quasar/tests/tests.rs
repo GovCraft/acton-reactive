@@ -1,3 +1,22 @@
+/*
+ *
+ *  * Copyright (c) 2024 Govcraft.
+ *  *
+ *  * Licensed under the Apache License, Version 2.0 (the "License");
+ *  * you may not use this file except in compliance with the License.
+ *  * You may obtain a copy of the License at
+ *  *
+ *  *     http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  * Unless required by applicable law or agreed to in writing, software
+ *  * distributed under the License is distributed on an "AS IS" BASIS,
+ *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  * See the License for the specific language governing permissions and
+ *  * limitations under the License.
+ *
+ *
+ */
+
 
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, instrument, Level, trace, warn};
@@ -37,11 +56,11 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     // Creates a new root actor (system GalacticCore) and begins processing internal system (non-actor) messages
     let citadel = QuasarCore::spawn().await;
-    assert_eq!(citadel.entanglement_link.key().value, "qrn:quasar:system:framework:root");
+    assert_eq!(citadel.entanglement_link.key().value, "qrn:quasar-core:system:framework:root");
 
-    // Creating a dormant quasar, which will soon embark on wild adventures
+    // Creating a dormant quasar-core, which will soon embark on wild adventures
     let mut rick_dormant = citadel.entanglement_link.new_quasar::<RicksMemory>(rick_sanchez_state, "RickSanchez");
-    assert_eq!(rick_dormant.entanglement_link.key.value, "qrn:quasar:system:framework:root/RickSanchez");
+    assert_eq!(rick_dormant.entanglement_link.key.value, "qrn:quasar-core:system:framework:root/RickSanchez");
 
     // Setup to track the final outcome of our adventures
     let final_memory = Arc::new(Mutex::new(String::new()));
@@ -110,8 +129,8 @@ async fn test_multiple_actor_mutation() -> anyhow::Result<()> {
 
     let mut dormant_actor = system.entanglement_link.new_quasar::<RicksMemory>(my_state, "my_state");
     let mut second_dormant_actor = system.entanglement_link.new_quasar::<RicksMemory>(second_my_state, "second_my_state");
-    assert_eq!(dormant_actor.entanglement_link.key.value, "qrn:quasar:system:framework:root/my_state");
-    assert_eq!(second_dormant_actor.entanglement_link.key.value, "qrn:quasar:system:framework:root/second_my_state");
+    assert_eq!(dormant_actor.entanglement_link.key.value, "qrn:quasar-core:system:framework:root/my_state");
+    assert_eq!(second_dormant_actor.entanglement_link.key.value, "qrn:quasar-core:system:framework:root/second_my_state");
 
     let final_state = Arc::new(Mutex::new(String::new()));
     let final_state_clone = final_state.clone();  // Clone for use in the closure
