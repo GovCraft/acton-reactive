@@ -1,10 +1,8 @@
-use std::any::Any;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info, instrument, Level, trace, warn};
 use tracing_subscriber::FmtSubscriber;
 
-use quasar::prelude::*;
-
+use govcraft_actify::prelude::*;
 
 // #[tokio::test]
 // async fn test_on_stop() -> anyhow::Result<()> {
@@ -275,69 +273,33 @@ async fn test_on_before_start() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[photon_packet]
 pub enum InterdimensionalAdventure {
     MortyRescue,
 }
-
-impl PhotonPacket for InterdimensionalAdventure {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-#[derive(Debug)]
+#[photon_packet]
 pub enum PortalGunAction {
     PickleRick,
     SzechuanSauce,
 }
 
-impl PhotonPacket for crate::PortalGunAction {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-#[derive(Debug)]
+#[photon_packet]
 pub enum Message {
     Hello,
     Hola,
 }
 
-impl PhotonPacket for crate::Message {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-#[derive(Debug)]
+#[photon_packet]
 pub enum DifferentMessage {
     Sup,
     Suuuup,
 }
 
-impl PhotonPacket for DifferentMessage {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-#[derive(Debug)]
+#[photon_packet]
 pub enum FunnyMessage {
     Haha,
     Lol,
 }
 
-impl PhotonPacket for FunnyMessage {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-#[derive(Debug)]
+#[photon_packet]
 pub struct Ping;
-
-impl PhotonPacket for Ping {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
