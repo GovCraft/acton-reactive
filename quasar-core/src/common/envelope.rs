@@ -17,28 +17,4 @@
  *
  */
 
-mod origin;
-pub use origin::Origin;
-
-mod envelope;
-pub use envelope::Envelope;
-mod system;
-pub use system::System;
-
-mod types;
-pub use types::*;
-
-mod idle;
-pub use idle::Idle;
-
-mod awake;
-pub use awake::Awake;
-
-mod signal;
-pub use signal::SystemSignal;
-
-mod context;
-pub use context::Context;
-
-mod actor;
-pub use actor::Actor;
+pub struct Envelope;
