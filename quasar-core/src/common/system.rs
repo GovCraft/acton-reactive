@@ -17,5 +17,16 @@
  *
  */
 
-#[derive(Default, Debug)]
-pub struct GalacticCore;
+use crate::common::{Actor, Context, Idle};
+
+#[derive(Debug)]
+pub struct System {
+    pub context: Context,
+}
+
+impl System {
+    pub async fn spawn() -> Self {
+        let system: Actor<Idle<(), Self>> = Actor::new(Default::default(), ());
+        System { context: Actor::spawn(system).await }
+    }
+}

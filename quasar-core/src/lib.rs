@@ -17,11 +17,13 @@
  *
  */
 
+#![forbid(unsafe_code)]
+
 mod traits;
 mod common;
 
 pub mod prelude {
-    pub use crate::common::{Quasar, QuasarCore};
+    pub use crate::common::{Actor, System, Origin};
     pub use crate::traits::*;
 }
 

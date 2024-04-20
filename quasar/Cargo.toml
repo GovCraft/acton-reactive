@@ -1,14 +1,11 @@
 [package]
-name = "govcraft-quasar"
+name = "quasar"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-supervisor=[]
-
 [dependencies]
 quasar-macro = { path = "../quasar-macro" }
-quasar = { path = "../quasar-core" }
+quasar-core = { path = "../quasar-core" }
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 anyhow = "1.0.82"

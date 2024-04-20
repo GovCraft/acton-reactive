@@ -17,26 +17,25 @@
  *
  */
 
-mod quasar_core;
-pub use quasar_core::QuasarCore;
-
-mod galactic_core;
-pub use galactic_core::GalacticCore;
+mod origin;
+pub use origin::Origin;
+mod system;
+pub use system::System;
 
 mod types;
 pub use types::*;
 
-mod quasar_dormant;
-pub use quasar_dormant::QuasarDormant;
+mod idle;
+pub use idle::Idle;
 
-mod quasar_active;
-pub use quasar_active::QuasarActive;
+mod awake;
+pub use awake::Awake;
 
-mod dark_signal;
-pub use dark_signal::DarkSignal;
+mod signal;
+pub use signal::SystemSignal;
 
-mod quasar_entanglement_link;
-pub use quasar_entanglement_link::EntanglementLink;
+mod context;
+pub use context::Context;
 
-mod quasar;
-pub use quasar::Quasar;
+mod actor;
+pub use actor::Actor;

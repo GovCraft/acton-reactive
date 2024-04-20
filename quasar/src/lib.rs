@@ -18,6 +18,6 @@
  */
 
 pub mod prelude {
-    pub use quasar_macro::photon_packet;
-    pub use quasar::prelude::*;
+    pub use quasar_macro::quasar_message;
+    pub use quasar_core::prelude::*;
 }

@@ -18,14 +18,23 @@
  */
 
 use std::any::Any;
-use crate::traits::SingularitySignal;
+use crate::traits::SystemMessage;
 
 #[derive(Debug)]
-pub enum DarkSignal {
-    Stop
+#[non_exhaustive]
+pub enum SystemSignal {
+    Wake,
+    Recreate,
+    Suspend,
+    Resume,
+    Terminate,
+    Supervise,
+    Watch,
+    Unwatch,
+    Failed,
 }
 
-impl SingularitySignal for DarkSignal {
+impl SystemMessage for SystemSignal {
     fn as_any(&self) -> &dyn Any {
         self
     }
