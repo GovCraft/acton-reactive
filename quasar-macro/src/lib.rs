@@ -31,6 +31,7 @@ pub fn quasar_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let expanded = quote! {
 
+        #[derive(Clone)]
         #input
 
         impl std::fmt::Debug for #name {

@@ -20,9 +20,10 @@
 use std::any::TypeId;
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use tracing::{error, instrument, trace};
+use tracing::{error, instrument};
 use crate::common::{MessageReactor, MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
+use crate::common::event_record::EventRecord;
 use crate::traits::{QuasarMessage, SystemMessage};
 
 pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
@@ -36,38 +37,26 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub(crate) signal_reactors: SignalReactorMap<T, U>,
 }
 
-impl<T: std::default::Default + Send + Sync, U: Send + Sync> Idle<T, U> {
+impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: QuasarMessage + 'static>(&mut self, message_reactor: impl Fn(&mut Awake<T, U>, &M) + Send + Sync + 'static) -> &mut Self
-        where T: Default + Send,
-              U: Send {
-        // Extract the necessary data from self before moving it into the closure
-        let qrn_value = self.key.value.clone(); // Assuming `qrn.value` is cloneable
-        trace!("QRN value: {}", qrn_value);
-        // Create a boxed reactor that can be stored in the HashMap.
-        let message_reactor_box: MessageReactor<T, U> = Box::new(move |actor: &mut Awake<T, U>, message: &dyn QuasarMessage| {
-            // Attempt to downcast the message to its concrete type.
-            if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                message_reactor(actor, concrete_msg);
+    pub fn act_on<M: QuasarMessage + Clone + 'static>(&mut self, message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) + Send + Sync + 'static) -> &mut Self {
+        let type_id = TypeId::of::<M>();
+
+        let message_reactor_box: MessageReactor<T, U> = Box::new(move |actor, envelope| {
+            // Attempt to downcast to the specific message type `M`
+            if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
+                let cloned_message = concrete_msg.clone();  // Cloning the dereference message
+
+                let event_record = EventRecord{ message: cloned_message, sent_time: envelope.sent_time };
+
+                // Pass the new record to the reactor
+                message_reactor(actor, &event_record);
             } else {
-                // If downcasting fails, log a warning.
-                error!("Warning: Message type mismatch: {:?}", std::any::type_name::<M>());
+                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
             }
         });
 
-        // Use the type ID of the concrete message type M as the key in the handlers map.
-        let type_id = TypeId::of::<M>();
-        match self.message_reactors.insert(type_id, message_reactor_box){
-            None => {
-                trace!("Inserted new reactor with no existing reactor");
-            }
-            Some(_) => {
-                trace!("Reactor added to the map, replacing an existing reactor");
-            }
-        };
-        trace!("Reactor map size: {}", self.message_reactors.len());
-
-        // Return self to allow chaining.
+        self.message_reactors.insert(type_id, message_reactor_box);
         self
     }
 

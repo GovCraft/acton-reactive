@@ -21,22 +21,25 @@ use std::any::TypeId;
 use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::traits::{QuasarMessage, SystemMessage};
-use crate::common::Awake;
+use crate::traits::SystemMessage;
+use crate::common::{Awake, Envelope};
 
 //region Common Types
 pub type SignalReactorMap<T, U> = DashMap<TypeId, SignalReactor<T, U>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
+
 pub type MessageReactorMap<T, U> = DashMap<TypeId, MessageReactor<T, U>>;
-pub type OutboundChannel = Sender<Box<dyn QuasarMessage>>;
-pub type InboundChannel = Receiver<Box<dyn QuasarMessage>>;
+pub type MessageReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, &Envelope) + Send + Sync>;
+pub type OutboundChannel = Sender<Envelope>;
+pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;
 
 pub type LifecycleReactor<T> = Box<dyn Fn(&T) + Send + Sync>;
 // type ActorReactor = Box<dyn Fn(&mut MyActorRunning, &dyn ActorMessage) + Send + Sync>;
 pub type SignalReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, &dyn SystemMessage) + Send + Sync>;
 // pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;
-pub type MessageReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, &dyn QuasarMessage) + Send + Sync>;
+//pub type MessageReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, Envelope<&dyn QuasarMessage>) + Send + Sync>;
+
 //endregion

@@ -16,9 +16,12 @@
  *
  *
  */
-
+mod event_record;
 mod origin;
 pub use origin::Origin;
+
+mod envelope;
+pub use envelope::Envelope;
 mod system;
 pub use system::System;
 
