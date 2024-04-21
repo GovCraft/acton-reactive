@@ -48,30 +48,22 @@ pub(crate) trait InternalSignalEmitter {
 
 #[async_trait]
 pub trait ReturnAddress: Send {
-    async fn reply(&self, message: impl QuasarMessage) -> anyhow::Result<()>;
+    async fn reply(&self, message: Box<dyn QuasarMessage>) -> anyhow::Result<()>;
 }
 
 #[async_trait]
-pub trait ActorContext: Sized + Clone {
+pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clone {
     fn return_address(&mut self) -> Origin;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
 
     fn key(&self) -> &Qrn;
 
-    async fn emit(&mut self, message: impl QuasarMessage) -> anyhow::Result<()> {
+    async fn emit(&mut self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
         let origin = self.return_address();
-        origin.reply(message).await?;
+        origin.reply(Box::new(message)).await?; // Directly boxing the owned message
         Ok(())
     }
-
-    /// Immediately stop processing incoming messages and switch to a
-    /// `stopping` state. This only affects actors that are currently
-    /// `running`. Future attempts to queue messages will fail.
     async fn terminate(self) -> anyhow::Result<()>;
-    /// Terminate actor execution unconditionally. This sets the actor
-    /// into the `stopped` state. This causes future attempts to queue
-    /// messages to fail.
-
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;
     async fn suspend(&mut self) -> anyhow::Result<()>;
@@ -81,4 +73,3 @@ pub trait ActorContext: Sized + Clone {
     async fn unwatch(&mut self) -> anyhow::Result<()>;
     async fn failed(&mut self) -> anyhow::Result<()>;
 }
-

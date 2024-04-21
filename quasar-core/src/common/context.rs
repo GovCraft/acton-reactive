@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
 use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, Origin};
-use crate::traits::{ActorContext, InternalSignalEmitter};
+use crate::traits::{ActorContext, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{instrument, trace};
 
@@ -46,7 +46,7 @@ impl Context {
 }
 
 #[async_trait]
-impl ActorContext for Context {
+impl ActorContext<dyn QuasarMessage> for Context {
     fn return_address(&mut self) -> Origin {
         let outbox = self.outbox.clone();
         Origin::new(outbox)

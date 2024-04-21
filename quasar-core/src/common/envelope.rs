@@ -17,4 +17,20 @@
  *
  */
 
-pub struct Envelope;
+use std::time::SystemTime;
+use crate::traits::QuasarMessage;
+
+#[derive(Debug)]
+pub struct Envelope {
+    pub message: Box<dyn QuasarMessage>,
+    pub sent_time: SystemTime,
+}
+
+impl Envelope {
+    pub fn new(message: Box<dyn QuasarMessage>) -> Self {
+        Envelope {
+            message,
+            sent_time: SystemTime::now(),
+        }
+    }
+}

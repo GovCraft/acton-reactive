@@ -49,22 +49,17 @@ impl<T, U> Awake<T, U> {
             trace!("Singularity signal responder map size: {}", signal_reactors.len());
 
             // Fetch and process actor messages if available
-            while let Ok(message) = self.mailbox.try_recv() {
-                trace!("Received actor message: {:?}", message);
-                let type_id = message.as_any().type_id();
-                match message_reactors.get(&type_id) {
-                    Some(reactor) => {
-                        {
-                            reactor(self, &*message);
-                        }
-                    }
-                    None => {
-                        trace!("No reactor for message type: {:?}", message);
-                        continue
-                    }
+            while let Ok(envelope) = self.mailbox.try_recv() {
+                trace!("Received actor message: {:?}", envelope.message);
+                let type_id = envelope.message.as_any().type_id();
+
+                if let Some(reactor) = message_reactors.get(&type_id) {
+                    // Dynamically handle the reactor invocation
+                    reactor(self, &envelope);
+                } else {
+                    trace!("No reactor for message type: {:?}", type_id);
                 }
             }
-
             // Check lifecycle messages
             if let Ok(internal_signal) = self.signal_mailbox.try_recv() {
                 let type_id = internal_signal.as_any().type_id();
@@ -74,11 +69,10 @@ impl<T, U> Awake<T, U> {
                     }
                     None => {
                         trace!("No handler for message type: {:?}", internal_signal);
-                        continue
+                        continue;
                     }
                 }
-            }
-            else {
+            } else {
                 //give some time back to the tokio runtime
                 tokio::time::sleep(Duration::from_nanos(1)).await;
             }
@@ -110,7 +104,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
         let on_stop = value.state.on_stop;
         let message_reactors = Some(value.state.message_reactors);
         let signal_reactors = Some(value.state.signal_reactors);
-        let halt_signal =  StopSignal::new(false);
+        let halt_signal = StopSignal::new(false);
 
         Actor {
             state: Awake {

@@ -18,28 +18,8 @@
  */
 
 use std::time::SystemTime;
-use async_trait::async_trait;
-use crate::common::{Envelope, OutboundChannel};
-use crate::prelude::QuasarMessage;
-use crate::traits::ReturnAddress;
 
-#[derive(Clone, Debug)]
-pub struct Origin {
-    reply_to: OutboundChannel,
+pub struct EventRecord<S> {
+    pub message: S,
+    pub sent_time: SystemTime,
 }
-
-impl Origin {
-    pub fn new(reply_to: OutboundChannel) -> Self {
-        Origin { reply_to }
-    }
-}
-
-#[async_trait]
-impl ReturnAddress for Origin {
-    async fn reply(&self, message: Box<(dyn QuasarMessage + 'static)>) -> anyhow::Result<()> {
-        let envelope = Envelope { message, sent_time: SystemTime::now() };
-        self.reply_to.send(envelope).await?;
-        Ok(())
-    }
-}
-
