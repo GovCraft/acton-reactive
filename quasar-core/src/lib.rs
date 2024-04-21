@@ -23,7 +23,7 @@ mod traits;
 mod common;
 
 pub mod prelude {
-    pub use crate::common::{Actor, System, Origin};
+    pub use crate::common::*;
     pub use crate::traits::*;
 }
 
