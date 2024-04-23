@@ -26,11 +26,11 @@ use std::time::SystemTime;
 
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use tracing::{error, instrument};
+use tracing::{error, instrument, trace};
 use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
-use crate::traits::{ QuasarMessage, SystemMessage};
+use crate::traits::{QuasarMessage, SystemMessage};
 use futures::{future};
 use tokio::sync::Mutex;
 
@@ -50,10 +50,10 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<M>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
+        message_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<M>) -> Pin<Box<dyn Future<Output=()> + Sync + Send>> + Sync + Send + 'static,
     ) -> &mut Self {
+        trace!("entering message reactors");
         let type_id = TypeId::of::<M>();
-
         let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let cloned_message = concrete_msg.clone();
@@ -64,7 +64,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
                 Box::pin(future::ready(()))
             }
         });
-
+        trace!("Inserting message reactors");
         self.message_reactors.insert(type_id, handler_box);
 
         self
@@ -72,7 +72,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
 
     pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
+        signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 

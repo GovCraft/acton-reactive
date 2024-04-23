@@ -447,6 +447,7 @@ dependencies = [
  "async-trait",
  "dashmap",
  "futures",
+ "log",
  "matchit",
  "quasar-qrn",
  "static_assertions",

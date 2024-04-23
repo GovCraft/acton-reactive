@@ -36,7 +36,7 @@ pub struct Counter {
 #[tokio::test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::TRACE)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -65,30 +65,27 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             match event_cloned.message {
                 FunnyMessage::Haha => {
                     info!("I laughed");
-                },
+                }
                 FunnyMessage::Lol => {
                     info!("I lol'ed");
-                },
+                }
                 FunnyMessage::Giggle => {
                     info!("I giggled");
-                },
+                }
             }
             info!("Jokes told: {}", actor_guard.state.count);
             info!("{:?}", event_cloned.sent_time);
-        }) as Pin<Box<dyn Future<Output = ()> + Send>>
+        }) as Pin<Box<dyn Future<Output=()> + Sync + Send>>
     }));
 
     // .on_stop(|actor| {
-        //     info!("count: {}", actor.state.count);
-        //     assert_eq!(actor.state.count, 3);
-        // });
+    //     info!("count: {}", actor.state.count);
+    //     assert_eq!(actor.state.count, 3);
+    // });
 
     let mut comedian = Actor::spawn(joke_counter).await;
 
     comedian.emit(FunnyMessage::Haha).await?;
-    // comedian.emit(FunnyMessage::Giggle).await?;
-    // comedian.emit(FunnyMessage::Lol).await?;
-    //
     let _ = system.context.terminate().await;
     let _ = comedian.terminate().await;
     //

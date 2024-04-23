@@ -39,20 +39,20 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
             state: Idle::new(qrn, state)
         }
     }
-    #[instrument(skip(dormant_quasar))]
+    #[instrument(skip(idle_actor))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
-    pub async fn spawn(dormant_quasar: Actor<Idle<T, U>>) -> Context {
+    pub async fn spawn(idle_actor: Actor<Idle<T, U>>) -> Context {
 
         // Convert the actor from MyActorIdle to MyActorRunning
-        let mut actor = dormant_quasar;
+        let mut actor = idle_actor;
 
         // Handle any pre_start activities
         (actor.state.on_before_wake)(&actor.state);
 
         // Ensure reactors are correctly assigned
-        let actor = Self::assign_lifecycle_reactors(actor).await;
+        let actor = Self::assign_internal_signal_reactors(actor).await;
 
-        // Convert to QuasarRunning state
+        trace!("Idle, message_reactor_map size: {}", &actor.state.message_reactors.len());
         // Convert Actor<Idle<T, U>> to Actor<Awake<T, U>> first
         let active_actor_awake: Actor<Awake<T, U>> = actor.into();
 
@@ -64,7 +64,8 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
 
         let signal_reactor_map = active_actor_guard.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
         let message_reactor_map = active_actor_guard.message_reactors.take().expect("No actor message reactors provided. This should never happen");
-        trace!("Actor reactor map size: {}", message_reactor_map.len());
+        trace!("message_reactor_map size before wake {}", message_reactor_map.len());
+        // trace!("Actor reactor map size: {}", message_reactor_map.len());
 
         let actor_inbox_address = active_actor_guard.outbox.clone();
         assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
@@ -79,13 +80,9 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
 
         let task_tracker = TaskTracker::new();
 
-// Assume `active_actor` is an `Arc<Mutex<Awake<T, U>>>`
-//         let mut actor_guard = active_actor.lock().await;
-
-// Now call `wake` on the actual `Awake<T, U>` reference
-//         actor_guard.wake(photon_responder_map, singularity_signal_responder_map).await;
-// Correctly use the associated function, passing `&mut` reference to the `Awake<T, U>`
-        Awake::<T, U>::wake(active_actor, message_reactor_map, signal_reactor_map).await;
+        let _ = tokio::spawn(async move {
+            Awake::<T, U>::wake(active_actor, message_reactor_map, signal_reactor_map).await;
+        });
 
         task_tracker.close();
         assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
@@ -100,10 +97,10 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
     }
 
     #[instrument(skip(actor), fields(qrn = actor.state.key.value))]
-    async fn assign_lifecycle_reactors(mut actor: Actor<Idle<T, U>>) -> Actor<Idle<T, U>> {
-        trace!("assigning lifecycle reactors");
+    async fn assign_internal_signal_reactors(mut actor: Actor<Idle<T, U>>) -> Actor<Idle<T, U>> {
+        trace!("assigning internal signal reactors");
 
-        actor.state.act_on_internal_signal::<SystemSignal>(Box::new(|actor:Arc<Mutex<Awake<T,U>>>, message:&dyn SystemMessage| {
+        actor.state.act_on_internal_signal::<SystemSignal>(Box::new(|actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
             if let Some(event) = message.as_any().downcast_ref::<SystemSignal>() {
                 let event_cloned = event.clone();
                 let actor = actor.clone();
@@ -114,17 +111,17 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
                         SystemSignal::Terminate => {
                             trace!("Received terminate message");
                             actor_guard.terminate();
-                        },
-                        SystemSignal::Recreate => { todo!() },
-                        SystemSignal::Suspend => { todo!() },
-                        SystemSignal::Resume => { todo!() },
-                        SystemSignal::Supervise => { todo!() },
-                        SystemSignal::Watch => { todo!() },
-                        SystemSignal::Unwatch => { todo!() },
-                        SystemSignal::Failed => { todo!() },
-                        SystemSignal::Wake => { todo!() },
+                        }
+                        SystemSignal::Recreate => { todo!() }
+                        SystemSignal::Suspend => { todo!() }
+                        SystemSignal::Resume => { todo!() }
+                        SystemSignal::Supervise => { todo!() }
+                        SystemSignal::Watch => { todo!() }
+                        SystemSignal::Unwatch => { todo!() }
+                        SystemSignal::Failed => { todo!() }
+                        SystemSignal::Wake => { todo!() }
                     }
-                }) as Pin<Box<dyn Future<Output = ()> + Send>>
+                }) as Pin<Box<dyn Future<Output=()> + Send + Sync>>
             } else {
                 error!("SystemMessage type mismatch: expected {:?}", std::any::type_name::<SystemSignal>());
                 Box::pin(future::ready(()))  // Handle the type mismatch with a no-op future
@@ -133,7 +130,4 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
 
         actor
     }
-
-
-
 }

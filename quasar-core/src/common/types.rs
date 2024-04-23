@@ -30,7 +30,7 @@ use crate::traits::{SystemMessage};
 use crate::common::{Awake, Envelope};
 
 //region Common Types
-pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync + 'static;
 pub type SignalReactorMap<T, U> = DashMap<TypeId, Box<SignalReactor<T, U>>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
@@ -39,7 +39,7 @@ pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
 // type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
 // pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&'a mut Awake<T, U>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
 // pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
-pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync + 'static;
 
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
