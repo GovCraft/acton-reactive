@@ -23,9 +23,9 @@ use std::sync::Arc;
 use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::Mutex;
-use tokio_util::task::TaskTracker;
+use tokio_util::task::{task_tracker, TaskTracker};
 use crate::common::{SystemSignal, Context, Idle, Awake, EventRecord};
-use tracing::{error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use crate::traits::SystemMessage;
 
 pub struct Actor<S> {
@@ -43,45 +43,52 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
     pub async fn spawn(idle_actor: Actor<Idle<T, U>>) -> Context {
 
+
         // Convert the actor from MyActorIdle to MyActorRunning
         let mut actor = idle_actor;
 
-        // Handle any pre_start activities
+// Handle any pre_start activities
         (actor.state.on_before_wake)(&actor.state);
 
-        // Ensure reactors are correctly assigned
+// Ensure reactors are correctly assigned
         let actor = Self::assign_internal_signal_reactors(actor).await;
 
         trace!("Idle, message_reactor_map size: {}", &actor.state.message_reactors.len());
-        // Convert Actor<Idle<T, U>> to Actor<Awake<T, U>> first
+// Convert Actor<Idle<T, U>> to Actor<Awake<T, U>> first
         let active_actor_awake: Actor<Awake<T, U>> = actor.into();
 
-        // Then wrap the state (Awake<T, U>) into Arc<Mutex<_>> for shared access
+// Then wrap the state (Awake<T, U>) into Arc<Mutex<_>> for shared access
         let active_actor: Arc<Mutex<Awake<T, U>>> = Arc::new(Mutex::new(active_actor_awake.state));
 
-        // Acquire the lock to access the shared state.
-        let mut active_actor_guard = active_actor.lock().await;
+        let signal_reactor_map;
+        let message_reactor_map;
+        let actor_inbox_address;
+        let lifecycle_inbox_address;
+        let qrn;
 
-        let signal_reactor_map = active_actor_guard.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
-        let message_reactor_map = active_actor_guard.message_reactors.take().expect("No actor message reactors provided. This should never happen");
-        trace!("message_reactor_map size before wake {}", message_reactor_map.len());
-        // trace!("Actor reactor map size: {}", message_reactor_map.len());
+        {
+            // Minimize the lock scope to only when needed
+            let mut active_actor_guard = active_actor.lock().await;
 
-        let actor_inbox_address = active_actor_guard.outbox.clone();
-        assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
+            signal_reactor_map = active_actor_guard.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
+            message_reactor_map = active_actor_guard.message_reactors.take().expect("No actor message reactors provided. This should never happen");
+            trace!("message_reactor_map size before wake {}", message_reactor_map.len());
 
-        let lifecycle_inbox_address = active_actor_guard.signal_outbox.clone();
-        assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
+            actor_inbox_address = active_actor_guard.outbox.clone();
+            assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
 
-        let qrn = active_actor_guard.key.clone();
+            lifecycle_inbox_address = active_actor_guard.signal_outbox.clone();
+            assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
 
-// Drop the mutex guard as we no longer need to access the shared state directly
-        drop(active_actor_guard);
+            qrn = active_actor_guard.key.clone();
+            // Lock is automatically released here when active_actor_guard goes out of scope
+        }
 
-        let task_tracker = TaskTracker::new();
+// Now that the necessary shared state has been extracted, initiate the wake process
+        let mut task_tracker = TaskTracker::new();
 
-        let _ = tokio::spawn(async move {
-            Awake::<T, U>::wake(active_actor, message_reactor_map, signal_reactor_map).await;
+        task_tracker.spawn(async move {
+            Awake::<T, U>::wake(active_actor.clone(), message_reactor_map, signal_reactor_map).await
         });
 
         task_tracker.close();
@@ -94,6 +101,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
             task_tracker,
             key: qrn,
         }
+
     }
 
     #[instrument(skip(actor), fields(qrn = actor.state.key.value))]
@@ -109,7 +117,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
                     let mut actor_guard = actor.lock().await;
                     match event_cloned {
                         SystemSignal::Terminate => {
-                            trace!("Received terminate message");
+                            debug!("Received terminate message");
                             actor_guard.terminate();
                         }
                         SystemSignal::Recreate => { todo!() }

@@ -22,7 +22,7 @@ use std::time::Duration;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 use crate::common::{InboundChannel, OutboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
 use crate::common::*;
 
@@ -41,71 +41,77 @@ pub struct Awake<T: 'static, U: 'static> {
 }
 
 impl<T, U> Awake<T, U> {
-    #[instrument(skip(actor, message_reactors, signal_reactors))]
+    #[instrument(skip(actor, message_reactors, signal_reactors), fields(key))]
     pub(crate) async fn wake(actor: Arc<Mutex<Awake<T, U>>>, message_reactors: MessageReactorMap<T, U>, signal_reactors: SignalReactorMap<T, U>) {
-        // (shared_self.lock().await.on_wake)(shared_self);
-        // Create a shared Arc<Mutex<>> outside the loop
-        // let first_shared_self = Arc::new(Mutex::new(self));
-        let actor = actor.clone();
-        loop {
-            let cloned_actor = actor.clone();
-            trace!("MessageReactorMap size: {}", message_reactors.len());
-            trace!("SignalReactorMap size: {}", signal_reactors.len());
+        // Pre-fetch key value outside of the loop to avoid locking just for reading the key.
+        let key = actor.lock().await.key.value.clone();
+        let actor = actor.clone();  // Clone outside the loop to reduce overhead.
 
-            // Fetch and process actor messages if available
-            trace!("locking");
-            let mut cloned_actor_guard = cloned_actor.lock().await;
-            trace!("locked");
-            while let Some(envelope) = cloned_actor_guard.mailbox.recv().await {
+        loop {
+            // Reduce the scope of the lock to just the operations that need it.
+            let envelope = {
+                let cloned_actor = actor.clone();  // Clone the actor for use in this iteration.
+                let mut actor_guard = cloned_actor.lock().await;
+                actor_guard.mailbox.try_recv()  // Try receiving a message.
+            };
+
+            if let Ok(envelope) = envelope {
                 trace!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = message_reactors.get(&type_id) {
-                    let actor_arc = cloned_actor.clone();
-                    (*reactor)(actor_arc, &envelope).await;
+                    let actor_arc = actor.clone();  // Clone the actor for reactor use.
+                    let _ = (*reactor)(actor_arc, &envelope).await;
                 } else {
                     trace!("No reactor for message type: {:?}", type_id);
                 }
             }
-            drop(cloned_actor_guard);
-            //TODO: revisit internal signals
-            let cloned_actor = actor.clone();
-            // // Check lifecycle messages
-            if let Ok(internal_signal) = cloned_actor.lock().await.signal_mailbox.try_recv() {
+
+            // Handling internal signals with minimized lock duration.
+            let internal_signal = {
+                let cloned_actor = actor.clone();
+                let x = cloned_actor.lock().await.signal_mailbox.try_recv();
+                x
+            };
+
+            if let Ok(internal_signal) = internal_signal {
+                trace!("received internal signal");
                 let type_id = internal_signal.as_any().type_id();
-                match signal_reactors.get(&type_id) {
-                    Some(reactor) => {
-                        trace!("received stop signal");
-                        (*reactor)(cloned_actor.clone(), &*internal_signal).await;
-                    }
-                    None => {
-                        trace!("No handler for message type: {:?}", internal_signal);
-                        continue;
-                    }
+                if let Some(reactor) = signal_reactors.get(&type_id) {
+                    trace!("received stop signal");
+                    let cloned_actor = actor.clone();
+                    (*reactor)(cloned_actor, &*internal_signal).await;
+                } else {
+                    trace!("No handler for message type: {:?}", internal_signal);
+                    continue;
                 }
             } else {
-                //give some time back to the tokio runtime
+                // Simulate delay to avoid tight loop overwhelming.
                 tokio::time::sleep(Duration::from_nanos(1)).await;
             }
 
-            let shared_self = cloned_actor.clone();
-            // Check the stop condition after processing messages
-            if shared_self.clone().lock().await.halt_signal.load(Ordering::SeqCst) && shared_self.clone().lock().await.mailbox.is_empty() {
-                trace!("Halt signal received, exiting capture loop");
+            // Checking stop condition with minimized lock duration.
+            let should_stop = {
+                let cloned_actor = actor.clone();
+                let actor_guard = cloned_actor.lock().await;
+                actor_guard.halt_signal.load(Ordering::SeqCst) && actor_guard.mailbox.is_empty()
+            };
 
+            if should_stop {
+                debug!("Halt signal received, exiting capture loop");
                 break;
             }
         }
-        // Instead of using `self` directly, use the locked version from `shared_self`
-        //TODO: revisit
-        // let self_clone = first_shared_self.clone();
-        // (self_clone.lock().await.si.unwrap().on_stop)(&*self_clone.lock().await.unwrap());
 
+// This comment block seems to indicate planned future changes or considerations for stopping the actor.
+// Please ensure to handle this appropriately when you finalize your logic.
         // (actor.lock().await.on_stop)(actor);
     }
-
+    #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
+        debug!("Inside terminate");
         if !self.halt_signal.load(Ordering::SeqCst) {
+            debug!("Halt signal loaded");
             self.halt_signal.store(true, Ordering::SeqCst);
         }
     }

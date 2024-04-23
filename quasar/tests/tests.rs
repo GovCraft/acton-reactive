@@ -25,7 +25,7 @@ use tokio::sync::Mutex;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 // use std::sync::{Arc, Mutex};
-use tracing::{info, Level};
+use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -35,8 +35,9 @@ pub struct Counter {
 
 #[tokio::test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
+    // console_subscriber::init();
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -57,11 +58,16 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
 
     joke_counter.state.act_on::<FunnyMessage>(Box::new(|actor: Arc<Mutex<Awake<Counter, Context>>>, event: &EventRecord<FunnyMessage>| {
+        debug!("joke reactor entered");
         let event_cloned = event.clone();
         Box::pin(async move {
+            debug!("moved into joke reactor handler");
             // Asynchronously acquire the lock to the actor's state
             let mut actor_guard = actor.lock().await;
+            debug!("locked actor guard");
             actor_guard.state.count += 1;
+            debug!("updated count state");
+
             match event_cloned.message {
                 FunnyMessage::Haha => {
                     info!("I laughed");
@@ -75,6 +81,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             }
             info!("Jokes told: {}", actor_guard.state.count);
             info!("{:?}", event_cloned.sent_time);
+            drop(actor_guard);
         }) as Pin<Box<dyn Future<Output=()> + Sync + Send>>
     }));
 
@@ -86,8 +93,8 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let mut comedian = Actor::spawn(joke_counter).await;
 
     comedian.emit(FunnyMessage::Haha).await?;
-    let _ = system.context.terminate().await;
     let _ = comedian.terminate().await;
+    // let _ = system.context.terminate().await;
     //
     Ok(())
 }
