@@ -48,6 +48,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
         let mut actor = idle_actor;
 
 // Handle any pre_start activities
+
         (actor.state.on_before_wake)(&actor.state);
 
 // Ensure reactors are correctly assigned

@@ -32,8 +32,8 @@ pub struct Awake<T: 'static, U: 'static> {
     pub(crate) signal_reactors: Option<SignalReactorMap<T, U>>,
     signal_mailbox: InboundSignalChannel,
     pub(crate) signal_outbox: OutboundSignalChannel,
-    on_wake: LifecycleReactor<Awake<T, U>>,
-    on_stop: LifecycleReactor<Awake<T, U>>,
+    on_wake: Box<LifecycleReactor<Awake<T, U>>>,
+    pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) message_reactors: Option<MessageReactorMap<T, U>>,
     mailbox: InboundChannel,
     pub(crate) outbox: OutboundChannel,
@@ -43,8 +43,8 @@ pub struct Awake<T: 'static, U: 'static> {
 impl<T, U> Awake<T, U> {
     #[instrument(skip(actor, message_reactors, signal_reactors), fields(key))]
     pub(crate) async fn wake(actor: Arc<Mutex<Awake<T, U>>>, message_reactors: MessageReactorMap<T, U>, signal_reactors: SignalReactorMap<T, U>) {
-        // Pre-fetch key value outside of the loop to avoid locking just for reading the key.
-        let key = actor.lock().await.key.value.clone();
+
+        (actor.lock().await.on_wake)(actor.clone());
         let actor = actor.clone();  // Clone outside the loop to reduce overhead.
 
         loop {
@@ -105,7 +105,7 @@ impl<T, U> Awake<T, U> {
 
 // This comment block seems to indicate planned future changes or considerations for stopping the actor.
 // Please ensure to handle this appropriately when you finalize your logic.
-        // (actor.lock().await.on_stop)(actor);
+        (actor.lock().await.on_stop)(actor.clone());
     }
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
@@ -124,7 +124,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
         let (outbox, mailbox) = channel(255);
         let (signal_outbox, signal_mailbox) = channel(255);
         let on_wake = value.state.on_wake;
-        let on_stop = value.state.on_stop;
+        let on_stop = Box::new(value.state.on_stop);
         let message_reactors = Some(value.state.message_reactors);
         let signal_reactors = Some(value.state.signal_reactors);
         let halt_signal = StopSignal::new(false);

@@ -45,7 +45,8 @@ pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;
 
-pub type LifecycleReactor<T> = Box<dyn Fn(&T) + Send + Sync>;
+pub type LifecycleReactor<T> = dyn Fn(Arc<Mutex<T>>) + Send + Sync;
+pub type IdleLifecycleReactor<T> = dyn Fn(&T) + Send + Sync;
 // type ActorReactor = Box<dyn Fn(&mut MyActorRunning, &dyn ActorMessage) + Send + Sync>;
 // pub type SignalReactor<T, U> = Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) + Send + Sync>;
 // pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;

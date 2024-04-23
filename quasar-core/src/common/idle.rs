@@ -38,13 +38,14 @@ use tokio::sync::Mutex;
 pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub key: Qrn,
     pub state: T,
-    pub parent: Option<&'static U>,
-    pub(crate) on_before_wake: LifecycleReactor<Self>,
-    pub(crate) on_wake: LifecycleReactor<Awake<T, U>>,
-    pub(crate) on_stop: LifecycleReactor<Awake<T, U>>,
+    pub parent: Option<&'static U>,  // Consider using an Arc<U> or similar if lifetimes are a problem
+    pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<T, U>>>,
+    pub(crate) on_wake: Box<LifecycleReactor<Awake<T, U>>>,
+    pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) message_reactors: MessageReactorMap<T, U>,
     pub(crate) signal_reactors: SignalReactorMap<T, U>,
 }
+
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
@@ -113,19 +114,19 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     // }
 
 
-    pub fn on_before_wake(&mut self, life_cycle_event_reactor: impl Fn(&Idle<T, U>) + Send + Sync + 'static) -> &mut Self {
-        // Create a boxed handler that can be stored in the HashMap.
+    pub fn on_before_wake(&mut self, life_cycle_event_reactor: Box<IdleLifecycleReactor<Idle<T, U>>>)  -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
-    pub fn on_wake(&mut self, life_cycle_event_reactor: impl Fn(&Awake<T, U>) + Send + Sync + 'static) -> &mut Self {
+
+    pub fn on_wake(&mut self, life_cycle_event_reactor: Box<LifecycleReactor<Awake<T, U>>>) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
-    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(&Awake<T, U>) + Send + Sync + 'static) -> &mut Self {
+    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
         self
@@ -136,9 +137,9 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             key: qrn,
             state,
             parent: None,
-            on_before_wake: Box::new(|_| {}),
-            on_wake: Box::new(|_| {}),
-            on_stop: Box::new(|_| {}),
+            on_before_wake: Box::new(|_|{}),
+            on_wake: Box::new(|_|{}),
+            on_stop: Box::new(|_|{}),
             message_reactors: DashMap::new(),
             signal_reactors: DashMap::new(),
         }
