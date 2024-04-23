@@ -16,6 +16,9 @@
  *
  *
  */
+
+mod message_processing_future;
+pub use message_processing_future::MessageProcessingFuture;
 mod event_record;
 pub use event_record::EventRecord;
 mod origin;

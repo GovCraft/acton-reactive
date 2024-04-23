@@ -29,7 +29,7 @@ use tracing::{error, instrument, trace};
 use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
-use crate::traits::{QuasarMessage, SystemMessage};
+use crate::traits::{IntoAsyncReactor, QuasarMessage, SystemMessage};
 use futures::{future};
 use tokio::sync::Mutex;
 
@@ -37,7 +37,8 @@ use tokio::sync::Mutex;
 pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub key: Qrn,
     pub state: T,
-    pub parent: Option<&'static U>,  // Consider using an Arc<U> or similar if lifetimes are a problem
+    pub parent: Option<&'static U>,
+    // Consider using an Arc<U> or similar if lifetimes are a problem
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<T, U>>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
@@ -47,28 +48,35 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
-    #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: QuasarMessage + 'static + Clone>(
-        &mut self,
-        message_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<M>) -> Pin<Box<dyn Future<Output=()> + Sync + Send>> + Sync + Send + 'static,
-    ) -> &mut Self {
-        trace!("entering message reactors");
+    #[instrument(skip(self, message_processor))]
+    pub fn act_on<M, F, Fut>(&mut self, message_processor: F) -> &mut Self
+        where
+            M: QuasarMessage + 'static,
+            F: for<'a> Fn(Arc<Mutex<Awake<T, U>>>, &'a EventRecord<&M>) -> Fut + Send + Sync + 'static,
+            Fut: Future<Output = ()> + Send + 'static,
+    {
         let type_id = TypeId::of::<M>();
-        let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, envelope: &Envelope| {
+
+        let handler_box = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let cloned_message = concrete_msg.clone();
                 let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time };
-                message_reactor(actor, &event_record)
+
+                // Call the user-provided function and get the future
+                let user_future = message_processor(actor.clone(), &event_record);
+
+                // Automatically box and pin the user future
+                Box::pin(user_future) as Pin<Box<dyn Future<Output = ()> + Send>>
             } else {
-                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
-                Box::pin(future::ready(()))
+                Box::pin(async {}) as Pin<Box<dyn Future<Output = ()> + Send>>
             }
         });
-        trace!("Inserting message reactors");
-        self.message_reactors.insert(type_id, handler_box);
 
+        self.message_reactors.insert(type_id, handler_box);
         self
     }
+
+
 
     pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
         &mut self,
@@ -78,7 +86,6 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
 
         let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
             if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-
                 signal_reactor(actor, &*concrete_msg)
             } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
@@ -112,7 +119,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     // }
 
 
-    pub fn on_before_wake(&mut self, life_cycle_event_reactor: Box<IdleLifecycleReactor<Idle<T, U>>>)  -> &mut Self {
+    pub fn on_before_wake(&mut self, life_cycle_event_reactor: Box<IdleLifecycleReactor<Idle<T, U>>>) -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
     }
@@ -135,9 +142,9 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             key: qrn,
             state,
             parent: None,
-            on_before_wake: Box::new(|_|{}),
-            on_wake: Box::new(|_|{}),
-            on_stop: Box::new(|_|{}),
+            on_before_wake: Box::new(|_| {}),
+            on_wake: Box::new(|_| {}),
+            on_stop: Box::new(|_| {}),
             message_reactors: DashMap::new(),
             signal_reactors: DashMap::new(),
         }

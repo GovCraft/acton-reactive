@@ -57,36 +57,19 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let mut joke_counter = system.context.new_actor::<Counter>(counter, "counter");
     assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
 
-    joke_counter.state.act_on::<FunnyMessage>(Box::new(|actor: Arc<Mutex<Awake<Counter, Context>>>, event: &EventRecord<FunnyMessage>| {
-        debug!("joke reactor entered");
-        let event_cloned = event.clone();
-        Box::pin(async move {
-            debug!("moved into joke reactor handler");
-            // Asynchronously acquire the lock to the actor's state
-            let mut actor_guard = actor.lock().await;
-            debug!("locked actor guard");
-            actor_guard.state.count += 1;
-            debug!("updated count state");
+    // joke_counter.state.act_on::<FunnyMessage>(|actor, event| async move {
+    //     let mut actor_guard = actor.lock().await;
+    //     actor_guard.state.count += 1;
+    //
+    //     match event.message {
+    //         FunnyMessage::Haha => info!("I laughed"),
+    //         FunnyMessage::Lol => info!("I lol'ed"),
+    //         FunnyMessage::Giggle => info!("I giggled"),
+    //     }
+    //
+    //     info!("Jokes told: {}", actor_guard.state.count);
+    // });
 
-            match event_cloned.message {
-                FunnyMessage::Haha => {
-                    info!("I laughed");
-                }
-                FunnyMessage::Lol => {
-                    info!("I lol'ed");
-                }
-                FunnyMessage::Giggle => {
-                    info!("I giggled");
-                }
-            }
-            info!("Jokes told: {}", actor_guard.state.count);
-            info!("{:?}", event_cloned.sent_time);
-            drop(actor_guard);
-        }) as Pin<Box<dyn Future<Output=()> + Sync + Send>>
-    })).on_before_wake(Box::new(|actor| {
-        info!("on_before_wake count: {}", actor.state.count);
-        // assert_eq!(actor.state.count, 3);
-    }));
 
     let mut comedian = Actor::spawn(joke_counter).await;
 

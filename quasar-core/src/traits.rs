@@ -19,10 +19,33 @@
 
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 use async_trait::async_trait;
 use quasar_qrn::prelude::*;
+use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{Origin, OutboundSignalChannel};
+use crate::common::{Awake, EventRecord, Origin, OutboundSignalChannel};
+
+pub trait IntoAsyncReactor<T, U> {
+    fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync>;
+}
+
+impl<T, U, F, Fut> IntoAsyncReactor<T, U> for F
+    where
+        T: 'static + Send + Sync,
+        U: QuasarMessage + 'static + Clone,
+        F: Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+{
+    fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync> {
+        Box::new(move |actor, event| {
+            Box::pin(self(actor, event))
+        })
+    }
+}
+
 
 //region Traits
 pub trait QuasarMessage: Any + Sync + Send + Debug {
