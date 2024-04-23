@@ -65,9 +65,9 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
         let task_tracker = TaskTracker::new();
 
         // Spawn task to listen to messages
-        task_tracker.spawn(async move {
-            active_quasar.state.wake(photon_responder_map, singularity_signal_responder_map).await
-        });
+        // task_tracker.spawn(async move {
+            active_quasar.state.wake(photon_responder_map, singularity_signal_responder_map).await;
+        // });
         task_tracker.close();
         assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 

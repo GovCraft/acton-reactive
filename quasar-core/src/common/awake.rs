@@ -16,7 +16,6 @@
  *
  *
  */
-
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use quasar_qrn::Qrn;
@@ -50,12 +49,15 @@ impl<T, U> Awake<T, U> {
 
             // Fetch and process actor messages if available
             while let Ok(envelope) = self.mailbox.try_recv() {
-                trace!("Received actor message: {:?}", envelope.message);
+                // trace!("Received actor message: {:?}", envelope.message);
+                trace!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = message_reactors.get(&type_id) {
                     // Dynamically handle the reactor invocation
-                    reactor(self, &envelope);
+                    // todo!()
+
+                    (*reactor)(self, &envelope).await;
                 } else {
                     trace!("No reactor for message type: {:?}", type_id);
                 }

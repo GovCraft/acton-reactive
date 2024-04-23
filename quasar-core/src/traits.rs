@@ -73,3 +73,24 @@ pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clon
     async fn unwatch(&mut self) -> anyhow::Result<()>;
     async fn failed(&mut self) -> anyhow::Result<()>;
 }
+
+
+
+
+
+// pub trait AsyncMessageReactor<T, U>:Send {
+//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+// }
+//
+//
+// impl<T, U, F> AsyncMessageReactor<T, U> for F
+//     where
+//         T: Send + 'static,
+//         U: Send + 'static,
+//         F: Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
+// {
+//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>{
+//         (self)(actor, envelope)
+//     }
+// }
+

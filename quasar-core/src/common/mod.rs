@@ -17,6 +17,7 @@
  *
  */
 mod event_record;
+pub use event_record::EventRecord;
 mod origin;
 pub use origin::Origin;
 

@@ -17,14 +17,20 @@
  *
  */
 
-use std::any::TypeId;
+use std::any::{TypeId};
+use std::future::Future;
+use std::pin::Pin;
+
+
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
 use tracing::{error, instrument};
-use crate::common::{MessageReactor, MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
+use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
-use crate::traits::{QuasarMessage, SystemMessage};
+use crate::traits::{ QuasarMessage, SystemMessage};
+use futures::{future};
+
 
 pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub key: Qrn,
@@ -39,26 +45,35 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: QuasarMessage + Clone + 'static>(&mut self, message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) + Send + Sync + 'static) -> &mut Self {
-        let type_id = TypeId::of::<M>();
+    pub fn act_on<M: QuasarMessage + 'static + Clone, G: Send + 'static>(
+        &mut self,
+        message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) -> G + Send + 'static
+    )  -> &mut Self where G: Future<Output=()> {
+        // let message_handler = Arc::new(message_reactor);
+        let _type_id = TypeId::of::<M>();
 
-        let message_reactor_box: MessageReactor<T, U> = Box::new(move |actor, envelope| {
-            // Attempt to downcast to the specific message type `M`
+        let _handler_box: Box<dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>>> = Box::new(move |actor, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let cloned_message = concrete_msg.clone();  // Cloning the dereference message
 
                 let event_record = EventRecord{ message: cloned_message, sent_time: envelope.sent_time };
 
                 // Pass the new record to the reactor
-                message_reactor(actor, &event_record);
-            } else {
-                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
+                Box::pin(message_reactor(actor, &event_record))
+                // message_reactor(actor, &event_record);
             }
-        });
+            else {
+                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
+                // Box::pin(Err("Message type mismatch") as G)  // Ensure G can be derived from this error
+                Box::pin(future::ready(()))            }
 
-        self.message_reactors.insert(type_id, message_reactor_box);
+        });
+        // let mut map = &self.message_reactors;
+        // map.insert(type_id, handler_box);
+
         self
     }
+
 
     pub fn observe_singularity_signal<M: SystemMessage + 'static>(&mut self, lifecycle_message_reactor: impl Fn(&mut Awake<T, U>, &M) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.

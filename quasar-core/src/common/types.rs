@@ -18,10 +18,13 @@
  */
 
 use std::any::TypeId;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
+
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
-use crate::traits::SystemMessage;
+use crate::traits::{SystemMessage};
 use crate::common::{Awake, Envelope};
 
 //region Common Types
@@ -29,9 +32,13 @@ pub type SignalReactorMap<T, U> = DashMap<TypeId, SignalReactor<T, U>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
+pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
 
-pub type MessageReactorMap<T, U> = DashMap<TypeId, MessageReactor<T, U>>;
-pub type MessageReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, &Envelope) + Send + Sync>;
+// pub type MessageReactorMap<T, U> = DashMap<TypeId, MessageReactor<T, U>>;
+// pub type MessageReactor<T, U> = Box<dyn AsyncMessageReactor<T, U> + Send + Sync>;
+// #[async_trait]
+type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
+
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;

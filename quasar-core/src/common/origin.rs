@@ -39,6 +39,8 @@ impl ReturnAddress for Origin {
     async fn reply(&self, message: Box<(dyn QuasarMessage + 'static)>) -> anyhow::Result<()> {
         let envelope = Envelope { message, sent_time: SystemTime::now() };
         self.reply_to.send(envelope).await?;
+
+        // self.reply_to.send(envelope).await?;
         Ok(())
     }
 }
