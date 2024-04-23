@@ -23,9 +23,9 @@ use std::sync::Arc;
 use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::Mutex;
-use tokio_util::task::{task_tracker, TaskTracker};
-use crate::common::{SystemSignal, Context, Idle, Awake, EventRecord};
-use tracing::{debug, error, info, instrument, trace, warn};
+use tokio_util::task::TaskTracker;
+use crate::common::{SystemSignal, Context, Idle, Awake};
+use tracing::{debug, error, instrument, trace};
 use crate::traits::SystemMessage;
 
 pub struct Actor<S> {
@@ -45,7 +45,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
 
 
         // Convert the actor from MyActorIdle to MyActorRunning
-        let mut actor = idle_actor;
+        let actor = idle_actor;
 
 // Handle any pre_start activities
 
@@ -86,7 +86,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
         }
 
 // Now that the necessary shared state has been extracted, initiate the wake process
-        let mut task_tracker = TaskTracker::new();
+        let task_tracker = TaskTracker::new();
 
         task_tracker.spawn(async move {
             Awake::<T, U>::wake(active_actor.clone(), message_reactor_map, signal_reactor_map).await
@@ -115,7 +115,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
                 let actor = actor.clone();
                 Box::pin(async move {
                     // Asynchronously acquire the lock to the actor's state
-                    let mut actor_guard = actor.lock().await;
+                    let actor_guard = actor.lock().await;
                     match event_cloned {
                         SystemSignal::Terminate => {
                             debug!("Received terminate message");

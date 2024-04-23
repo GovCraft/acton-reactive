@@ -83,12 +83,10 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             info!("{:?}", event_cloned.sent_time);
             drop(actor_guard);
         }) as Pin<Box<dyn Future<Output=()> + Sync + Send>>
+    })).on_before_wake(Box::new(|actor| {
+        info!("on_before_wake count: {}", actor.state.count);
+        // assert_eq!(actor.state.count, 3);
     }));
-
-    // .on_stop(|actor| {
-    //     info!("count: {}", actor.state.count);
-    //     assert_eq!(actor.state.count, 3);
-    // });
 
     let mut comedian = Actor::spawn(joke_counter).await;
 

@@ -21,7 +21,6 @@ use std::any::{TypeId};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc};
-use std::time::SystemTime;
 
 
 use dashmap::DashMap;
@@ -79,8 +78,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
 
         let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
             if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                let cloned_message = concrete_msg.clone();
-                // let event_record = EventRecord { message: cloned_message, sent_time: SystemTime::now() };
+
                 signal_reactor(actor, &*concrete_msg)
             } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
