@@ -30,7 +30,8 @@ use crate::traits::{SystemMessage};
 use crate::common::{Awake, Envelope};
 
 //region Common Types
-pub type SignalReactorMap<T, U> = DashMap<TypeId, SignalReactor<T, U>>;
+pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+pub type SignalReactorMap<T, U> = DashMap<TypeId, Box<SignalReactor<T, U>>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
@@ -46,7 +47,7 @@ pub type StopSignal = AtomicBool;
 
 pub type LifecycleReactor<T> = Box<dyn Fn(&T) + Send + Sync>;
 // type ActorReactor = Box<dyn Fn(&mut MyActorRunning, &dyn ActorMessage) + Send + Sync>;
-pub type SignalReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, &dyn SystemMessage) + Send + Sync>;
+// pub type SignalReactor<T, U> = Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) + Send + Sync>;
 // pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;
 //pub type MessageReactor<T, U> = Box<dyn Fn(&mut Awake<T, U>, Envelope<&dyn QuasarMessage>) + Send + Sync>;
 

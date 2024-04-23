@@ -20,7 +20,7 @@
 use std::any::Any;
 use crate::traits::SystemMessage;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum SystemSignal {
     Wake,

@@ -21,6 +21,7 @@ use std::any::{TypeId};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc};
+use std::time::SystemTime;
 
 
 use dashmap::DashMap;
@@ -69,30 +70,48 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
         self
     }
 
+    pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
+        &mut self,
+        signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
+    ) -> &mut Self {
+        let type_id = TypeId::of::<M>();
 
-
-
-
-
-    pub fn observe_singularity_signal<M: SystemMessage + 'static>(&mut self, lifecycle_message_reactor: impl Fn(&mut Awake<T, U>, &M) + Send + Sync + 'static) -> &mut Self {
-        // Create a boxed handler that can be stored in the HashMap.
-        let lifecycle_message_reactor_box: SignalReactor<T, U> = Box::new(move |actor: &mut Awake<T, U>, lifecycle_message: &dyn SystemMessage| {
-            // Attempt to downcast the message to its concrete type.
-            if let Some(concrete_msg) = lifecycle_message.as_any().downcast_ref::<M>() {
-                lifecycle_message_reactor(actor, concrete_msg);
+        let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
+            if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
+                let cloned_message = concrete_msg.clone();
+                // let event_record = EventRecord { message: cloned_message, sent_time: SystemTime::now() };
+                signal_reactor(actor, &*concrete_msg)
             } else {
-                // If downcasting fails, log a warning.
-                error!("Warning: SystemMessage type mismatch: {:?}", std::any::type_name::<M>());
+                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
+                Box::pin(future::ready(()))
             }
         });
 
-        // Use the type ID of the concrete message type M as the key in the handlers map.
-        let type_id = TypeId::of::<M>();
-        self.signal_reactors.insert(type_id, lifecycle_message_reactor_box);
+        self.signal_reactors.insert(type_id, handler_box);
 
-        // Return self to allow chaining.
         self
     }
+
+    // pub fn act_on_internal_signal<M: SystemMessage + 'static>(&mut self, signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &M) + Send + Sync + 'static) -> &mut Self {
+    //     // Create a boxed handler that can be stored in the HashMap.
+    //     let signal_reactor_box: SignalReactor<T, U> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, system_message: &dyn SystemMessage| {
+    //         // Attempt to downcast the message to its concrete type.
+    //         if let Some(concrete_msg) = system_message.as_any().downcast_ref::<M>() {
+    //             signal_reactor(actor, concrete_msg);
+    //         } else {
+    //             // If downcasting fails, log a warning.
+    //             error!("Warning: SystemMessage type mismatch: expected type {:?}", std::any::type_name::<M>());
+    //         }
+    //     });
+    //
+    //     // Use the type ID of the concrete message type M as the key in the handlers map.
+    //     let type_id = TypeId::of::<M>();
+    //     self.signal_reactors.insert(type_id, signal_reactor_box);
+    //
+    //     // Return self to allow chaining.
+    //     self
+    // }
+
 
     pub fn on_before_wake(&mut self, life_cycle_event_reactor: impl Fn(&Idle<T, U>) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
