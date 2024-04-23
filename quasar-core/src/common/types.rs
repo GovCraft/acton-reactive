@@ -20,10 +20,12 @@
 use std::any::TypeId;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::Mutex;
 use crate::traits::{SystemMessage};
 use crate::common::{Awake, Envelope};
 
@@ -34,7 +36,9 @@ pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
 pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
 // type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
-pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&'a mut Awake<T, U>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+// pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&'a mut Awake<T, U>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+// pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
+pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
 
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;

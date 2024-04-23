@@ -20,6 +20,7 @@
 use std::any::{TypeId};
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::{Arc};
 
 
 use dashmap::DashMap;
@@ -30,6 +31,7 @@ use crate::common::*;
 use crate::common::event_record::EventRecord;
 use crate::traits::{ QuasarMessage, SystemMessage};
 use futures::{future};
+use tokio::sync::Mutex;
 
 
 pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
@@ -47,28 +49,29 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
-    )  -> &mut Self {
-        // let message_handler = Arc::new(message_reactor);
+        message_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<M>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
+    ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
-        let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: &mut Awake<T, U>, envelope: &Envelope| {
+        let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                let cloned_message = concrete_msg.clone();  // Cloning the message
+                let cloned_message = concrete_msg.clone();
                 let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time };
-                // Here, ensure the future is 'static
-                Box::pin(message_reactor(actor, &event_record))
+                message_reactor(actor, &event_record)
             } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
-                Box::pin(future::ready(())) // Ensure this future is also 'static
+                Box::pin(future::ready(()))
             }
         });
 
-        let map = &self.message_reactors;
-        map.insert(type_id, handler_box);
+        self.message_reactors.insert(type_id, handler_box);
 
         self
     }
+
+
+
+
 
 
     pub fn observe_singularity_signal<M: SystemMessage + 'static>(&mut self, lifecycle_message_reactor: impl Fn(&mut Awake<T, U>, &M) + Send + Sync + 'static) -> &mut Self {

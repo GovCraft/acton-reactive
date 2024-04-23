@@ -18,6 +18,8 @@
  */
 
 
+use std::future::Future;
+use std::pin::Pin;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 // use std::sync::{Arc, Mutex};
@@ -52,27 +54,29 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let mut joke_counter = system.context.new_actor::<Counter>(counter, "counter");
     assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
 
-    // joke_counter.state.act_on::<FunnyMessage>(|actor, event| {
-    //     actor.state.count += 1;
-    //     match event.message {
-    //         FunnyMessage::Haha => {
-    //             info!("I laughed");
+    // joke_counter.state.act_on::<FunnyMessage>(Box::new(|actor: &mut Awake<Counter,Context>, event:&EventRecord<FunnyMessage>| {
+    //     Box::pin(async move {
+    //         actor.state.count += 1;
+    //         match event.message {
+    //             FunnyMessage::Haha => {
+    //                 info!("I laughed");
+    //             }
+    //             FunnyMessage::Lol => {
+    //                 info!("I lol'ed");
+    //             }
+    //             FunnyMessage::Giggle => {
+    //                 info!("I giggled");
+    //             }
     //         }
-    //         FunnyMessage::Lol => {
-    //             info!("I lol'ed");
-    //         }
-    //         FunnyMessage::Giggle => {
-    //             info!("I giggled");
-    //         }
-    //     }
-    //     info!("Jokes told: {}",actor.state.count);
-    //     info!("{:?}",event.sent_time);
-    // })
+    //         info!("Jokes told: {}", actor.state.count);
+    //         info!("{:?}", event.sent_time);
+    //     }) as Pin<Box<dyn Future<Output = ()> + Send>>
+    // }))
     //     .on_stop(|actor| {
-    //          info!("count: {}", actor.state.count);
+    //         info!("count: {}", actor.state.count);
     //         assert_eq!(actor.state.count, 3);
     //     });
-    //
+
     let mut comedian = Actor::spawn(joke_counter).await;
 
     comedian.emit(FunnyMessage::Haha).await?;

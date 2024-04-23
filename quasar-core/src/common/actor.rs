@@ -17,7 +17,9 @@
  *
  */
 
+use std::sync::Arc;
 use quasar_qrn::Qrn;
+use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
 use crate::common::{SystemSignal, Context, Idle, Awake};
 use tracing::{instrument, trace, warn};
@@ -47,31 +49,44 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
         Self::assign_lifecycle_reactors(&mut actor);
 
         // Convert to QuasarRunning state
-        let mut active_quasar: Actor<Awake<T, U>> = actor.into();
+        // Convert Actor<Idle<T, U>> to Actor<Awake<T, U>> first
+        let active_actor_awake: Actor<Awake<T, U>> = actor.into();
 
-        // Take reactor maps and inbox addresses before entering async context
-        let singularity_signal_responder_map = active_quasar.state.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
-        let photon_responder_map = active_quasar.state.message_reactors.take().expect("No actor message reactors provided. This should never happen");
+        // Then wrap the state (Awake<T, U>) into Arc<Mutex<_>> for shared access
+        let active_actor: Arc<Mutex<Awake<T, U>>> = Arc::new(Mutex::new(active_actor_awake.state));
+
+        // Acquire the lock to access the shared state.
+        let mut active_actor_guard = active_actor.lock().await;
+
+        let singularity_signal_responder_map = active_actor_guard.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
+        let photon_responder_map = active_actor_guard.message_reactors.take().expect("No actor message reactors provided. This should never happen");
         trace!("Actor reactor map size: {}", photon_responder_map.len());
 
-        let actor_inbox_address = active_quasar.state.outbox.clone();
+        let actor_inbox_address = active_actor_guard.outbox.clone();
         assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
 
-        let lifecycle_inbox_address = active_quasar.state.signal_outbox.clone();
+        let lifecycle_inbox_address = active_actor_guard.signal_outbox.clone();
         assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
 
-        let qrn = active_quasar.state.key.clone();
+        let qrn = active_actor_guard.key.clone();
+
+// Drop the mutex guard as we no longer need to access the shared state directly
+        drop(active_actor_guard);
 
         let task_tracker = TaskTracker::new();
 
-        // Spawn task to listen to messages
-        // task_tracker.spawn(async move {
-            active_quasar.state.wake(photon_responder_map, singularity_signal_responder_map).await;
-        // });
+// Assume `active_actor` is an `Arc<Mutex<Awake<T, U>>>`
+//         let mut actor_guard = active_actor.lock().await;
+
+// Now call `wake` on the actual `Awake<T, U>` reference
+//         actor_guard.wake(photon_responder_map, singularity_signal_responder_map).await;
+// Correctly use the associated function, passing `&mut` reference to the `Awake<T, U>`
+        Awake::<T, U>::wake(active_actor, photon_responder_map, singularity_signal_responder_map).await;
+
         task_tracker.close();
         assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 
-        // Create a new QuasarContext with pre-extracted data
+// Create a new QuasarContext with pre-extracted data
         Context {
             outbox: actor_inbox_address,
             signal_outbox: lifecycle_inbox_address,
@@ -97,7 +112,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
                 SystemSignal::Watch => { todo!() }
                 SystemSignal::Unwatch => { todo!() }
                 SystemSignal::Failed => { todo!() }
-                SystemSignal::Wake => {todo!()}
+                SystemSignal::Wake => { todo!() }
             }
         });
     }
