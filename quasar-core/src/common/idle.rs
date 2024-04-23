@@ -19,7 +19,7 @@
 
 use std::any::{TypeId};
 use std::future::Future;
-use std::pin::Pin;
+
 
 
 use dashmap::DashMap;
@@ -50,26 +50,22 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
         message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) -> G + Send + 'static
     )  -> &mut Self where G: Future<Output=()> {
         // let message_handler = Arc::new(message_reactor);
-        let _type_id = TypeId::of::<M>();
+        let type_id = TypeId::of::<M>();
 
-        let _handler_box: Box<dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>>> = Box::new(move |actor, envelope: &Envelope| {
+        let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: &mut Awake<T, U>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                let cloned_message = concrete_msg.clone();  // Cloning the dereference message
-
-                let event_record = EventRecord{ message: cloned_message, sent_time: envelope.sent_time };
-
-                // Pass the new record to the reactor
+                let cloned_message = concrete_msg.clone();  // Cloning the message
+                let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time };
+                // Here, ensure the future is 'static
                 Box::pin(message_reactor(actor, &event_record))
-                // message_reactor(actor, &event_record);
-            }
-            else {
+            } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
-                // Box::pin(Err("Message type mismatch") as G)  // Ensure G can be derived from this error
-                Box::pin(future::ready(()))            }
-
+                Box::pin(future::ready(())) // Ensure this future is also 'static
+            }
         });
-        // let mut map = &self.message_reactors;
-        // map.insert(type_id, handler_box);
+
+        let map = &self.message_reactors;
+        map.insert(type_id, handler_box);
 
         self
     }

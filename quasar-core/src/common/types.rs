@@ -33,11 +33,8 @@ pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
 pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
-
-// pub type MessageReactorMap<T, U> = DashMap<TypeId, MessageReactor<T, U>>;
-// pub type MessageReactor<T, U> = Box<dyn AsyncMessageReactor<T, U> + Send + Sync>;
-// #[async_trait]
-type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
+// type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
+pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&'a mut Awake<T, U>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
 
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
