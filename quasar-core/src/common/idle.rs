@@ -19,7 +19,7 @@
 
 use std::any::{TypeId};
 use std::future::Future;
-
+use std::pin::Pin;
 
 
 use dashmap::DashMap;
@@ -45,10 +45,10 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: QuasarMessage + 'static + Clone, G: Send + 'static>(
+    pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) -> G + Send + 'static
-    )  -> &mut Self where G: Future<Output=()> {
+        message_reactor: impl Fn(&mut Awake<T, U>, &EventRecord<M>) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
+    )  -> &mut Self {
         // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
 
