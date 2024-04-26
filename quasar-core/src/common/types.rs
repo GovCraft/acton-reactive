@@ -26,8 +26,8 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
-use crate::traits::{SystemMessage};
-use crate::common::{Awake, Envelope};
+use crate::traits::{Handler, SystemMessage};
+use crate::common::{Awake, Context, Envelope, EventRecord};
 
 //region Common Types
 pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync + 'static;
@@ -36,11 +36,12 @@ pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
 pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
-// type MessageReactor<T,U> = dyn Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static;
-// pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&'a mut Awake<T, U>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
-// pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + 'static;
 pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &'b Envelope) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync + 'static;
-
+pub type Fut = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
+pub type FutReactor<T> =  dyn Fn(&mut Awake<T, Context>, &EventRecord<&T>) -> Fut;
+pub type BoxFutReactor<T> = Box<FutReactor<T>>;
+pub type PinBoxFutReactor<T> = Pin<BoxFutReactor<T>>;
+pub type FutReactorMap<T> = DashMap<TypeId, Box<dyn Fn(&mut Awake<T, Context>, &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>>;
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;

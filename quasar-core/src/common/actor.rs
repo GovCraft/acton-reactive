@@ -102,7 +102,6 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
             task_tracker,
             key: qrn,
         }
-
     }
 
     #[instrument(skip(actor), fields(qrn = actor.state.key.value))]

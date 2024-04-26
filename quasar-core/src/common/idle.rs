@@ -19,6 +19,7 @@
 
 use std::any::{TypeId};
 use std::future::Future;
+use std::mem;
 use std::pin::Pin;
 use std::sync::{Arc};
 
@@ -29,7 +30,7 @@ use tracing::{error, instrument, trace};
 use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
-use crate::traits::{IntoAsyncReactor, QuasarMessage, SystemMessage};
+use crate::traits::{Handler, IntoAsyncReactor, QuasarMessage, SystemMessage};
 use futures::{future};
 use tokio::sync::Mutex;
 
@@ -43,6 +44,7 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub(crate) on_wake: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) message_reactors: MessageReactorMap<T, U>,
+    pub(crate) handlers: FutReactorMap<T>,
     pub(crate) signal_reactors: SignalReactorMap<T, U>,
 }
 
@@ -53,7 +55,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
         where
             M: QuasarMessage + 'static,
             F: for<'a> Fn(Arc<Mutex<Awake<T, U>>>, &'a EventRecord<&M>) -> Fut + Send + Sync + 'static,
-            Fut: Future<Output = ()> + Send + 'static,
+            Fut: Future<Output=()> + Send + 'static,
     {
         let type_id = TypeId::of::<M>();
 
@@ -66,9 +68,9 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
                 let user_future = message_processor(actor.clone(), &event_record);
 
                 // Automatically box and pin the user future
-                Box::pin(user_future) as Pin<Box<dyn Future<Output = ()> + Send>>
+                Box::pin(user_future) as Pin<Box<dyn Future<Output=()> + Send>>
             } else {
-                Box::pin(async {}) as Pin<Box<dyn Future<Output = ()> + Send>>
+                Box::pin(async {}) as Pin<Box<dyn Future<Output=()> + Send>>
             }
         });
 
@@ -76,8 +78,29 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
         self
     }
 
+    #[instrument(skip(self, message_processor))]
+    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Awake<T, Context>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send>> + 'static + Send) -> &mut Self
+        where M: QuasarMessage + 'static
+    {
+        let type_id = TypeId::of::<M>();
+        let handler_box = Box::new(move |actor: &mut Awake<T, Context>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
+            if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
+                let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time };
 
+                // Call the user-provided function and get the future
+                let user_future = message_processor(actor, &event_record);
 
+                // Automatically box and pin the user future
+                Box::pin(user_future)
+            } else {
+                // Return an immediately resolving future if downcast fails
+                Box::pin(async {})
+            }
+        });
+
+        self.handlers.insert(type_id, handler_box);
+        self
+    }
     pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
         &mut self,
         signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync + 'static,
@@ -146,6 +169,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             on_wake: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
             message_reactors: DashMap::new(),
+            handlers: DashMap::new(),
             signal_reactors: DashMap::new(),
         }
     }

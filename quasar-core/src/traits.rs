@@ -28,6 +28,11 @@ use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
 use crate::common::{Awake, EventRecord, Origin, OutboundSignalChannel};
 
+#[async_trait]
+pub trait Handler {
+    async fn handle(&mut self) -> anyhow::Result<()>;
+}
+
 pub trait IntoAsyncReactor<T, U> {
     fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync>;
 }

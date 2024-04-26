@@ -56,19 +56,20 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     //this is where S is specified
     let mut joke_counter = system.context.new_actor::<Counter>(counter, "counter");
     assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
-
-    // joke_counter.state.act_on::<FunnyMessage>(|actor, event| async move {
-    //     let mut actor_guard = actor.lock().await;
-    //     actor_guard.state.count += 1;
-    //
-    //     match event.message {
-    //         FunnyMessage::Haha => info!("I laughed"),
-    //         FunnyMessage::Lol => info!("I lol'ed"),
-    //         FunnyMessage::Giggle => info!("I giggled"),
-    //     }
-    //
-    //     info!("Jokes told: {}", actor_guard.state.count);
-    // });
+    joke_counter.state.act_on_async::<FunnyMessage>(|actor: &mut Awake<Counter, Context>, record: &EventRecord<&FunnyMessage>| {
+        let count = actor.state.count;
+        Box::pin(async move {
+            // Assuming actor has a field `state` with a `count`
+            debug!("Count: {}", count);
+        }
+        )
+    });
+    // async fn process_message<'a>(actor: &'a mut Awake<Counter, Context>, record: &'a EventRecord<&'a FunnyMessage>) -> impl Future<Output = ()> +'a  {
+    //     let fut = async move {
+    //         debug!("Processing message: {:?}", record.message);
+    //     };
+    //     fut
+    // }
 
 
     let mut comedian = Actor::spawn(joke_counter).await;
