@@ -26,7 +26,7 @@ use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{Awake, EventRecord, Origin, OutboundSignalChannel};
+use crate::common::{Awake, EventRecord, OutboundEnvelope, OutboundSignalChannel};
 
 #[async_trait]
 pub trait Handler {
@@ -81,14 +81,14 @@ pub trait ReturnAddress: Send {
 
 #[async_trait]
 pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clone {
-    fn return_address(&mut self) -> Origin;
+    fn return_address(&mut self) -> OutboundEnvelope;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
 
     fn key(&self) -> &Qrn;
 
     async fn emit(&mut self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
         let origin = self.return_address();
-        origin.reply(Box::new(message)).await?; // Directly boxing the owned message
+        origin.reply(message).await?; // Directly boxing the owned message
         Ok(())
     }
     async fn terminate(self) -> anyhow::Result<()>;

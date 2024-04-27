@@ -19,18 +19,18 @@
 
 use std::any::{TypeId};
 use std::future::Future;
-use std::mem;
+
 use std::pin::Pin;
 use std::sync::{Arc};
 
 
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use tracing::{error, instrument, trace};
+use tracing::{error, instrument};
 use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
-use crate::traits::{Handler, IntoAsyncReactor, QuasarMessage, SystemMessage};
+use crate::traits::{QuasarMessage, SystemMessage};
 use futures::{future};
 use tokio::sync::Mutex;
 
@@ -50,40 +50,39 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
-    #[instrument(skip(self, message_processor))]
-    pub fn act_on<M, F, Fut>(&mut self, message_processor: F) -> &mut Self
-        where
-            M: QuasarMessage + 'static,
-            F: for<'a> Fn(Arc<Mutex<Awake<T, U>>>, &'a EventRecord<&M>) -> Fut + Send + Sync + 'static,
-            Fut: Future<Output=()> + Send + 'static,
-    {
+    // #[instrument(skip(self, message_reactor))]
+    pub fn act_on<M: QuasarMessage + 'static + Clone>(
+        &mut self,
+        message_reactor: impl Fn(&mut Actor<Awake<T, U>>, &EventRecord<M>) + Send +Sync + 'static
+    ) -> &mut Self {
+        // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
 
-        let handler_box = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, envelope: &Envelope| {
+        let handler_box: Box<MessageReactor<T, U>> = Box::new(move |actor: &mut Actor<Awake<T, U>>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                let cloned_message = concrete_msg.clone();
+                let cloned_message = concrete_msg.clone();  // Cloning the message
                 let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time };
-
-                // Call the user-provided function and get the future
-                let user_future = message_processor(actor.clone(), &event_record);
-
-                // Automatically box and pin the user future
-                Box::pin(user_future) as Pin<Box<dyn Future<Output=()> + Send>>
+                // Here, ensure the future is 'static
+                message_reactor(actor, &event_record);
+                Box::pin(())
             } else {
-                Box::pin(async {}) as Pin<Box<dyn Future<Output=()> + Send>>
-            }
+                error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
+                unreachable!("Shouldn't get here");
+                // Box::pin(future::ready(())) // Ensure this future is also 'static
+            };
         });
 
-        self.message_reactors.insert(type_id, handler_box);
+        let map = &self.message_reactors;
+        map.insert(type_id, handler_box);
+
         self
     }
-
     #[instrument(skip(self, message_processor))]
-    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Awake<T, Context>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send>> + 'static + Send) -> &mut Self
+    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<T, Context>>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send>> + 'static + Send) -> &mut Self
         where M: QuasarMessage + 'static
     {
         let type_id = TypeId::of::<M>();
-        let handler_box = Box::new(move |actor: &mut Awake<T, Context>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
+        let handler_box = Box::new(move |actor: &mut Actor<Awake<T, Context>>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time };
 
@@ -109,7 +108,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
 
         let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
             if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                signal_reactor(actor, &*concrete_msg)
+                signal_reactor(actor, concrete_msg)
             } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
                 Box::pin(future::ready(()))

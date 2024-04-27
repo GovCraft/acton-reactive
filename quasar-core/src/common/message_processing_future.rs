@@ -20,9 +20,9 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::future::Future;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use tokio::sync::Mutex as AsyncMutex;
-use crate::common::{Awake, Context as ActorContext, EventRecord};
+use crate::common::{Awake, EventRecord};
 use crate::traits::QuasarMessage;  // If using async Mutex from Tokio
 
 pub struct MessageProcessingFuture<T: 'static, U: 'static, M, Fut> {

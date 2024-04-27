@@ -17,16 +17,20 @@
  *
  */
 
-use crate::common::{Actor, Context, Idle};
+use std::fmt::Debug;
+use quasar_qrn::Qrn;
+use crate::common::{Actor, Idle};
 
 #[derive(Debug)]
-pub struct System {
-    pub context: Context,
+pub struct System<T: Default + Send + Sync + Debug> {
+    pub root_actor: T
 }
 
-impl System {
-    pub async fn spawn() -> Self {
-        let system: Actor<Idle<(), Self>> = Actor::new(Default::default(), ());
-        System { context: Actor::spawn(system).await }
+impl<T: Default + Send + Sync + Debug> System<T> {
+    pub fn new(actor: T) -> Actor<Idle<T, Self>> {
+
+        //append to the qrn
+
+        Actor::new(Qrn::default(), actor)
     }
 }

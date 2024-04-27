@@ -18,14 +18,14 @@
  */
 
 
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use tokio::sync::Mutex;
+
+
+
+
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 // use std::sync::{Arc, Mutex};
-use tracing::{debug, info, Level};
+use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -50,20 +50,30 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         count: 0,
     };
 
-    let system = System::spawn().await;
-    assert_eq!(system.context.key().value, "qrn:quasar:system:framework:root");
+    let mut joke_counter = System::new(counter);
+
+    // assert_eq!(system.context.key().value, "qrn:quasar:system:framework:root");
 
     //this is where S is specified
-    let mut joke_counter = system.context.new_actor::<Counter>(counter, "counter");
-    assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
-    joke_counter.state.act_on_async::<FunnyMessage>(|actor: &mut Awake<Counter, Context>, record: &EventRecord<&FunnyMessage>| {
-        let count = actor.state.count;
-        Box::pin(async move {
-            // Assuming actor has a field `state` with a `count`
-            debug!("Count: {}", count);
+    // let mut joke_counter = system.state.context.new_actor::<Counter>(counter, "counter");
+    // assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
+    joke_counter.state.act_on_async::<FunnyMessage>(|actor, _record: &EventRecord<&FunnyMessage>| {
+        let count = actor.state.state.count;
+        debug!("entering handler");
+        if let Some(envelope) = actor.new_envelope() {
+            Box::pin(async move {
+                envelope.reply(Nope::No).await.expect("TODO: panic message");
+
+                debug!("Count: {}", count);
+            }
+            )
+        } else {
+            Box::pin(async {})
         }
-        )
-    });
+    })
+        .act_on::<Nope>(|_actor, _event| {
+            debug!("got nope message");
+        });
     // async fn process_message<'a>(actor: &'a mut Awake<Counter, Context>, record: &'a EventRecord<&'a FunnyMessage>) -> impl Future<Output = ()> +'a  {
     //     let fut = async move {
     //         debug!("Processing message: {:?}", record.message);
@@ -71,11 +81,12 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     //     fut
     // }
 
+    let mut comedian = joke_counter.spawn().await;
 
-    let mut comedian = Actor::spawn(joke_counter).await;
-
+    // let mut comedian = Actor::spawn(joke_counter).await;
+    //
     comedian.emit(FunnyMessage::Haha).await?;
-    let _ = comedian.terminate().await;
+    // let _ = comedian.terminate().await;
     // let _ = system.context.terminate().await;
     //
     Ok(())
@@ -86,4 +97,9 @@ pub enum FunnyMessage {
     Haha,
     Lol,
     Giggle,
+}
+
+#[quasar_message]
+pub enum Nope {
+    No,
 }

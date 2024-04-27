@@ -22,93 +22,104 @@ use std::pin::Pin;
 use std::sync::Arc;
 use futures::future;
 use quasar_qrn::Qrn;
+use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{SystemSignal, Context, Idle, Awake};
+use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, OutboundEnvelope};
 use tracing::{debug, error, instrument, trace};
 use crate::traits::SystemMessage;
 
 pub struct Actor<S> {
     pub state: S,
+    pub outbox: Option<OutboundChannel>,
 }
 
+impl<T: Default + Send + Sync> Actor<Awake<T, Context>> {
+    pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
+        if let Some(envelope) = &self.outbox {
+            Option::from(OutboundEnvelope::new(envelope.clone()))
+        } else { None }
+    }
+}
 
 impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
     pub(crate) fn new(qrn: Qrn, state: T) -> Self {
         Actor {
-            state: Idle::new(qrn, state)
+            state: Idle::new(qrn, state),
+            outbox: None,
         }
     }
-    #[instrument(skip(idle_actor))]
+
+    #[instrument(skip(self))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
-    pub async fn spawn(idle_actor: Actor<Idle<T, U>>) -> Context {
+    pub async fn spawn(self) -> Context {
 
 
         // Convert the actor from MyActorIdle to MyActorRunning
-        let actor = idle_actor;
+        let mut actor = self;
 
 // Handle any pre_start activities
 
         (actor.state.on_before_wake)(&actor.state);
 
+        actor.assign_internal_signal_reactors().await;
 // Ensure reactors are correctly assigned
-        let actor = Self::assign_internal_signal_reactors(actor).await;
 
         trace!("Idle, message_reactor_map size: {}", &actor.state.message_reactors.len());
 // Convert Actor<Idle<T, U>> to Actor<Awake<T, U>> first
-        let active_actor_awake: Actor<Awake<T, U>> = actor.into();
+        let active_actor: Actor<Awake<T, U>> = actor.into();
 
 // Then wrap the state (Awake<T, U>) into Arc<Mutex<_>> for shared access
-        let active_actor: Arc<Mutex<Awake<T, U>>> = Arc::new(Mutex::new(active_actor_awake.state));
+//         let active_actor: Arc<Mutex<Awake<T, U>>> = Arc::new(Mutex::new(active_actor_awake.state));
 
         let signal_reactor_map;
         let message_reactor_map;
-        let actor_inbox_address;
+        // let actor_inbox_address;
         let lifecycle_inbox_address;
-        let qrn;
+        
 
-        {
-            // Minimize the lock scope to only when needed
-            let mut active_actor_guard = active_actor.lock().await;
+        // Minimize the lock scope to only when needed
+        let mut active_actor_guard = active_actor;
 
-            signal_reactor_map = active_actor_guard.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
-            message_reactor_map = active_actor_guard.message_reactors.take().expect("No actor message reactors provided. This should never happen");
-            trace!("message_reactor_map size before wake {}", message_reactor_map.len());
+        signal_reactor_map = active_actor_guard.state.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
+        message_reactor_map = active_actor_guard.state.message_reactors.take().expect("No actor message reactors provided. This should never happen");
+        trace!("message_reactor_map size before wake {}", message_reactor_map.len());
 
-            actor_inbox_address = active_actor_guard.outbox.clone();
-            assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
+        // actor_inbox_address = active_actor_guard.state.outbox.clone();
+        // assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
 
-            lifecycle_inbox_address = active_actor_guard.signal_outbox.clone();
-            assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
+        lifecycle_inbox_address = active_actor_guard.state.signal_outbox.clone();
+        assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
 
-            qrn = active_actor_guard.key.clone();
-            // Lock is automatically released here when active_actor_guard goes out of scope
-        }
+        let qrn = active_actor_guard.state.key.clone();
+        // Lock is automatically released here when active_actor_guard goes out of scope
 
 // Now that the necessary shared state has been extracted, initiate the wake process
         let task_tracker = TaskTracker::new();
-
+        // active_actor_guard.wake(actor_inbox_address, message_reactor_map, signal_reactor_map).await;
+        let (outbox, mailbox) = channel(255);
+        active_actor_guard.outbox = Some(outbox.clone());
         task_tracker.spawn(async move {
-            Awake::<T, U>::wake(active_actor.clone(), message_reactor_map, signal_reactor_map).await
+            Awake::wake(mailbox, active_actor_guard, message_reactor_map, signal_reactor_map).await
         });
 
         task_tracker.close();
         assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 
-// Create a new QuasarContext with pre-extracted data
-        Context {
-            outbox: actor_inbox_address,
+        Context{
+            outbox,
             signal_outbox: lifecycle_inbox_address,
             task_tracker,
             key: qrn,
         }
+        // active_actor_guard
     }
 
-    #[instrument(skip(actor), fields(qrn = actor.state.key.value))]
-    async fn assign_internal_signal_reactors(mut actor: Actor<Idle<T, U>>) -> Actor<Idle<T, U>> {
+    #[instrument(skip(self))]
+    async fn assign_internal_signal_reactors(&mut self) {
         trace!("assigning internal signal reactors");
 
-        actor.state.act_on_internal_signal::<SystemSignal>(Box::new(|actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
+        self.state.act_on_internal_signal::<SystemSignal>(Box::new(|actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
             if let Some(event) = message.as_any().downcast_ref::<SystemSignal>() {
                 let event_cloned = event.clone();
                 let actor = actor.clone();
@@ -135,7 +146,5 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
                 Box::pin(future::ready(()))  // Handle the type mismatch with a no-op future
             }
         }));
-
-        actor
     }
 }
