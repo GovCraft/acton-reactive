@@ -20,6 +20,7 @@
 use std::any::{TypeId};
 use std::fmt::Debug;
 use std::future::Future;
+use std::hash::RandomState;
 
 use std::pin::Pin;
 use std::sync::{Arc};
@@ -141,6 +142,12 @@ impl<State: Default + Send + Sync + Debug> Idle<State> {
             on_stop: Box::new(|_| {}),
             reactors: DashMap::new(),
         }
+    }
+}
+
+impl<State: Default + Send + Sync + Debug + 'static> Default for Idle<State> {
+    fn default() -> Self {
+        Idle::new()
     }
 }
 //endregion

@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, PoolProxy};
+use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, PoolProxy, NewPoolMessage};
 use crate::traits::{ActorContext, ConfigurableActor, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
@@ -33,7 +33,7 @@ pub struct Context
     pub(crate) outbox: OutboundChannel,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
-    pub(crate) pools: ContextPool,
+    pub(crate) pools: ActorPool,
 }
 
 impl Context {
@@ -64,25 +64,30 @@ impl ActorContext for Context {
     }
 
     #[instrument(skip(self), fields(qrn = self.key.value))]
-    async fn terminate(self) -> anyhow::Result<()> {
-        trace!("Sending stop message to lifecycle address");
+    async fn terminate(&self) -> anyhow::Result<()> {
+        //shutdown managed pools
+        for context_pool in &self.pools{
+            for context in context_pool.value() {
+                context.terminate().await;
+                context.task_tracker.wait().await;
+            }
+        }
         self.emit(SystemSignal::Terminate).await;
         self.task_tracker.wait().await;
         Ok(())
     }
-
+    #[instrument(skip(self))]
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
-        let proxy = PoolProxy::init(name).await;
-        // let mut pool = Vec::with_capacity(size);
-        // for i in 0..size {
-        //     let actor_name = format!("{}{}", name, i);
-        //     let context = T::init(&actor_name).await;
-        //     pool.push(context);
-        // }
-        self.pools.insert(name.to_string(), proxy);
+        let mut items = DashMap::new();  // DashMap to store the results
+        for i in 0..size {
+            let actor_name = format!("{}{}", name, i);
+            debug!("adding actor to pool: {}", actor_name);
+            let pool_item = T::init(&actor_name).await;
+            items.insert(pool_item.key.value.clone(), pool_item);  // Collect each result
+        }
+        self.pools.insert(name.to_string(), items);
         Ok(())
     }
-
 
 
     async fn wake(&mut self) -> anyhow::Result<()> {

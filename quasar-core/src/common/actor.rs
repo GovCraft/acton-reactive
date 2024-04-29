@@ -56,7 +56,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             outbox: None,
             halt_signal: Default::default(),
             key,
-            state: state,
+            state,
         }
     }
 

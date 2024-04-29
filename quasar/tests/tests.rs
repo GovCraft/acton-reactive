@@ -22,9 +22,11 @@
 
 
 
+use std::time::Duration;
+use async_trait::async_trait;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
-use tracing::{debug, Level};
+use tracing::{debug, instrument, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -38,7 +40,7 @@ pub struct Comedian {
 async fn test_actor_mutation() -> anyhow::Result<()> {
     // console_subscriber::init();
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::TRACE)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -47,7 +49,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
-    let mut comedy_show = System::new(Comedian::default());
+    let mut comedy_show = System::new_actor(Comedian::default());
 
     comedy_show.ctx.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
         actor.state.jokes_told += 1;
@@ -100,13 +102,11 @@ pub struct Messenger {
 
 #[tokio::test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
-    // console_subscriber::init();
-
     let counter = Counter {
         count: 0,
     };
 
-    let mut count = System::new(counter);
+    let mut count = System::new_actor(counter);
     count.ctx.act_on::<Tally>(|actor, _event| {
         actor.state.count += 1;
     }).on_stop(|actor| {
@@ -119,7 +119,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     let actor = Messenger {
         sender: Some(count.return_address()),
     };
-    let mut actor = System::new(actor);
+    let mut actor = System::new_actor(actor);
     actor.ctx
         .on_before_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
@@ -147,6 +147,44 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     actor.terminate().await?;
     count.terminate().await?;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    Ok(())
+}
+
+#[derive(Default, Debug)]
+pub struct PoolItem;
+
+#[async_trait]
+impl ConfigurableActor for PoolItem {
+    #[instrument]
+    async fn init(name: &str) -> Context {
+        debug!("{}", name);
+        let actor = System::new_actor(PoolItem);
+
+        actor.spawn().await
+    }
+}
+
+#[tokio::test]
+async fn test_actor_pool() -> anyhow::Result<()> {
+    // console_subscriber::init();
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .compact()
+        .with_line_number(true)
+        .without_time()
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let actor = System::new_actor(PoolItem);
+    let mut context = actor.spawn().await;
+
+    // Execute `spawn_pool`, then `terminate`
+    context.spawn_pool::<PoolItem>("pool", 10).await?;
+    context.terminate().await?;
+
     Ok(())
 }
 

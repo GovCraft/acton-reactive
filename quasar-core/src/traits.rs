@@ -130,7 +130,7 @@ pub trait ActorContext {
        // }
         Ok(())
     }
-    async fn terminate(self) -> anyhow::Result<()>;
+    async fn terminate(&self) -> anyhow::Result<()>;
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;

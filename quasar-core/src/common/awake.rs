@@ -52,35 +52,33 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
                             trace!("Executing reactor message");
-                            let _ = (*reactor)(&mut actor, &envelope);
+                            (*reactor)(&mut actor, &envelope);
                         }
                         ReactorItem::Future(fut) => {
                             trace!("Executing reactor future");
                             let mut actor = &mut actor;
-                            (*fut)(&mut actor, &envelope).await;
+                            (*fut)(actor, &envelope).await;
                         }
                         _ => {}
                     }
-                } else {
-                    if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                        trace!("{:?}", concrete_msg);
-                        match concrete_msg {
-                            SystemSignal::Wake => {}
-                            SystemSignal::Recreate => {}
-                            SystemSignal::Suspend => {}
-                            SystemSignal::Resume => {}
-                            SystemSignal::Terminate => {
-                                actor.terminate();
-                            }
-                            SystemSignal::Supervise => {}
-                            SystemSignal::Watch => {}
-                            SystemSignal::Unwatch => {}
-                            SystemSignal::Failed => {}
+                } else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                    trace!("{:?}", concrete_msg);
+                    match concrete_msg {
+                        SystemSignal::Wake => {}
+                        SystemSignal::Recreate => {}
+                        SystemSignal::Suspend => {}
+                        SystemSignal::Resume => {}
+                        SystemSignal::Terminate => {
+                            actor.terminate();
                         }
-                    } else {
-                        // Return an immediately resolving future if downcast fails
-                        warn!("No reactor for message type: {:?}", type_id);
+                        SystemSignal::Supervise => {}
+                        SystemSignal::Watch => {}
+                        SystemSignal::Unwatch => {}
+                        SystemSignal::Failed => {}
                     }
+                } else {
+                    // Return an immediately resolving future if downcast fails
+                    warn!("No reactor for message type: {:?}", type_id);
                 }
             }
             // Checking stop condition .
