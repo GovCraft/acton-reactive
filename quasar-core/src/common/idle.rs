@@ -38,7 +38,6 @@ use tokio::sync::Mutex;
 pub struct Idle<T: 'static + Send + Sync> {
     pub key: Qrn,
     pub state: T,
-    // Consider using an Arc<U> or similar if lifetimes are a problem
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<T>>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<T>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T>>>,
@@ -47,8 +46,7 @@ pub struct Idle<T: 'static + Send + Sync> {
 
 
 impl<T: Default + Send + Sync> Idle<T> {
-    // #[instrument(skip(self, message_reactor))]
-    // pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&mut Actor<Awake<T, U>>, &'b Envelope) + Send + Sync + 'static;
+    #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
         message_reactor: impl Fn(&mut Actor<Awake<T>>, &EventRecord<M>) + Send + Sync + 'static,

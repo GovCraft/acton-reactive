@@ -22,8 +22,6 @@
 
 
 
-use tokio::task;
-use tokio::task::spawn_blocking;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 use tracing::{debug, Level};
@@ -123,7 +121,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     };
 
     let mut count = System::new(counter);
-    count.state.act_on::<Tally>(|actor, event| {
+    count.state.act_on::<Tally>(|actor, _event| {
         actor.state.state.count += 1;
     }).on_stop(|actor| {
         assert_eq!(4, actor.state.state.count);
