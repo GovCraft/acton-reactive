@@ -60,9 +60,10 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     joke_counter.state.act_on_async::<FunnyMessage>(|actor, _record: &EventRecord<&FunnyMessage>| {
         let count = actor.state.state.count;
         debug!("entering handler");
+
         if let Some(envelope) = actor.new_envelope() {
             Box::pin(async move {
-                envelope.reply(Nope::No).await.expect("TODO: panic message");
+                // envelope.reply(Nope::No).await.expect("TODO: panic message");
 
                 debug!("Count: {}", count);
             }
@@ -71,7 +72,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             Box::pin(async {})
         }
     })
-        .act_on::<Nope>(|_actor, _event| {
+        .act_on::<Nope>(|actor, event| {
             debug!("got nope message");
         });
     // async fn process_message<'a>(actor: &'a mut Awake<Counter, Context>, record: &'a EventRecord<&'a FunnyMessage>) -> impl Future<Output = ()> +'a  {
@@ -84,10 +85,9 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let mut comedian = joke_counter.spawn().await;
 
     // let mut comedian = Actor::spawn(joke_counter).await;
-    //
+    debug!("sending funny msg");
     comedian.emit(FunnyMessage::Haha).await?;
-    // let _ = comedian.terminate().await;
-    // let _ = system.context.terminate().await;
+    let _ = comedian.terminate().await;
     //
     Ok(())
 }

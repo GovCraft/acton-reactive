@@ -33,23 +33,23 @@ pub trait Handler {
     async fn handle(&mut self) -> anyhow::Result<()>;
 }
 
-pub trait IntoAsyncReactor<T, U> {
-    fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync>;
-}
-
-impl<T, U, F, Fut> IntoAsyncReactor<T, U> for F
-    where
-        T: 'static + Send + Sync,
-        U: QuasarMessage + 'static + Clone,
-        F: Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = ()> + Send + 'static,
-{
-    fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync> {
-        Box::new(move |actor, event| {
-            Box::pin(self(actor, event))
-        })
-    }
-}
+// pub trait IntoAsyncReactor<T, U> {
+//     fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync>;
+// }
+//
+// impl<T, U, F, Fut> IntoAsyncReactor<T, U> for F
+//     where
+//         T: 'static + Send + Sync,
+//         U: QuasarMessage + 'static + Clone,
+//         F: Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Fut + Send + Sync + 'static,
+//         Fut: Future<Output = ()> + Send + 'static,
+// {
+//     fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync> {
+//         Box::new(move |actor, event| {
+//             Box::pin(self(actor, event))
+//         })
+//     }
+// }
 
 
 //region Traits

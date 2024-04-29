@@ -17,18 +17,22 @@
  *
  */
 
+use std::any::TypeId;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
+use dashmap::mapref::one::Ref;
 
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
 
 use tracing::{debug, instrument, trace};
+use tracing::field::debug;
 use crate::common::{InboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
 use crate::common::*;
-use crate::prelude::QuasarMessage;
+// use crate::prelude::QuasarMessage;
 
 
-pub struct Awake<T: 'static, U: 'static> {
+pub struct Awake<T: Send + Sync + 'static, U: Send + Sync + 'static> {
     pub key: Qrn,
     pub state: T,
     pub(crate) signal_reactors: Option<SignalReactorMap<T, U>>,
@@ -36,20 +40,18 @@ pub struct Awake<T: 'static, U: 'static> {
     pub(crate) signal_outbox: OutboundSignalChannel,
     on_wake: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
-    pub(crate) message_reactors: Option<MessageReactorMap<T, U>>,
+    // pub(crate) message_reactors: Option<MessageReactorMap<T, U>>,
     // mailbox: InboundChannel,
     // pub(crate) outbox: OutboundChannel,
     halt_signal: StopSignal,
 }
 
-impl<T, U> Awake<T, U> {
-
+impl<T: Send + Sync + 'static, U: Send + Sync + 'static> Awake<T, U> {
     // #[instrument(skip(actor, message_reactors), fields(key))]
-    pub(crate) async fn wake(mut mailbox: InboundChannel, actor: Actor<Awake<T, U>>, message_reactors: MessageReactorMap<T, U>, _signal_reactors: SignalReactorMap<T, U>) {
-
+    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T, U>>, reactors: ReactorMap<T, U>) {
         // (actor.lock().await.on_wake)(actor);
         // let actor = actor.clone();  // Clone outside the loop to reduce overhead.
-
+        debug!("on_wake");
         loop {
             // Reduce the scope of the lock to just the operations that need it.
             let envelope = {
@@ -57,11 +59,24 @@ impl<T, U> Awake<T, U> {
             };
 
             if let Ok(envelope) = envelope {
-                trace!("Received actor message: {:?}", envelope);
+                debug!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
-                if let Some(_reactor) = message_reactors.get(&type_id) {
-                    let _ = (&actor, &envelope);
+                if let Some(reactor) = reactors.get(&type_id) {
+                    match reactor.value() {
+                        ReactorItem::Signal(_) => {
+                            debug!("Executing reactor signal");
+                        }
+                        ReactorItem::Message(_) => {
+                            debug!("Executing reactor message");
+                            let _ = (&actor, &envelope);
+                        }
+                        ReactorItem::Future(fut) => {
+                            debug!("Executing reactor future");
+                            let mut actor = &mut actor;
+                            (*fut)(&mut actor, &envelope).await;
+                        }
+                    }
                 } else {
                     trace!("No reactor for message type: {:?}", type_id);
                 }
@@ -87,7 +102,7 @@ impl<T, U> Awake<T, U> {
             //     }
             // } else {
             //     // Simulate delay to avoid tight loop overwhelming.
-            //     tokio::time::sleep(Duration::from_nanos(1)).await;
+            tokio::time::sleep(Duration::from_nanos(1)).await;
             // }
             //
             // // Checking stop condition with minimized lock duration.
@@ -124,7 +139,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
         let (signal_outbox, signal_mailbox) = channel(255);
         let on_wake = value.state.on_wake;
         let on_stop = Box::new(value.state.on_stop);
-        let message_reactors = Some(value.state.message_reactors);
+        // let message_reactors = Some(value.state.message_reactors);
         let signal_reactors = Some(value.state.signal_reactors);
         let halt_signal = StopSignal::new(false);
 
@@ -134,7 +149,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
                 signal_mailbox,
                 on_wake,
                 on_stop,
-                message_reactors,
+                // message_reactors,
                 signal_reactors,
                 // mailbox,
                 halt_signal,

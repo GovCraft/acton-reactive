@@ -43,17 +43,19 @@ pub struct Idle<T: 'static + Send + Sync, U: 'static + Send + Sync> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<T, U>>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
-    pub(crate) message_reactors: MessageReactorMap<T, U>,
+    // pub(crate) message_reactors: MessageReactorMap<T, U>,
     pub(crate) handlers: FutReactorMap<T>,
     pub(crate) signal_reactors: SignalReactorMap<T, U>,
+    pub(crate) reactors: ReactorMap<T, U>,
 }
 
 
 impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     // #[instrument(skip(self, message_reactor))]
+    // pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&mut Actor<Awake<T, U>>, &'b Envelope) + Send + Sync + 'static;
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<T, U>>, &EventRecord<M>) + Send +Sync + 'static
+        message_reactor: impl Fn(&mut Actor<Awake<T, U>>, &EventRecord<M>) + Send + Sync + 'static,
     ) -> &mut Self {
         // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
@@ -72,17 +74,16 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             };
         });
 
-        let map = &self.message_reactors;
-        map.insert(type_id, handler_box);
+        let _ = &self.reactors.insert(type_id, ReactorItem::Message(handler_box));
 
         self
     }
     #[instrument(skip(self, message_processor))]
-    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<T, Context>>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send>> + 'static + Send) -> &mut Self
+    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<T, U>>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + 'static + Send + Sync) -> &mut Self
         where M: QuasarMessage + 'static
     {
         let type_id = TypeId::of::<M>();
-        let handler_box = Box::new(move |actor: &mut Actor<Awake<T, Context>>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
+        let handler_box = Box::new(move |actor: &mut Actor<Awake<T, U>>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time };
 
@@ -97,7 +98,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             }
         });
 
-        self.handlers.insert(type_id, handler_box);
+        let _ = &self.reactors.insert(type_id, ReactorItem::Future(handler_box));
         self
     }
     pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
@@ -167,9 +168,10 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             on_before_wake: Box::new(|_| {}),
             on_wake: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
-            message_reactors: DashMap::new(),
+            // message_reactors: DashMap::new(),
             handlers: DashMap::new(),
             signal_reactors: DashMap::new(),
+            reactors: DashMap::new(),
         }
     }
 }

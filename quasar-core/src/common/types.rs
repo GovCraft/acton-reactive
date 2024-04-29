@@ -27,21 +27,29 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 use crate::traits::{SystemMessage};
-use crate::common::{Actor, Awake, Context, Envelope, EventRecord};
+use crate::common::{Actor, Awake, Context, Envelope};
+
+pub enum ReactorItem<T: Send + Sync + 'static, U: Send + Sync + 'static> {
+    Signal(Box<SignalReactor<T, U>>),
+    Message(Box<MessageReactor<T, U>>),
+    Future(Box<FutReactor<T, U>>),
+}
+
+pub type ReactorMap<T, U> = DashMap<TypeId, ReactorItem<T, U>>;
 
 //region Common Types
-pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> + Send + Sync + 'static;
+pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + Send + Sync + 'static;
 pub type SignalReactorMap<T, U> = DashMap<TypeId, Box<SignalReactor<T, U>>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
 
 pub type MessageReactorMap<T, U> = DashMap<TypeId, Box<MessageReactor<T, U>>>;
 pub type MessageReactor<T, U> = dyn for<'a, 'b> Fn(&mut Actor<Awake<T, U>>, &'b Envelope) + Send + Sync + 'static;
-pub type Fut = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
-pub type FutReactor<T> =  dyn Fn(&mut Awake<T, Context>, &EventRecord<&T>) -> Fut;
-pub type BoxFutReactor<T> = Box<FutReactor<T>>;
-pub type PinBoxFutReactor<T> = Pin<BoxFutReactor<T>>;
-pub type FutReactorMap<T> = DashMap<TypeId, Box<dyn Fn(&mut Actor<Awake<T, Context>>, &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send>>;
+pub type Fut = Pin<Box<dyn Future<Output=()> + Send + 'static>>;
+pub type FutReactor<T, U> = dyn for<'a, 'b> Fn(&mut Actor<Awake<T, U>>, &'b Envelope) -> Fut + Send + Sync + 'static;
+pub type BoxFutReactor<T, U> = Box<FutReactor<T, U>>;
+pub type PinBoxFutReactor<T, U> = Pin<BoxFutReactor<T, U>>;
+pub type FutReactorMap<T> = DashMap<TypeId, Box<dyn Fn(&mut Actor<Awake<T, Context>>, &Envelope) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync>>;
 pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;
