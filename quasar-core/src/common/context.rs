@@ -37,7 +37,7 @@ pub struct Context
 }
 
 impl Context {
-    pub fn new_actor<T: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<T>> {
+    pub fn new_actor<State: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
         let actor = Default::default();
         //append to the qrn
         let mut qrn = self.key().clone();

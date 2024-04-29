@@ -55,8 +55,9 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     let mut comedy_show = System::new(comedian);
 
-    comedy_show.state.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
-        actor.state.state.jokes_told += 1;
+    comedy_show.actor_ref.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
+        actor.state.jokes_told += 1;
+
         if let Some(envelope) = actor.new_envelope() {
             match record.message {
                 FunnyJoke::ChickenCrossesRoad => {
@@ -78,8 +79,8 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     })
         .act_on::<AudienceReaction>(|actor, event| {
             match event.message {
-                AudienceReaction::Chuckle => { actor.state.state.funny += 1 }
-                AudienceReaction::Groan => { actor.state.state.bombers += 1 }
+                AudienceReaction::Chuckle => { actor.state.funny += 1 }
+                AudienceReaction::Groan => { actor.state.bombers += 1 }
             }
         })
         .on_before_wake(|_actor| {
@@ -90,7 +91,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         })
         .on_stop(|actor| {
             debug!("on_stop");
-            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.state.jokes_told,actor.state.state.funny, actor.state.state.bombers);
+            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.jokes_told,actor.state.funny, actor.state.bombers);
         });
 
     let comedian = comedy_show.spawn().await;
@@ -121,10 +122,10 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     };
 
     let mut count = System::new(counter);
-    count.state.act_on::<Tally>(|actor, _event| {
-        actor.state.state.count += 1;
+    count.actor_ref.act_on::<Tally>(|actor, _event| {
+        actor.state.count += 1;
     }).on_stop(|actor| {
-        assert_eq!(4, actor.state.state.count);
+        assert_eq!(4, actor.state.count);
         debug_assert!(false);
     });
     let count = count.spawn().await;
@@ -134,23 +135,23 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         sender: Some(count.return_address()),
     };
     let mut actor = System::new(actor);
-    actor.state
+    actor.actor_ref
         .on_before_wake(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });
             }
         })
         .on_wake(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });
             }
         })
         .on_stop(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });

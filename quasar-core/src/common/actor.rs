@@ -17,6 +17,7 @@
  *
  */
 
+use std::fmt::Debug;
 use std::future::Future;
 use std::mem;
 use std::pin::Pin;
@@ -31,14 +32,16 @@ use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, Outboun
 use tracing::{debug, error, instrument, trace};
 use crate::traits::{QuasarMessage, SystemMessage};
 
-pub struct Actor<S> {
-    pub state: S,
+pub struct Actor<RefType, State: Default + Send + Sync + Debug + 'static> {
+    pub actor_ref: RefType,
     pub outbox: Option<OutboundChannel>,
     pub halt_signal: StopSignal,
+    pub key: Qrn,
+    pub state: State
 
 }
 
-impl<T: Default + Send + Sync> Actor<Awake<T>> {
+impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
     pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.outbox {
             Option::from(OutboundEnvelope::new(envelope.clone()))
@@ -46,12 +49,14 @@ impl<T: Default + Send + Sync> Actor<Awake<T>> {
     }
 }
 
-impl<T: Default + Send + Sync> Actor<Idle<T>> {
-    pub(crate) fn new(qrn: Qrn, state: T) -> Self {
+impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
+    pub(crate) fn new(key: Qrn, state: State) -> Self {
         Actor {
-            state: Idle::new(qrn, state),
+            actor_ref: Idle::new(),
             outbox: None,
             halt_signal: Default::default(),
+            key,
+            state,
         }
     }
 
@@ -61,17 +66,17 @@ impl<T: Default + Send + Sync> Actor<Idle<T>> {
 
 
         let mut actor = self;
-        let reactors = mem::take(&mut actor.state.reactors);
+        let reactors = mem::take(&mut actor.actor_ref.reactors);
 
 
         // Handle any pre_start activities
-        (actor.state.on_before_wake)(&actor);
+        (actor.actor_ref.on_before_wake)(&actor);
 
-        let active_actor: Actor<Awake<T>> = actor.into();
+        let active_actor: Actor<Awake<State>, State> = actor.into();
 
         let mut actor = active_actor;
 
-        let qrn = actor.state.key.clone();
+        let qrn = actor.key.clone();
 
         let task_tracker = TaskTracker::new();
         let (outbox, mailbox) = channel(255);
@@ -92,7 +97,7 @@ impl<T: Default + Send + Sync> Actor<Idle<T>> {
     }
     }
 
-impl<T: Send + Sync> Actor<Awake<T>> {
+impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
         if !self.halt_signal.load(Ordering::SeqCst) {

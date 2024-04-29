@@ -18,6 +18,7 @@
  */
 
 use std::any::TypeId;
+use std::fmt::Debug;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use dashmap::mapref::one::Ref;
@@ -30,21 +31,18 @@ use tracing::field::debug;
 use crate::common::{InboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
 use crate::common::*;
 use crate::traits::QuasarMessage;
-// use crate::prelude::QuasarMessage;
 
 
-pub struct Awake<T: Send + Sync + 'static> {
-    pub key: Qrn,
-    pub state: T,
-    on_wake: Box<LifecycleReactor<Awake<T>>>,
-    pub(crate) on_stop: Box<LifecycleReactor<Awake<T>>>,
+pub struct Awake<State: Default + Send + Sync + Debug + 'static> {
+    on_wake: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
 }
 
-impl<T: Send + Sync + 'static> Awake<T> {
+impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
     #[instrument(skip(actor, mailbox, reactors))]
-    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T>>, reactors: ReactorMap<T>) {
-        (actor.state.on_wake)(&actor);
-        // let actor = actor.clone();  // Clone outside the loop to reduce overhead.
+    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<State>, State>, reactors: ReactorMap<State>) {
+        (actor.actor_ref.on_wake)(&actor);
+
         loop {
             if let Ok(envelope) = mailbox.try_recv() {
                 trace!("Received actor message: {:?}", envelope);
@@ -85,7 +83,7 @@ impl<T: Send + Sync + 'static> Awake<T> {
                     }
                 }
             }
-            // Checking stop condition with minimized lock duration.
+            // Checking stop condition .
             let should_stop = {
                 actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
             };
@@ -98,27 +96,27 @@ impl<T: Send + Sync + 'static> Awake<T> {
             }
         }
 
-        (actor.state.on_stop)(&actor);
+        (actor.actor_ref.on_stop)(&actor);
     }
 }
 
 
-impl<T: Default + Send + Sync> From<Actor<Idle<T>>> for Actor<Awake<T>> {
+impl<State: Default + Send + Sync + Debug + 'static> From<Actor<Idle<State>, State>> for Actor<Awake<State>, State> {
     #[instrument("from idle to awake", skip(value))]
-    fn from(value: Actor<Idle<T>>) -> Actor<Awake<T>> {
-        let on_wake = value.state.on_wake;
-        let on_stop = Box::new(value.state.on_stop);
+    fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State> {
+        let on_wake = value.actor_ref.on_wake;
+        let on_stop = Box::new(value.actor_ref.on_stop);
         let halt_signal = StopSignal::new(false);
 
         Actor {
-            state: Awake {
+            actor_ref: Awake {
                 on_wake,
                 on_stop,
-                key: value.state.key,
-                state: value.state.state,
             },
             outbox: None,
             halt_signal: Default::default(),
+            key: value.key,
+            state: value.state,
         }
     }
 }

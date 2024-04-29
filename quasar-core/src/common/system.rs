@@ -22,15 +22,21 @@ use quasar_qrn::Qrn;
 use crate::common::{Actor, Idle};
 
 #[derive(Debug)]
-pub struct System<T: Default + Send + Sync + Debug> {
-    pub root_actor: T
+pub struct System<State: Default + Send + Sync + Debug> {
+    pub root_actor: State
 }
 
-impl<T: Default + Send + Sync + Debug> System<T> {
-    pub fn new(actor: T) -> Actor<Idle<T>> {
+impl<State: Default + Send + Sync + Debug> System<State> {
+    pub fn new(actor: State) -> Actor<Idle<State>, State> {
 
         //append to the qrn
 
         Actor::new(Qrn::default(), actor)
+    }
+}
+
+impl<State: Default + Send + Sync + Debug> Default for System<State> {
+    fn default() -> Self {
+        System{ root_actor: State::default() }
     }
 }
