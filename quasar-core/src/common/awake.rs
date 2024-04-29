@@ -25,10 +25,11 @@ use dashmap::mapref::one::Ref;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
 
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument, trace, warn};
 use tracing::field::debug;
 use crate::common::{InboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
 use crate::common::*;
+use crate::traits::QuasarMessage;
 // use crate::prelude::QuasarMessage;
 
 
@@ -40,95 +41,67 @@ pub struct Awake<T: Send + Sync + 'static, U: Send + Sync + 'static> {
     pub(crate) signal_outbox: OutboundSignalChannel,
     on_wake: Box<LifecycleReactor<Awake<T, U>>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
-    // pub(crate) message_reactors: Option<MessageReactorMap<T, U>>,
-    // mailbox: InboundChannel,
-    // pub(crate) outbox: OutboundChannel,
-    halt_signal: StopSignal,
 }
 
 impl<T: Send + Sync + 'static, U: Send + Sync + 'static> Awake<T, U> {
-    // #[instrument(skip(actor, message_reactors), fields(key))]
+    #[instrument(skip(actor, mailbox, reactors))]
     pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T, U>>, reactors: ReactorMap<T, U>) {
-        // (actor.lock().await.on_wake)(actor);
+        (actor.state.on_wake)(&actor);
         // let actor = actor.clone();  // Clone outside the loop to reduce overhead.
-        debug!("on_wake");
         loop {
-            // Reduce the scope of the lock to just the operations that need it.
-            let envelope = {
-                mailbox.try_recv()  // Try receiving a message.
-            };
-
-            if let Ok(envelope) = envelope {
-                debug!("Received actor message: {:?}", envelope);
+            if let Ok(envelope) = mailbox.try_recv() {
+                trace!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = reactors.get(&type_id) {
                     match reactor.value() {
-                        ReactorItem::Signal(_) => {
-                            debug!("Executing reactor signal");
-                        }
-                        ReactorItem::Message(_) => {
-                            debug!("Executing reactor message");
-                            let _ = (&actor, &envelope);
+                        ReactorItem::Message(reactor) => {
+                            trace!("Executing reactor message");
+                            let _ = (*reactor)(&mut actor, &envelope);
                         }
                         ReactorItem::Future(fut) => {
-                            debug!("Executing reactor future");
+                            trace!("Executing reactor future");
                             let mut actor = &mut actor;
                             (*fut)(&mut actor, &envelope).await;
                         }
+                        _ => {}
                     }
                 } else {
-                    trace!("No reactor for message type: {:?}", type_id);
+                    if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                        trace!("{:?}", concrete_msg);
+                        match concrete_msg {
+                            SystemSignal::Wake => {}
+                            SystemSignal::Recreate => {}
+                            SystemSignal::Suspend => {}
+                            SystemSignal::Resume => {}
+                            SystemSignal::Terminate => {
+                                actor.terminate();
+                            }
+                            SystemSignal::Supervise => {}
+                            SystemSignal::Watch => {}
+                            SystemSignal::Unwatch => {}
+                            SystemSignal::Failed => {}
+                        }
+                    } else {
+                        // Return an immediately resolving future if downcast fails
+                        warn!("No reactor for message type: {:?}", type_id);
+                    }
                 }
             }
-            //
-            // // Handling internal signals with minimized lock duration.
-            // let internal_signal = {
-            //     let cloned_actor = actor.clone();
-            //     let x = cloned_actor.lock().await.signal_mailbox.try_recv();
-            //     x
-            // };
-            //
-            // if let Ok(internal_signal) = internal_signal {
-            //     trace!("received internal signal");
-            //     let type_id = internal_signal.as_any().type_id();
-            //     if let Some(reactor) = signal_reactors.get(&type_id) {
-            //         trace!("received stop signal");
-            //         let cloned_actor = actor.clone();
-            //         (*reactor)(cloned_actor, &*internal_signal).await;
-            //     } else {
-            //         trace!("No handler for message type: {:?}", internal_signal);
-            //         continue;
-            //     }
-            // } else {
-            //     // Simulate delay to avoid tight loop overwhelming.
-            tokio::time::sleep(Duration::from_nanos(1)).await;
-            // }
-            //
-            // // Checking stop condition with minimized lock duration.
-            // let should_stop = {
-            //     let cloned_actor = actor.clone();
-            //     let actor_guard = cloned_actor.lock().await;
-            //     actor_guard.halt_signal.load(Ordering::SeqCst) && actor_guard.mailbox.is_empty()
-            // };
-            //
-            // if should_stop {
-            //     debug!("Halt signal received, exiting capture loop");
-            //     break;
-            // }
+            // Checking stop condition with minimized lock duration.
+            let should_stop = {
+                actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
+            };
+
+            if should_stop {
+                trace!("Halt signal received, exiting capture loop");
+                break;
+            } else {
+                tokio::time::sleep(Duration::from_nanos(1)).await;
+            }
         }
 
-// This comment block seems to indicate planned future changes or considerations for stopping the actor.
-// Please ensure to handle this appropriately when you finalize your logic.
-//         (actor.lock().await.on_stop)(actor.clone());
-    }
-    #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) {
-        debug!("Inside terminate");
-        if !self.halt_signal.load(Ordering::SeqCst) {
-            debug!("Halt signal loaded");
-            self.halt_signal.store(true, Ordering::SeqCst);
-        }
+        (actor.state.on_stop)(&actor);
     }
 }
 
@@ -152,11 +125,11 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
                 // message_reactors,
                 signal_reactors,
                 // mailbox,
-                halt_signal,
                 key: value.state.key,
                 state: value.state.state,
             },
             outbox: None,
+            halt_signal: Default::default(),
         }
     }
 }

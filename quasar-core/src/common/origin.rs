@@ -18,6 +18,7 @@
  */
 
 use std::time::SystemTime;
+use tracing::{debug, instrument, trace};
 
 use crate::common::{Envelope, OutboundChannel};
 use crate::prelude::QuasarMessage;
@@ -32,11 +33,11 @@ impl OutboundEnvelope {
     pub fn new(reply_to: OutboundChannel) -> Self {
         OutboundEnvelope { reply_to }
     }
+    #[instrument(skip(self))]
     pub async fn reply(&self, message: impl QuasarMessage + 'static) -> anyhow::Result<()> {
+        trace!("{:?}", message);
         let envelope = Envelope { message: Box::new(message), sent_time: SystemTime::now() };
         self.reply_to.send(envelope).await?;
-
-        // self.reply_to.send(envelope).await?;
         Ok(())
     }
 }

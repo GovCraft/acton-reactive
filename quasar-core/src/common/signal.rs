@@ -18,7 +18,7 @@
  */
 
 use std::any::Any;
-use crate::traits::SystemMessage;
+use crate::traits::{QuasarMessage, SystemMessage};
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -33,9 +33,9 @@ pub enum SystemSignal {
     Unwatch,
     Failed,
 }
-
-impl SystemMessage for SystemSignal {
+impl QuasarMessage for SystemSignal{
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
+

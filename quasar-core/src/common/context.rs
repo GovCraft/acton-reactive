@@ -23,13 +23,12 @@ use tokio_util::task::TaskTracker;
 use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope};
 use crate::traits::{ActorContext, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 #[derive(Debug, Clone)]
 pub struct Context
 {
     pub(crate) outbox: OutboundChannel,
-    // pub(crate) signal_outbox: OutboundSignalChannel,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
 }
@@ -46,8 +45,8 @@ impl Context {
 }
 
 #[async_trait]
-impl ActorContext<dyn QuasarMessage> for Context {
-    fn return_address(&mut self) -> OutboundEnvelope {
+impl ActorContext for Context {
+    fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
         OutboundEnvelope::new(outbox)
     }
@@ -63,7 +62,7 @@ impl ActorContext<dyn QuasarMessage> for Context {
     #[instrument(skip(self), fields(qrn = self.key.value))]
     async fn terminate(self) -> anyhow::Result<()> {
         trace!("Sending stop message to lifecycle address");
-        // self.signal_outbox.send(Box::new(SystemSignal::Terminate)).await?;
+        self.emit(SystemSignal::Terminate).await;
         self.task_tracker.wait().await;
         Ok(())
     }

@@ -26,7 +26,7 @@ use std::sync::{Arc};
 
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use tracing::{error, instrument};
+use tracing::{debug, error, instrument};
 use crate::common::{MessageReactorMap, LifecycleReactor, SignalReactor, SignalReactorMap};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
@@ -101,13 +101,14 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
         let _ = &self.reactors.insert(type_id, ReactorItem::Future(handler_box));
         self
     }
-    pub fn act_on_internal_signal<M: SystemMessage + 'static + Clone>(
+    #[instrument(skip(self, signal_reactor))]
+    pub fn act_on_internal_signal<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync + 'static,
+        signal_reactor: impl Fn(Actor<Awake<T, U>>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
-        let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Arc<Mutex<Awake<T, U>>>, message: &dyn SystemMessage| {
+        let handler_box: Box<SignalReactor<T, U>> = Box::new(move |actor: Actor<Awake<T, U>>, message: &dyn QuasarMessage| {
             if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                 signal_reactor(actor, concrete_msg)
             } else {
@@ -116,7 +117,8 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
             }
         });
 
-        self.signal_reactors.insert(type_id, handler_box);
+        debug!("adding signal reactor to reactors");
+        let _ = &self.reactors.insert(type_id, ReactorItem::Signal(handler_box));
 
         self
     }
@@ -142,19 +144,19 @@ impl<T: Default + Send + Sync, U: Send + Sync> Idle<T, U> {
     // }
 
 
-    pub fn on_before_wake(&mut self, life_cycle_event_reactor: Box<IdleLifecycleReactor<Idle<T, U>>>) -> &mut Self {
+    pub fn on_before_wake(&mut self, life_cycle_event_reactor:  impl Fn(&Actor<Idle<T, U>>) + Send + Sync + 'static) -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
 
-    pub fn on_wake(&mut self, life_cycle_event_reactor: Box<LifecycleReactor<Awake<T, U>>>) -> &mut Self {
+    pub fn on_wake(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<T, U>>) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
-    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(Arc<Mutex<Awake<T, U>>>) + Send + Sync + 'static) -> &mut Self {
+    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<T, U>>) + Send + Sync + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
         self

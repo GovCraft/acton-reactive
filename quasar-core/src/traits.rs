@@ -80,13 +80,13 @@ pub trait ReturnAddress: Send {
 }
 
 #[async_trait]
-pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clone {
-    fn return_address(&mut self) -> OutboundEnvelope;
+pub trait ActorContext {
+    fn return_address(&self) -> OutboundEnvelope;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
 
     fn key(&self) -> &Qrn;
 
-    async fn emit(&mut self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
+    async fn emit(&self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
         let origin = self.return_address();
         origin.reply(message).await?; // Directly boxing the owned message
         Ok(())

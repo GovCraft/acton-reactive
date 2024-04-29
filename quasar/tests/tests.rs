@@ -22,15 +22,18 @@
 
 
 
+use tokio::task;
+use tokio::task::spawn_blocking;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
-// use std::sync::{Arc, Mutex};
 use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
-pub struct Counter {
-    pub count: usize,
+pub struct Comedian {
+    pub jokes_told: usize,
+    pub funny: usize,
+    pub bombers: usize,
 }
 
 #[tokio::test]
@@ -46,60 +49,137 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
-    let counter = Counter {
-        count: 0,
+    let comedian = Comedian {
+        jokes_told: 0,
+        funny: 0,
+        bombers: 0,
     };
 
-    let mut joke_counter = System::new(counter);
+    let mut comedy_show = System::new(comedian);
 
-    // assert_eq!(system.context.key().value, "qrn:quasar:system:framework:root");
-
-    //this is where S is specified
-    // let mut joke_counter = system.state.context.new_actor::<Counter>(counter, "counter");
-    // assert_eq!(joke_counter.state.key.value, "qrn:quasar:system:framework:root/counter");
-    joke_counter.state.act_on_async::<FunnyMessage>(|actor, _record: &EventRecord<&FunnyMessage>| {
-        let count = actor.state.state.count;
-        debug!("entering handler");
-
+    comedy_show.state.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
+        actor.state.state.jokes_told += 1;
         if let Some(envelope) = actor.new_envelope() {
-            Box::pin(async move {
-                // envelope.reply(Nope::No).await.expect("TODO: panic message");
-
-                debug!("Count: {}", count);
+            match record.message {
+                FunnyJoke::ChickenCrossesRoad => {
+                    Box::pin(async move {
+                        envelope.reply(AudienceReaction::Chuckle).await.expect("TODO: panic message");
+                    }
+                    )
+                }
+                FunnyJoke::Pun => {
+                    Box::pin(async move {
+                        envelope.reply(AudienceReaction::Groan).await.expect("TODO: panic message");
+                    }
+                    )
+                }
             }
-            )
         } else {
             Box::pin(async {})
         }
     })
-        .act_on::<Nope>(|actor, event| {
-            debug!("got nope message");
+        .act_on::<AudienceReaction>(|actor, event| {
+            match event.message {
+                AudienceReaction::Chuckle => { actor.state.state.funny += 1 }
+                AudienceReaction::Groan => { actor.state.state.bombers += 1 }
+            }
+        })
+        .on_before_wake(|_actor| {
+            debug!("on_before_wake");
+        })
+        .on_wake(|_actor| {
+            debug!("on_wake");
+        })
+        .on_stop(|actor| {
+            debug!("on_stop");
+            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.state.jokes_told,actor.state.state.funny, actor.state.state.bombers);
         });
-    // async fn process_message<'a>(actor: &'a mut Awake<Counter, Context>, record: &'a EventRecord<&'a FunnyMessage>) -> impl Future<Output = ()> +'a  {
-    //     let fut = async move {
-    //         debug!("Processing message: {:?}", record.message);
-    //     };
-    //     fut
-    // }
 
-    let mut comedian = joke_counter.spawn().await;
+    let comedian = comedy_show.spawn().await;
 
     // let mut comedian = Actor::spawn(joke_counter).await;
-    debug!("sending funny msg");
-    comedian.emit(FunnyMessage::Haha).await?;
-    let _ = comedian.terminate().await;
-    //
+    comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
+    comedian.emit(FunnyJoke::Pun).await?;
+    comedian.terminate().await.expect("TODO: panic message");
     Ok(())
 }
 
+#[derive(Default, Debug)]
+pub struct Counter {
+    pub count: usize,
+}
+
+#[derive(Default, Debug)]
+pub struct Messenger {
+    pub sender: Option<OutboundEnvelope>,
+}
+
+#[tokio::test]
+async fn test_lifecycle_handlers() -> anyhow::Result<()> {
+    // console_subscriber::init();
+
+    let counter = Counter {
+        count: 0,
+    };
+
+    let mut count = System::new(counter);
+    count.state.act_on::<Tally>(|actor, event| {
+        actor.state.state.count += 1;
+    }).on_stop(|actor| {
+        assert_eq!(4, actor.state.state.count);
+        debug_assert!(false);
+    });
+    let count = count.spawn().await;
+
+
+    let actor = Messenger {
+        sender: Some(count.return_address()),
+    };
+    let mut actor = System::new(actor);
+    actor.state
+        .on_before_wake(|actor| {
+            if let Some(envelope) = actor.state.state.sender.clone() {
+                tokio::spawn(async move {
+                    envelope.reply(Tally::AddCount).await
+                });
+            }
+        })
+        .on_wake(|actor| {
+            if let Some(envelope) = actor.state.state.sender.clone() {
+                tokio::spawn(async move {
+                    envelope.reply(Tally::AddCount).await
+                });
+            }
+        })
+        .on_stop(|actor| {
+            if let Some(envelope) = actor.state.state.sender.clone() {
+                tokio::spawn(async move {
+                    envelope.reply(Tally::AddCount).await
+                });
+            }
+        });
+
+    let actor = actor.spawn().await;
+
+    actor.terminate().await?;
+    count.terminate().await?;
+    Ok(())
+}
+
+
 #[quasar_message]
-pub enum FunnyMessage {
-    Haha,
-    Lol,
-    Giggle,
+pub enum FunnyJoke {
+    ChickenCrossesRoad,
+    Pun,
 }
 
 #[quasar_message]
-pub enum Nope {
-    No,
+pub enum AudienceReaction {
+    Chuckle,
+    Groan,
+}
+
+#[quasar_message]
+pub enum Tally {
+    AddCount,
 }

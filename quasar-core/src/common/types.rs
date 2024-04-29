@@ -26,7 +26,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
-use crate::traits::{SystemMessage};
+use crate::traits::{QuasarMessage, SystemMessage};
 use crate::common::{Actor, Awake, Context, Envelope};
 
 pub enum ReactorItem<T: Send + Sync + 'static, U: Send + Sync + 'static> {
@@ -38,7 +38,7 @@ pub enum ReactorItem<T: Send + Sync + 'static, U: Send + Sync + 'static> {
 pub type ReactorMap<T, U> = DashMap<TypeId, ReactorItem<T, U>>;
 
 //region Common Types
-pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + Send + Sync + 'static;
+pub type SignalReactor<T, U> = dyn for<'a, 'b> Fn(Actor<Awake<T, U>>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + Send + Sync + 'static;
 pub type SignalReactorMap<T, U> = DashMap<TypeId, Box<SignalReactor<T, U>>>;
 pub type InboundSignalChannel = Receiver<Box<dyn SystemMessage>>;
 pub type OutboundSignalChannel = Sender<Box<dyn SystemMessage>>;
@@ -54,8 +54,9 @@ pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;
 
-pub type LifecycleReactor<T> = dyn Fn(Arc<Mutex<T>>) + Send + Sync;
-pub type IdleLifecycleReactor<T> = dyn Fn(&T) + Send + Sync;
+
+pub type LifecycleReactor<T> = dyn Fn(&Actor<T>) + Send + Sync;
+pub type IdleLifecycleReactor<T> = dyn Fn(&Actor<T>) + Send + Sync;
 // type ActorReactor = Box<dyn Fn(&mut MyActorRunning, &dyn ActorMessage) + Send + Sync>;
 // pub type SignalReactor<T, U> = Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &dyn SystemMessage) + Send + Sync>;
 // pub type AsyncResult<'a> = Pin<Box<dyn Future<Output=()> + Send + 'a>>;
