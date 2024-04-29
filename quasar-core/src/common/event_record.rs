@@ -18,8 +18,11 @@
  */
 
 use std::time::SystemTime;
+use static_assertions::assert_impl_all;
 
+#[derive(Clone)]
 pub struct EventRecord<S> {
     pub message: S,
     pub sent_time: SystemTime,
 }
+assert_impl_all!(EventRecord<u32>: Send);

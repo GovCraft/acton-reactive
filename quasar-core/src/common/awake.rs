@@ -17,80 +17,91 @@
  *
  */
 
+use std::any::TypeId;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+use dashmap::mapref::one::Ref;
+
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
-use tracing::{instrument, trace};
-use crate::common::{InboundChannel, OutboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
-use crate::common::*;
 
-pub struct Awake<T: 'static, U: 'static> {
+use tracing::{debug, instrument, trace, warn};
+use tracing::field::debug;
+use crate::common::{InboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
+use crate::common::*;
+use crate::traits::QuasarMessage;
+// use crate::prelude::QuasarMessage;
+
+
+pub struct Awake<T: Send + Sync + 'static, U: Send + Sync + 'static> {
     pub key: Qrn,
     pub state: T,
     pub(crate) signal_reactors: Option<SignalReactorMap<T, U>>,
     signal_mailbox: InboundSignalChannel,
     pub(crate) signal_outbox: OutboundSignalChannel,
-    on_wake: LifecycleReactor<Awake<T, U>>,
-    on_stop: LifecycleReactor<Awake<T, U>>,
-    pub(crate) message_reactors: Option<MessageReactorMap<T, U>>,
-    mailbox: InboundChannel,
-    pub(crate) outbox: OutboundChannel,
-    halt_signal: StopSignal,
+    on_wake: Box<LifecycleReactor<Awake<T, U>>>,
+    pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
 }
 
-impl<T, U> Awake<T, U> {
-    #[instrument(skip(self, message_reactors, signal_reactors), fields(qrn = & self.key.value))]
-    pub(crate) async fn wake(&mut self, message_reactors: MessageReactorMap<T, U>, signal_reactors: SignalReactorMap<T, U>) {
-        (self.on_wake)(self);
-
+impl<T: Send + Sync + 'static, U: Send + Sync + 'static> Awake<T, U> {
+    #[instrument(skip(actor, mailbox, reactors))]
+    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T, U>>, reactors: ReactorMap<T, U>) {
+        (actor.state.on_wake)(&actor);
+        // let actor = actor.clone();  // Clone outside the loop to reduce overhead.
         loop {
-            trace!("Photon responder map size: {}", message_reactors.len());
-            trace!("Singularity signal responder map size: {}", signal_reactors.len());
-
-            // Fetch and process actor messages if available
-            while let Ok(envelope) = self.mailbox.try_recv() {
-                trace!("Received actor message: {:?}", envelope.message);
+            if let Ok(envelope) = mailbox.try_recv() {
+                trace!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
-                if let Some(reactor) = message_reactors.get(&type_id) {
-                    // Dynamically handle the reactor invocation
-                    reactor(self, &envelope);
+                if let Some(reactor) = reactors.get(&type_id) {
+                    match reactor.value() {
+                        ReactorItem::Message(reactor) => {
+                            trace!("Executing reactor message");
+                            let _ = (*reactor)(&mut actor, &envelope);
+                        }
+                        ReactorItem::Future(fut) => {
+                            trace!("Executing reactor future");
+                            let mut actor = &mut actor;
+                            (*fut)(&mut actor, &envelope).await;
+                        }
+                        _ => {}
+                    }
                 } else {
-                    trace!("No reactor for message type: {:?}", type_id);
+                    if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                        trace!("{:?}", concrete_msg);
+                        match concrete_msg {
+                            SystemSignal::Wake => {}
+                            SystemSignal::Recreate => {}
+                            SystemSignal::Suspend => {}
+                            SystemSignal::Resume => {}
+                            SystemSignal::Terminate => {
+                                actor.terminate();
+                            }
+                            SystemSignal::Supervise => {}
+                            SystemSignal::Watch => {}
+                            SystemSignal::Unwatch => {}
+                            SystemSignal::Failed => {}
+                        }
+                    } else {
+                        // Return an immediately resolving future if downcast fails
+                        warn!("No reactor for message type: {:?}", type_id);
+                    }
                 }
             }
-            // Check lifecycle messages
-            if let Ok(internal_signal) = self.signal_mailbox.try_recv() {
-                let type_id = internal_signal.as_any().type_id();
-                match signal_reactors.get(&type_id) {
-                    Some(reactor) => {
-                        reactor(self, &*internal_signal);
-                    }
-                    None => {
-                        trace!("No handler for message type: {:?}", internal_signal);
-                        continue;
-                    }
-                }
+            // Checking stop condition with minimized lock duration.
+            let should_stop = {
+                actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
+            };
+
+            if should_stop {
+                trace!("Halt signal received, exiting capture loop");
+                break;
             } else {
-                //give some time back to the tokio runtime
                 tokio::time::sleep(Duration::from_nanos(1)).await;
             }
-
-            // Check the stop condition after processing messages
-            if self.halt_signal.load(Ordering::SeqCst) && self.mailbox.is_empty() {
-                trace!("Halt signal received, exiting capture loop");
-
-                break;
-            }
         }
-        (self.on_stop)(self);
-    }
 
-    pub(crate) fn terminate(&self) {
-        if !self.halt_signal.load(Ordering::SeqCst) {
-            self.halt_signal.store(true, Ordering::SeqCst);
-        }
+        (actor.state.on_stop)(&actor);
     }
 }
 
@@ -98,11 +109,10 @@ impl<T, U> Awake<T, U> {
 impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor<Awake<T, U>> {
     #[instrument("from idle to awake", skip(value))]
     fn from(value: Actor<Idle<T, U>>) -> Actor<Awake<T, U>> {
-        let (outbox, mailbox) = channel(255);
         let (signal_outbox, signal_mailbox) = channel(255);
         let on_wake = value.state.on_wake;
-        let on_stop = value.state.on_stop;
-        let message_reactors = Some(value.state.message_reactors);
+        let on_stop = Box::new(value.state.on_stop);
+        // let message_reactors = Some(value.state.message_reactors);
         let signal_reactors = Some(value.state.signal_reactors);
         let halt_signal = StopSignal::new(false);
 
@@ -112,14 +122,14 @@ impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor
                 signal_mailbox,
                 on_wake,
                 on_stop,
-                message_reactors,
+                // message_reactors,
                 signal_reactors,
-                mailbox,
-                outbox,
-                halt_signal,
+                // mailbox,
                 key: value.state.key,
                 state: value.state.state,
             },
+            outbox: None,
+            halt_signal: Default::default(),
         }
     }
 }

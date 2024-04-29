@@ -19,6 +19,7 @@
 
 use std::time::SystemTime;
 use crate::traits::QuasarMessage;
+use static_assertions::assert_impl_all;
 
 #[derive(Debug)]
 pub struct Envelope {
@@ -34,3 +35,4 @@ impl Envelope {
         }
     }
 }
+assert_impl_all!(Envelope: Send);

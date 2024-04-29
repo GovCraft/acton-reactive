@@ -20,16 +20,15 @@
 use std::fmt::Debug;
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, Origin};
+use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope};
 use crate::traits::{ActorContext, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 #[derive(Debug, Clone)]
 pub struct Context
 {
     pub(crate) outbox: OutboundChannel,
-    pub(crate) signal_outbox: OutboundSignalChannel,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
 }
@@ -46,10 +45,10 @@ impl Context {
 }
 
 #[async_trait]
-impl ActorContext<dyn QuasarMessage> for Context {
-    fn return_address(&mut self) -> Origin {
+impl ActorContext for Context {
+    fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        Origin::new(outbox)
+        OutboundEnvelope::new(outbox)
     }
 
     fn get_task_tracker(&mut self) -> &mut TaskTracker {
@@ -63,55 +62,55 @@ impl ActorContext<dyn QuasarMessage> for Context {
     #[instrument(skip(self), fields(qrn = self.key.value))]
     async fn terminate(self) -> anyhow::Result<()> {
         trace!("Sending stop message to lifecycle address");
-        self.signal_outbox.send(Box::new(SystemSignal::Terminate)).await?;
+        self.emit(SystemSignal::Terminate).await;
         self.task_tracker.wait().await;
         Ok(())
     }
 
     async fn wake(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Wake)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Wake)).await?;
         Ok(())
     }
 
     async fn recreate(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Recreate)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Recreate)).await?;
         Ok(())
     }
 
     async fn suspend(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Suspend)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Suspend)).await?;
         Ok(())
     }
 
     async fn resume(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Resume)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Resume)).await?;
         Ok(())
     }
 
     async fn supervise(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Supervise)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Supervise)).await?;
         Ok(())
     }
 
     async fn watch(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Watch)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Watch)).await?;
         Ok(())
     }
 
     async fn unwatch(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Unwatch)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Unwatch)).await?;
         Ok(())
     }
 
     async fn failed(&mut self) -> anyhow::Result<()> {
-        self.signal_outbox.send(Box::new(SystemSignal::Failed)).await?;
+        // self.signal_outbox.send(Box::new(SystemSignal::Failed)).await?;
         Ok(())
     }
 }
 
-#[async_trait]
-impl InternalSignalEmitter for Context {
-    fn signal_outbox(&mut self) -> &mut OutboundSignalChannel {
-        &mut self.signal_outbox
-    }
-}
+// #[async_trait]
+// impl InternalSignalEmitter for Context {
+//     fn signal_outbox(&mut self) -> &mut OutboundSignalChannel {
+//         &mut self.signal_outbox
+//     }
+// }

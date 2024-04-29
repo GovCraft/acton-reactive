@@ -17,88 +17,88 @@
  *
  */
 
+use std::future::Future;
+use std::mem;
+use std::pin::Pin;
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
+use futures::future;
 use quasar_qrn::Qrn;
+use tokio::sync::mpsc::channel;
+use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{SystemSignal, Context, Idle, Awake};
-use tracing::{instrument, trace, warn};
+use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, OutboundEnvelope, StopSignal};
+use tracing::{debug, error, instrument, trace};
+use crate::traits::{QuasarMessage, SystemMessage};
 
 pub struct Actor<S> {
     pub state: S,
+    pub outbox: Option<OutboundChannel>,
+    pub halt_signal: StopSignal,
+
 }
 
+impl<T: Default + Send + Sync, U: Send + Sync> Actor<Awake<T, U>> {
+    pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
+        if let Some(envelope) = &self.outbox {
+            Option::from(OutboundEnvelope::new(envelope.clone()))
+        } else { None }
+    }
+}
 
 impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
     pub(crate) fn new(qrn: Qrn, state: T) -> Self {
         Actor {
-            state: Idle::new(qrn, state)
+            state: Idle::new(qrn, state),
+            outbox: None,
+            halt_signal: Default::default(),
         }
     }
-    #[instrument(skip(dormant_quasar))]
-    // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
-    pub async fn spawn(dormant_quasar: Actor<Idle<T, U>>) -> Context {
 
-        // Convert the actor from MyActorIdle to MyActorRunning
-        let mut actor = dormant_quasar;
+    #[instrument(skip(self))]
+    // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
+    pub async fn spawn(self) -> Context {
+
+
+        let mut actor = self;
+        let reactors = mem::take(&mut actor.state.reactors);
+
 
         // Handle any pre_start activities
-        (actor.state.on_before_wake)(&actor.state);
+        (actor.state.on_before_wake)(&actor);
 
-        // Ensure reactors are correctly assigned
-        Self::assign_lifecycle_reactors(&mut actor);
+        let active_actor: Actor<Awake<T, U>> = actor.into();
 
-        // Convert to QuasarRunning state
-        let mut active_quasar: Actor<Awake<T, U>> = actor.into();
+        let mut actor = active_actor;
 
-        // Take reactor maps and inbox addresses before entering async context
-        let singularity_signal_responder_map = active_quasar.state.signal_reactors.take().expect("No lifecycle reactors provided. This should never happen");
-        let photon_responder_map = active_quasar.state.message_reactors.take().expect("No actor message reactors provided. This should never happen");
-        trace!("Actor reactor map size: {}", photon_responder_map.len());
-
-        let actor_inbox_address = active_quasar.state.outbox.clone();
-        assert!(!actor_inbox_address.is_closed(), "Actor inbox address must be valid");
-
-        let lifecycle_inbox_address = active_quasar.state.signal_outbox.clone();
-        assert!(!lifecycle_inbox_address.is_closed(), "Lifecycle inbox address must be valid");
-
-        let qrn = active_quasar.state.key.clone();
+        let qrn = actor.state.key.clone();
 
         let task_tracker = TaskTracker::new();
-
-        // Spawn task to listen to messages
+        let (outbox, mailbox) = channel(255);
+        actor.outbox = Some(outbox.clone());
         task_tracker.spawn(async move {
-            active_quasar.state.wake(photon_responder_map, singularity_signal_responder_map).await
+            Awake::wake(mailbox, actor, reactors).await
         });
-        task_tracker.close();
-        assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
 
-        // Create a new QuasarContext with pre-extracted data
+
+        task_tracker.close();
+        debug_assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
         Context {
-            outbox: actor_inbox_address,
-            signal_outbox: lifecycle_inbox_address,
+            outbox,
             task_tracker,
             key: qrn,
         }
     }
-
-    #[instrument(skip(actor), fields(qrn = actor.state.key.value))]
-    fn assign_lifecycle_reactors(actor: &mut Actor<Idle<T, U>>) {
-        trace!("assigning_lifeccycle reactors");
-
-        actor.state.observe_singularity_signal::<SystemSignal>(|awake_actor, lifecycle_message| {
-            match lifecycle_message {
-                SystemSignal::Terminate => {
-                    trace!("Received terminate message");
-                    awake_actor.terminate();
-                }
-                SystemSignal::Recreate => { todo!() }
-                SystemSignal::Suspend => { todo!() }
-                SystemSignal::Resume => { todo!() }
-                SystemSignal::Supervise => { todo!() }
-                SystemSignal::Watch => { todo!() }
-                SystemSignal::Unwatch => { todo!() }
-                SystemSignal::Failed => { todo!() }
-                SystemSignal::Wake => {todo!()}
-            }
-        });
     }
+
+impl<T: Send + Sync, U: Send + Sync> Actor<Awake<T, U>> {
+    #[instrument(skip(self))]
+    pub(crate) fn terminate(&self) {
+        if !self.halt_signal.load(Ordering::SeqCst) {
+            trace!("{:?}", self.halt_signal);
+            self.halt_signal.store(true, Ordering::SeqCst);
+        }
+    }
+
 }
+

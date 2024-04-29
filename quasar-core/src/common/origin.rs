@@ -18,26 +18,25 @@
  */
 
 use std::time::SystemTime;
-use async_trait::async_trait;
+use tracing::{debug, instrument, trace};
+
 use crate::common::{Envelope, OutboundChannel};
 use crate::prelude::QuasarMessage;
-use crate::traits::ReturnAddress;
+
 
 #[derive(Clone, Debug)]
-pub struct Origin {
+pub struct OutboundEnvelope {
     reply_to: OutboundChannel,
 }
 
-impl Origin {
+impl OutboundEnvelope {
     pub fn new(reply_to: OutboundChannel) -> Self {
-        Origin { reply_to }
+        OutboundEnvelope { reply_to }
     }
-}
-
-#[async_trait]
-impl ReturnAddress for Origin {
-    async fn reply(&self, message: Box<(dyn QuasarMessage + 'static)>) -> anyhow::Result<()> {
-        let envelope = Envelope { message, sent_time: SystemTime::now() };
+    #[instrument(skip(self))]
+    pub async fn reply(&self, message: impl QuasarMessage + 'static) -> anyhow::Result<()> {
+        trace!("{:?}", message);
+        let envelope = Envelope { message: Box::new(message), sent_time: SystemTime::now() };
         self.reply_to.send(envelope).await?;
         Ok(())
     }

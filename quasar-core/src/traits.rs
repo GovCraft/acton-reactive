@@ -19,10 +19,38 @@
 
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::Arc;
 use async_trait::async_trait;
 use quasar_qrn::prelude::*;
+use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{Origin, OutboundSignalChannel};
+use crate::common::{Awake, EventRecord, OutboundEnvelope, OutboundSignalChannel};
+
+#[async_trait]
+pub trait Handler {
+    async fn handle(&mut self) -> anyhow::Result<()>;
+}
+
+// pub trait IntoAsyncReactor<T, U> {
+//     fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync>;
+// }
+//
+// impl<T, U, F, Fut> IntoAsyncReactor<T, U> for F
+//     where
+//         T: 'static + Send + Sync,
+//         U: QuasarMessage + 'static + Clone,
+//         F: Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Fut + Send + Sync + 'static,
+//         Fut: Future<Output = ()> + Send + 'static,
+// {
+//     fn into_reactor(self) -> Box<dyn Fn(Arc<Mutex<Awake<T, U>>>, &EventRecord<U>) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + Sync> {
+//         Box::new(move |actor, event| {
+//             Box::pin(self(actor, event))
+//         })
+//     }
+// }
+
 
 //region Traits
 pub trait QuasarMessage: Any + Sync + Send + Debug {
@@ -52,15 +80,15 @@ pub trait ReturnAddress: Send {
 }
 
 #[async_trait]
-pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clone {
-    fn return_address(&mut self) -> Origin;
+pub trait ActorContext {
+    fn return_address(&self) -> OutboundEnvelope;
     fn get_task_tracker(&mut self) -> &mut TaskTracker;
 
     fn key(&self) -> &Qrn;
 
-    async fn emit(&mut self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
+    async fn emit(&self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
         let origin = self.return_address();
-        origin.reply(Box::new(message)).await?; // Directly boxing the owned message
+        origin.reply(message).await?; // Directly boxing the owned message
         Ok(())
     }
     async fn terminate(self) -> anyhow::Result<()>;
@@ -73,3 +101,24 @@ pub trait ActorContext<M: QuasarMessage + Send + 'static + ?Sized>: Sized + Clon
     async fn unwatch(&mut self) -> anyhow::Result<()>;
     async fn failed(&mut self) -> anyhow::Result<()>;
 }
+
+
+
+
+
+// pub trait AsyncMessageReactor<T, U>:Send {
+//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>;
+// }
+//
+//
+// impl<T, U, F> AsyncMessageReactor<T, U> for F
+//     where
+//         T: Send + 'static,
+//         U: Send + 'static,
+//         F: Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
+// {
+//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>{
+//         (self)(actor, envelope)
+//     }
+// }
+
