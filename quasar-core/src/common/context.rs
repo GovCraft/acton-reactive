@@ -21,7 +21,7 @@ use std::fmt::Debug;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool};
+use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, PoolProxy};
 use crate::traits::{ActorContext, ConfigurableActor, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
@@ -33,7 +33,7 @@ pub struct Context
     pub(crate) outbox: OutboundChannel,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
-    pub(crate) pools: ActorPool,
+    pub(crate) pools: ContextPool,
 }
 
 impl Context {
@@ -72,13 +72,14 @@ impl ActorContext for Context {
     }
 
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
-        let mut pool = Vec::with_capacity(size);
-        for i in 0..size {
-            let actor_name = format!("{}{}", name, i);
-            let context = T::init(&actor_name).await;
-            pool.push(context);
-        }
-        self.pools.insert(name.to_string(), pool);
+        let proxy = PoolProxy::init(name).await;
+        // let mut pool = Vec::with_capacity(size);
+        // for i in 0..size {
+        //     let actor_name = format!("{}{}", name, i);
+        //     let context = T::init(&actor_name).await;
+        //     pool.push(context);
+        // }
+        self.pools.insert(name.to_string(), proxy);
         Ok(())
     }
 

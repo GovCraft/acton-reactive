@@ -17,32 +17,32 @@
  *
  */
 
-mod pool_proxy;
-pub use pool_proxy::PoolProxy;
-mod event_record;
-pub use event_record::EventRecord;
-mod origin;
-pub use origin::OutboundEnvelope;
+use std::any::Any;
+use async_trait::async_trait;
+use crate::common::{Context, ContextPool, System};
+use crate::traits::{ConfigurableActor, QuasarMessage};
 
-mod envelope;
-pub use envelope::Envelope;
-mod system;
-pub use system::System;
+#[derive(Debug)]
+pub struct NewPoolMessage {
+    name: &'static str,
+}
 
-mod types;
-pub use types::*;
+impl<'a> QuasarMessage for NewPoolMessage {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
-mod idle;
-pub use idle::Idle;
+#[derive(Default, Debug)]
+pub struct PoolProxy {
+    pub pool: ContextPool,
+}
 
-mod awake;
-pub use awake::Awake;
+#[async_trait]
+impl ConfigurableActor for PoolProxy {
+    async fn init(name: &str) -> Context {
+        let proxy = System::new(PoolProxy::default());
 
-mod signal;
-pub use signal::SystemSignal;
-
-mod context;
-pub use context::Context;
-
-mod actor;
-pub use actor::Actor;
+        proxy.spawn().await
+    }
+}

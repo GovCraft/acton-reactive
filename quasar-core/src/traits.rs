@@ -80,7 +80,6 @@ pub trait ReturnAddress: Send {
 }
 
 #[async_trait]
-#[async_trait]
 pub trait ConfigurableActor: Default + Send + Sync + Debug {
     async fn init(name: &str) -> Context;
 }

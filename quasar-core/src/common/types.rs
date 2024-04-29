@@ -55,7 +55,7 @@ pub type OutboundChannel = Sender<Envelope>;
 pub type InboundChannel = Receiver<Envelope>;
 pub type StopSignal = AtomicBool;
 
-pub type ContextPool = Vec<Context>;
+pub type ContextPool = DashMap<String, Context>;
 pub type ActorPool = DashMap<String, ContextPool>;
 pub type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send + Sync;
 pub type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send + Sync;

@@ -33,7 +33,7 @@ use tracing::{debug, error, instrument, trace};
 use crate::traits::{QuasarMessage, SystemMessage};
 
 pub struct Actor<RefType, State: Default + Send + Sync + Debug + 'static> {
-    pub actor_ref: RefType,
+    pub ctx: RefType,
     pub outbox: Option<OutboundChannel>,
     pub halt_signal: StopSignal,
     pub key: Qrn,
@@ -52,11 +52,11 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> 
 impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(key: Qrn, state: State) -> Self {
         Actor {
-            actor_ref: Idle::new(),
+            ctx: Idle::new(),
             outbox: None,
             halt_signal: Default::default(),
             key,
-            state,
+            state: state,
         }
     }
 
@@ -66,11 +66,11 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
 
 
         let mut actor = self;
-        let reactors = mem::take(&mut actor.actor_ref.reactors);
+        let reactors = mem::take(&mut actor.ctx.reactors);
 
 
         // Handle any pre_start activities
-        (actor.actor_ref.on_before_wake)(&actor);
+        (actor.ctx.on_before_wake)(&actor);
 
         let active_actor: Actor<Awake<State>, State> = actor.into();
 

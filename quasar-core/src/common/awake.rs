@@ -41,7 +41,7 @@ pub struct Awake<State: Default + Send + Sync + Debug + 'static> {
 impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
     #[instrument(skip(actor, mailbox, reactors))]
     pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<State>, State>, reactors: ReactorMap<State>) {
-        (actor.actor_ref.on_wake)(&actor);
+        (actor.ctx.on_wake)(&actor);
 
         loop {
             if let Ok(envelope) = mailbox.try_recv() {
@@ -96,7 +96,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
             }
         }
 
-        (actor.actor_ref.on_stop)(&actor);
+        (actor.ctx.on_stop)(&actor);
     }
 }
 
@@ -104,12 +104,12 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
 impl<State: Default + Send + Sync + Debug + 'static> From<Actor<Idle<State>, State>> for Actor<Awake<State>, State> {
     #[instrument("from idle to awake", skip(value))]
     fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State> {
-        let on_wake = value.actor_ref.on_wake;
-        let on_stop = Box::new(value.actor_ref.on_stop);
+        let on_wake = value.ctx.on_wake;
+        let on_stop = Box::new(value.ctx.on_stop);
         let halt_signal = StopSignal::new(false);
 
         Actor {
-            actor_ref: Awake {
+            ctx: Awake {
                 on_wake,
                 on_stop,
             },
