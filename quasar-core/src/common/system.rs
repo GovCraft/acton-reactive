@@ -27,7 +27,7 @@ pub struct System<T: Default + Send + Sync + Debug> {
 }
 
 impl<T: Default + Send + Sync + Debug> System<T> {
-    pub fn new(actor: T) -> Actor<Idle<T, Self>> {
+    pub fn new(actor: T) -> Actor<Idle<T>> {
 
         //append to the qrn
 

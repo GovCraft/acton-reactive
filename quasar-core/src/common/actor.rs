@@ -38,7 +38,7 @@ pub struct Actor<S> {
 
 }
 
-impl<T: Default + Send + Sync, U: Send + Sync> Actor<Awake<T, U>> {
+impl<T: Default + Send + Sync> Actor<Awake<T>> {
     pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.outbox {
             Option::from(OutboundEnvelope::new(envelope.clone()))
@@ -46,7 +46,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Awake<T, U>> {
     }
 }
 
-impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
+impl<T: Default + Send + Sync> Actor<Idle<T>> {
     pub(crate) fn new(qrn: Qrn, state: T) -> Self {
         Actor {
             state: Idle::new(qrn, state),
@@ -67,7 +67,7 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
         // Handle any pre_start activities
         (actor.state.on_before_wake)(&actor);
 
-        let active_actor: Actor<Awake<T, U>> = actor.into();
+        let active_actor: Actor<Awake<T>> = actor.into();
 
         let mut actor = active_actor;
 
@@ -87,11 +87,12 @@ impl<T: Default + Send + Sync, U: Send + Sync> Actor<Idle<T, U>> {
             outbox,
             task_tracker,
             key: qrn,
+            pools: Default::default(),
         }
     }
     }
 
-impl<T: Send + Sync, U: Send + Sync> Actor<Awake<T, U>> {
+impl<T: Send + Sync> Actor<Awake<T>> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
         if !self.halt_signal.load(Ordering::SeqCst) {

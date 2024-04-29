@@ -19,11 +19,13 @@
 
 use std::fmt::Debug;
 use async_trait::async_trait;
+use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope};
-use crate::traits::{ActorContext, InternalSignalEmitter, QuasarMessage};
+use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool};
+use crate::traits::{ActorContext, ConfigurableActor, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
+use tracing_subscriber::util::SubscriberInitExt;
 
 #[derive(Debug, Clone)]
 pub struct Context
@@ -31,11 +33,12 @@ pub struct Context
     pub(crate) outbox: OutboundChannel,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
+    pub(crate) pools: ActorPool,
 }
 
 impl Context {
-    pub fn new_actor<T: Default + Send + Sync + Debug>(&self, actor: T, id: &str) -> Actor<Idle<T, Self>> {
-
+    pub fn new_actor<T: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<T>> {
+        let actor = Default::default();
         //append to the qrn
         let mut qrn = self.key().clone();
         qrn.append_part(id);
@@ -55,6 +58,7 @@ impl ActorContext for Context {
         &mut self.task_tracker
     }
 
+
     fn key(&self) -> &Qrn {
         &self.key
     }
@@ -66,6 +70,19 @@ impl ActorContext for Context {
         self.task_tracker.wait().await;
         Ok(())
     }
+
+    async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
+        let mut pool = Vec::with_capacity(size);
+        for i in 0..size {
+            let actor_name = format!("{}{}", name, i);
+            let context = T::init(&actor_name).await;
+            pool.push(context);
+        }
+        self.pools.insert(name.to_string(), pool);
+        Ok(())
+    }
+
+
 
     async fn wake(&mut self) -> anyhow::Result<()> {
         // self.signal_outbox.send(Box::new(SystemSignal::Wake)).await?;

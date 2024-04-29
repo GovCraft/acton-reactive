@@ -33,19 +33,16 @@ use crate::traits::QuasarMessage;
 // use crate::prelude::QuasarMessage;
 
 
-pub struct Awake<T: Send + Sync + 'static, U: Send + Sync + 'static> {
+pub struct Awake<T: Send + Sync + 'static> {
     pub key: Qrn,
     pub state: T,
-    pub(crate) signal_reactors: Option<SignalReactorMap<T, U>>,
-    signal_mailbox: InboundSignalChannel,
-    pub(crate) signal_outbox: OutboundSignalChannel,
-    on_wake: Box<LifecycleReactor<Awake<T, U>>>,
-    pub(crate) on_stop: Box<LifecycleReactor<Awake<T, U>>>,
+    on_wake: Box<LifecycleReactor<Awake<T>>>,
+    pub(crate) on_stop: Box<LifecycleReactor<Awake<T>>>,
 }
 
-impl<T: Send + Sync + 'static, U: Send + Sync + 'static> Awake<T, U> {
+impl<T: Send + Sync + 'static> Awake<T> {
     #[instrument(skip(actor, mailbox, reactors))]
-    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T, U>>, reactors: ReactorMap<T, U>) {
+    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<T>>, reactors: ReactorMap<T>) {
         (actor.state.on_wake)(&actor);
         // let actor = actor.clone();  // Clone outside the loop to reduce overhead.
         loop {
@@ -106,25 +103,17 @@ impl<T: Send + Sync + 'static, U: Send + Sync + 'static> Awake<T, U> {
 }
 
 
-impl<T: Default + Send + Sync, U: Send + Sync> From<Actor<Idle<T, U>>> for Actor<Awake<T, U>> {
+impl<T: Default + Send + Sync> From<Actor<Idle<T>>> for Actor<Awake<T>> {
     #[instrument("from idle to awake", skip(value))]
-    fn from(value: Actor<Idle<T, U>>) -> Actor<Awake<T, U>> {
-        let (signal_outbox, signal_mailbox) = channel(255);
+    fn from(value: Actor<Idle<T>>) -> Actor<Awake<T>> {
         let on_wake = value.state.on_wake;
         let on_stop = Box::new(value.state.on_stop);
-        // let message_reactors = Some(value.state.message_reactors);
-        let signal_reactors = Some(value.state.signal_reactors);
         let halt_signal = StopSignal::new(false);
 
         Actor {
             state: Awake {
-                signal_outbox,
-                signal_mailbox,
                 on_wake,
                 on_stop,
-                // message_reactors,
-                signal_reactors,
-                // mailbox,
                 key: value.state.key,
                 state: value.state.state,
             },
