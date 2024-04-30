@@ -17,26 +17,8 @@
  *
  */
 
-use std::fmt::Debug;
-use quasar_qrn::Qrn;
-use crate::common::{Actor, Idle};
+mod pool_proxy;
+pub use pool_proxy::PoolProxy;
 
-#[derive(Debug)]
-pub struct System<State: Default + Send + Sync + Debug> {
-    pub root_actor: State
-}
-
-impl<State: Default + Send + Sync + Debug> System<State> {
-    pub fn new_actor(actor: State) -> Actor<Idle<State>, State> {
-
-        //append to the qrn
-
-        Actor::new(Qrn::default(), actor)
-    }
-}
-
-impl<State: Default + Send + Sync + Debug> Default for System<State> {
-    fn default() -> Self {
-        System{ root_actor: State::default() }
-    }
-}
+mod messages;
+pub use messages::*;

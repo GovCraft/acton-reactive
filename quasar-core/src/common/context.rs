@@ -20,8 +20,9 @@
 use std::fmt::Debug;
 use async_trait::async_trait;
 use dashmap::DashMap;
+use futures::future::join_all;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool};
+use crate::common::{OutboundChannel, SystemSignal, OutboundSignalChannel, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, PoolProxy, NewPoolMessage};
 use crate::traits::{ActorContext, ConfigurableActor, InternalSignalEmitter, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
@@ -34,10 +35,11 @@ pub struct Context
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
     pub(crate) pools: ActorPool,
+    pub(crate) current_index: usize,
 }
 
 impl Context {
-    pub fn new_actor<T: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<T>> {
+    pub fn new_actor<State: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
         let actor = Default::default();
         //append to the qrn
         let mut qrn = self.key().clone();
@@ -63,25 +65,59 @@ impl ActorContext for Context {
         &self.key
     }
 
+    async fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
+        if let Some(item) = self.pools.get(name) {
+            let pool = item.value();
+            if let Some(context) = pool.iter().nth(self.current_index){
+                let envelope = context.return_address();
+                envelope.reply(message).await;
+                self.current_index += 1;
+                if self.current_index >= pool.len() {
+                    self.current_index = 0;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     #[instrument(skip(self), fields(qrn = self.key.value))]
-    async fn terminate(self) -> anyhow::Result<()> {
-        trace!("Sending stop message to lifecycle address");
+    async fn terminate(&self) -> anyhow::Result<()> {
+        // Shutdown managed pools
+        let mut tasks = Vec::new();
+        for context_pool in &self.pools {
+            for (_, context) in context_pool.value().clone() {
+                let task = async move {
+                    // debug!("Terminating {}", context.key.value);
+                    context.terminate().await?;
+                    context.task_tracker.wait().await;  // Assuming wait() just waits and does not return a Result
+                    Ok::<(), anyhow::Error>(())
+                };
+                tasks.push(task);
+            }
+        }
+        let _handle = join_all(tasks).await;
         self.emit(SystemSignal::Terminate).await;
         self.task_tracker.wait().await;
         Ok(())
     }
-
+    #[instrument(skip(self))]
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
-        let mut pool = Vec::with_capacity(size);
+        let mut tasks = Vec::with_capacity(size);
         for i in 0..size {
             let actor_name = format!("{}{}", name, i);
-            let context = T::init(&actor_name).await;
-            pool.push(context);
+            let pool_item = T::init(actor_name, self);
+            tasks.push(pool_item);
         }
-        self.pools.insert(name.to_string(), pool);
+        let contexts = join_all(tasks).await;
+        let mut items = DashMap::new();  // DashMap to store the results
+        for context in contexts {
+            items.insert(context.key.value.clone(), context);  // Collect each result
+        }
+        self.pools.insert(name.to_string(), items);
+        debug!("added pool: {}", name);
         Ok(())
     }
-
 
 
     async fn wake(&mut self) -> anyhow::Result<()> {

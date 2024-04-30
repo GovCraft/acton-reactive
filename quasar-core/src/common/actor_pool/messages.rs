@@ -17,26 +17,30 @@
  *
  */
 
-use std::fmt::Debug;
-use quasar_qrn::Qrn;
-use crate::common::{Actor, Idle};
+use std::any::Any;
+use dashmap::DashMap;
+use crate::common::Context;
+use crate::prelude::QuasarMessage;
 
-#[derive(Debug)]
-pub struct System<State: Default + Send + Sync + Debug> {
-    pub root_actor: State
+#[derive(Debug, Clone)]
+pub struct NewPoolMessage {
+    pub(crate) name: String,
+    pub(crate) size: usize,
 }
 
-impl<State: Default + Send + Sync + Debug> System<State> {
-    pub fn new_actor(actor: State) -> Actor<Idle<State>, State> {
-
-        //append to the qrn
-
-        Actor::new(Qrn::default(), actor)
+impl QuasarMessage for NewPoolMessage {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 
-impl<State: Default + Send + Sync + Debug> Default for System<State> {
-    fn default() -> Self {
-        System{ root_actor: State::default() }
+#[derive(Debug, Clone)]
+pub struct AssignPool{
+    pub(crate) pool: DashMap<String, Context>
+}
+
+impl QuasarMessage for AssignPool {
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

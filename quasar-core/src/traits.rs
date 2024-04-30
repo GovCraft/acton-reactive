@@ -80,16 +80,17 @@ pub trait ReturnAddress: Send {
 }
 
 #[async_trait]
-#[async_trait]
 pub trait ConfigurableActor: Default + Send + Sync + Debug {
-    async fn init(name: &str) -> Context;
+    async fn init(name: String, root: &Context) -> Context;
 }
+
 pub enum DistributionStrategy {
     RoundRobin,
     Random,
     LeastBusy,
-    HashBased
+    HashBased,
 }
+
 #[async_trait]
 pub trait ActorContext {
     fn return_address(&self) -> OutboundEnvelope;
@@ -105,33 +106,8 @@ pub trait ActorContext {
         Ok(())
     }
 
-    async fn pool_emit<DistributionStrategy>(&self, name:&str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
-        //get context pool by name
-       // if let Some(context_pool) = self.get_pool(name) {
-               //find the next context in the vector to send to based on it's key and it's round-robin position
-                //the key was generated like this:
-               // async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
-               //     let mut pool = Vec::with_capacity(size);
-               //     for i in 0..size {
-               //         let actor_name = format!("{}{}", name, i);
-               //         let context = T::init(&actor_name).await;
-               //         pool.push(context);
-               //     }
-               //     self.pools.insert(name.to_string(), pool);
-               //     Ok(())
-               // }
-
-           //create a distribution proxy actor to hold the pool of Contexts and maintain state required
-           //to pass messages based on the specified distribution strategy
-           //it will be up to that actor to emit to the contexts it proxies for
-           //so the context of this actor will not hold a pool of pools, it will hold a pool of distribution proxy contexts
-
-                //then call emit on the context with the message passed into this function
-
-       // }
-        Ok(())
-    }
-    async fn terminate(self) -> anyhow::Result<()>;
+    async fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()>;
+    async fn terminate(&self) -> anyhow::Result<()>;
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;
@@ -144,19 +120,4 @@ pub trait ActorContext {
 }
 
 
-// pub trait AsyncMessageReactor<T, U>:Send {
-//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>;
-// }
-//
-//
-// impl<T, U, F> AsyncMessageReactor<T, U> for F
-//     where
-//         T: Send + 'static,
-//         U: Send + 'static,
-//         F: Fn(&mut Awake<T, U>, &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>> + Send + Sync + 'static,
-// {
-//     fn call(&self, actor: &mut Awake<T, U>, envelope: &Envelope) -> Pin<Box<dyn Future<Output = ()> + Send>>{
-//         (self)(actor, envelope)
-//     }
-// }
 

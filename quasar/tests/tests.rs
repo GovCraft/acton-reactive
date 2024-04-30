@@ -22,8 +22,8 @@
 
 
 
-use tokio::task;
-use tokio::task::spawn_blocking;
+use std::time::Duration;
+use async_trait::async_trait;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 use tracing::{debug, Level};
@@ -40,7 +40,7 @@ pub struct Comedian {
 async fn test_actor_mutation() -> anyhow::Result<()> {
     // console_subscriber::init();
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::TRACE)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -49,29 +49,22 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
-    let comedian = Comedian {
-        jokes_told: 0,
-        funny: 0,
-        bombers: 0,
-    };
+    let mut comedy_show = System::new_actor(Comedian::default());
 
-    let mut comedy_show = System::new(comedian);
+    comedy_show.ctx.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
+        actor.state.jokes_told += 1;
 
-    comedy_show.state.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
-        actor.state.state.jokes_told += 1;
         if let Some(envelope) = actor.new_envelope() {
             match record.message {
                 FunnyJoke::ChickenCrossesRoad => {
                     Box::pin(async move {
                         envelope.reply(AudienceReaction::Chuckle).await.expect("TODO: panic message");
-                    }
-                    )
+                    })
                 }
                 FunnyJoke::Pun => {
                     Box::pin(async move {
                         envelope.reply(AudienceReaction::Groan).await.expect("TODO: panic message");
-                    }
-                    )
+                    })
                 }
             }
         } else {
@@ -80,19 +73,12 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     })
         .act_on::<AudienceReaction>(|actor, event| {
             match event.message {
-                AudienceReaction::Chuckle => { actor.state.state.funny += 1 }
-                AudienceReaction::Groan => { actor.state.state.bombers += 1 }
+                AudienceReaction::Chuckle => { actor.state.funny += 1 }
+                AudienceReaction::Groan => { actor.state.bombers += 1 }
             }
         })
-        .on_before_wake(|_actor| {
-            debug!("on_before_wake");
-        })
-        .on_wake(|_actor| {
-            debug!("on_wake");
-        })
         .on_stop(|actor| {
-            debug!("on_stop");
-            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.state.jokes_told,actor.state.state.funny, actor.state.state.bombers);
+            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.jokes_told,actor.state.funny, actor.state.bombers);
         });
 
     let comedian = comedy_show.spawn().await;
@@ -116,17 +102,15 @@ pub struct Messenger {
 
 #[tokio::test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
-    // console_subscriber::init();
-
     let counter = Counter {
         count: 0,
     };
 
-    let mut count = System::new(counter);
-    count.state.act_on::<Tally>(|actor, event| {
-        actor.state.state.count += 1;
+    let mut count = System::new_actor(counter);
+    count.ctx.act_on::<Tally>(|actor, _event| {
+        actor.state.count += 1;
     }).on_stop(|actor| {
-        assert_eq!(4, actor.state.state.count);
+        assert_eq!(4, actor.state.count);
         debug_assert!(false);
     });
     let count = count.spawn().await;
@@ -135,24 +119,24 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     let actor = Messenger {
         sender: Some(count.return_address()),
     };
-    let mut actor = System::new(actor);
-    actor.state
+    let mut actor = System::new_actor(actor);
+    actor.ctx
         .on_before_wake(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });
             }
         })
         .on_wake(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });
             }
         })
         .on_stop(|actor| {
-            if let Some(envelope) = actor.state.state.sender.clone() {
+            if let Some(envelope) = actor.state.sender.clone() {
                 tokio::spawn(async move {
                     envelope.reply(Tally::AddCount).await
                 });
@@ -163,6 +147,48 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     actor.terminate().await?;
     count.terminate().await?;
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    Ok(())
+}
+
+#[derive(Default, Debug)]
+pub struct PoolItem;
+
+#[async_trait]
+impl ConfigurableActor for PoolItem {
+    async fn init(name: String, context: &Context) -> Context {
+        let mut actor = context.new_actor::<PoolItem>(&name);
+        actor.ctx
+            .act_on::<FunnyJoke>(|actor, _| {
+                debug!("{} received a joke", actor.key.value)
+            });
+
+        actor.spawn().await
+    }
+}
+
+#[tokio::test]
+async fn test_actor_pool() -> anyhow::Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::DEBUG)
+        .compact()
+        .with_line_number(true)
+        // .without_time()
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let actor = System::new_actor(PoolItem);
+    let mut context = actor.spawn().await;
+
+    // Execute `spawn_pool`, then `terminate`
+    context.spawn_pool::<PoolItem>("pool", 10).await?;
+    for _ in 0..20 {
+        context.pool_emit::<DistributionStrategy>("pool", FunnyJoke::Pun).await?;
+    }
+    context.terminate().await?;
+
     Ok(())
 }
 
