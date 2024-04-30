@@ -23,7 +23,7 @@
 
 
 use std::time::Duration;
-use async_trait::async_trait;
+use quasar::prelude::async_trait::async_trait;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
 use tracing::{debug, Level};
