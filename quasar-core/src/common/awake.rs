@@ -39,10 +39,9 @@ pub struct Awake<State: Default + Send + Sync + Debug + 'static> {
 }
 
 impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
-    #[instrument(skip(actor, mailbox, reactors))]
+    #[instrument(skip(actor, mailbox, reactors), fields(actor.key.value))]
     pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<State>, State>, reactors: ReactorMap<State>) {
         (actor.ctx.on_wake)(&actor);
-
         loop {
             if let Ok(envelope) = mailbox.try_recv() {
                 trace!("Received actor message: {:?}", envelope);
@@ -62,7 +61,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
                         _ => {}
                     }
                 } else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                    trace!("{:?}", concrete_msg);
+                    trace!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
                         SystemSignal::Wake => {}
                         SystemSignal::Recreate => {}
@@ -77,7 +76,6 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
                         SystemSignal::Failed => {}
                     }
                 } else {
-                    // Return an immediately resolving future if downcast fails
                     warn!("No reactor for message type: {:?}", type_id);
                 }
             }

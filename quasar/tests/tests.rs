@@ -26,7 +26,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
-use tracing::{debug, instrument, Level};
+use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -156,10 +156,12 @@ pub struct PoolItem;
 
 #[async_trait]
 impl ConfigurableActor for PoolItem {
-    #[instrument]
-    async fn init(name: &str) -> Context {
-        debug!("{}", name);
-        let actor = System::new_actor(PoolItem);
+    async fn init(name: String, context: &Context) -> Context {
+        let mut actor = context.new_actor::<PoolItem>(&name);
+        actor.ctx
+            .act_on::<FunnyJoke>(|actor, _| {
+                debug!("{} received a joke", actor.key.value)
+            });
 
         actor.spawn().await
     }
@@ -167,12 +169,11 @@ impl ConfigurableActor for PoolItem {
 
 #[tokio::test]
 async fn test_actor_pool() -> anyhow::Result<()> {
-    // console_subscriber::init();
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         .compact()
         .with_line_number(true)
-        .without_time()
+        // .without_time()
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
@@ -183,6 +184,9 @@ async fn test_actor_pool() -> anyhow::Result<()> {
 
     // Execute `spawn_pool`, then `terminate`
     context.spawn_pool::<PoolItem>("pool", 10).await?;
+    for _ in 0..20 {
+        context.pool_emit::<DistributionStrategy>("pool", FunnyJoke::Pun).await?;
+    }
     context.terminate().await?;
 
     Ok(())

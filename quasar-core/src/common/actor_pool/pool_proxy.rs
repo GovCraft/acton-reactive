@@ -39,7 +39,7 @@ pub struct PoolProxy<T> {
 #[async_trait]
 impl<T: ConfigurableActor + 'static> ConfigurableActor for PoolProxy<T> {
     #[instrument]
-    async fn init(name: &str) -> Context {
+    async fn init(name: String, _context:&Context) -> Context {
         let name = name.to_owned();
         let mut proxy = System::<PoolProxy<T>>::new_actor(PoolProxy::default());
         proxy.ctx.act_on_async::<NewPoolMessage>(move |actor, record| {

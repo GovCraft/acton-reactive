@@ -93,6 +93,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             task_tracker,
             key: qrn,
             pools: Default::default(),
+            current_index: 0
         }
     }
     }
