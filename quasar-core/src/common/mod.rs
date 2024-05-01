@@ -18,7 +18,6 @@
  */
 mod message_error;
 pub use message_error::MessageError;
-pub use actor_pool::*;
 // pub use pool_proxy::PoolProxy;
 mod event_record;
 pub use event_record::EventRecord;
@@ -46,6 +45,5 @@ mod context;
 pub use context::Context;
 
 mod actor;
-mod actor_pool;
 
 pub use actor::Actor;

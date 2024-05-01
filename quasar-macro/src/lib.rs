@@ -45,6 +45,7 @@ pub fn quasar_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 self
             }
         }
+        unsafe impl Sync for #name {}
     };
 
     TokenStream::from(expanded)

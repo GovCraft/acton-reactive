@@ -26,11 +26,11 @@ use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope, OutboundSignalChannel};
+use crate::common::{ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope};
 
 #[async_trait]
 pub trait Handler {
-    async fn handle(&mut self) -> Result<(),MessageError>;
+    async fn handle(&mut self) -> Result<(), MessageError>;
 }
 
 // pub trait IntoAsyncReactor<T, U> {
@@ -66,18 +66,18 @@ pub trait SystemMessage: Any + Send + Sync + Debug {
 //endregion
 
 
-#[async_trait]
-pub(crate) trait InternalSignalEmitter {
-    fn signal_outbox(&mut self) -> &mut OutboundSignalChannel;
-    async fn send_lifecycle(&mut self, message: impl SystemMessage + Send + 'static) -> Result<(),MessageError> {
-        self.signal_outbox().send(Box::new(message)).await?;
-        Ok(())
-    }
-}
+// #[async_trait]
+// pub(crate) trait InternalSignalEmitter {
+//     fn signal_outbox(&mut self) -> &mut OutboundSignalChannel;
+//     async fn send_lifecycle(&mut self, message: impl SystemMessage + Send + 'static) -> Result<(),MessageError> {
+//         self.signal_outbox().send(Box::new(message)).await?;
+//         Ok(())
+//     }
+// }
 
 #[async_trait]
 pub trait ReturnAddress: Send {
-    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(),MessageError>;
+    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(), MessageError>;
 }
 
 #[async_trait]
@@ -101,14 +101,16 @@ pub trait ActorContext {
 
     fn key(&self) -> &Qrn;
 
-    async fn emit(&self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
-        let envelope = self.return_address();
-        envelope.reply(message).await?; // Directly boxing the owned message
-        Ok(())
+    fn emit(&self, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync where Self:Sync {
+        async {
+            let envelope = self.return_address();
+            envelope.reply(message).await?; // Directly boxing the owned message
+            Ok(())
+        }
     }
 
-    async fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()>;
-    async fn terminate(&self) -> anyhow::Result<()>;
+    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync;
+    fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync;
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;

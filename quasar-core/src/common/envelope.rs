@@ -23,12 +23,12 @@ use static_assertions::assert_impl_all;
 
 #[derive(Debug)]
 pub struct Envelope {
-    pub message: Box<dyn QuasarMessage + Send + 'static>,
+    pub message: Box<dyn QuasarMessage + Send + Sync + 'static>,
     pub sent_time: SystemTime,
 }
 
 impl Envelope {
-    pub fn new(message: Box<dyn QuasarMessage + Send + 'static>) -> Self {
+    pub fn new(message: Box<dyn QuasarMessage + Sync + Send + 'static>) -> Self {
         Envelope {
             message,
             sent_time: SystemTime::now(),
