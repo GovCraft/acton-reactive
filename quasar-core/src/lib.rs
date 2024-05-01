@@ -17,7 +17,7 @@
  *
  */
 
-#![forbid(unsafe_code)]
+// #![forbid(unsafe_code)]
 #![allow(dead_code)]
 #![allow(unused)]
 
@@ -27,6 +27,7 @@ mod common;
 pub mod prelude {
     pub use crate::common::*;
     pub use crate::traits::*;
+    pub use async_trait;
 }
 
 

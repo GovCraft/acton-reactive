@@ -17,26 +17,24 @@
  *
  */
 
-use std::fmt::Debug;
-use quasar_qrn::Qrn;
-use crate::common::{Actor, Idle};
-
 #[derive(Debug)]
-pub struct System<State: Default + Send + Debug> {
-    pub root_actor: State
+pub enum MessageError {
+    SendFailed(String),
+    OtherError(String),  // Include other types of errors as needed
 }
 
-impl<State: Default + Send + Debug> System<State> {
-    pub fn new_actor(actor: State) -> Actor<Idle<State>, State> {
-
-        //append to the qrn
-
-        Actor::new(Qrn::default(), actor)
+impl std::fmt::Display for MessageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            MessageError::SendFailed(msg) => write!(f, "Failed to send message: {}", msg),
+            MessageError::OtherError(msg) => write!(f, "Error: {}", msg),
+        }
     }
 }
 
-impl<State: Default + Send + Debug> Default for System<State> {
-    fn default() -> Self {
-        System{ root_actor: State::default() }
+impl std::error::Error for MessageError {}
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for MessageError {
+    fn from(_: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        MessageError::SendFailed("Channel closed".into())
     }
 }

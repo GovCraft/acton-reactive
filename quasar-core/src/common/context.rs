@@ -28,10 +28,11 @@ use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
 use tracing_subscriber::util::SubscriberInitExt;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Context
 {
-    pub(crate) outbox: OutboundChannel,
+    pub(crate) outbox: Option<OutboundChannel>,
+    // pub(crate) task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) key: Qrn,
     pub(crate) pools: ActorPool,
@@ -39,7 +40,7 @@ pub struct Context
 }
 
 impl Context {
-    pub fn new_actor<State: Default + Send + Sync + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
+    pub fn new_actor<State: Default + Send + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
         let actor = Default::default();
         //append to the qrn
         let mut qrn = self.key().clone();
