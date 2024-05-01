@@ -26,11 +26,11 @@ use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
-use crate::common::{ActorPool, Awake, Context, ContextPool, EventRecord, OutboundEnvelope, OutboundSignalChannel};
+use crate::common::{ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope};
 
 #[async_trait]
 pub trait Handler {
-    async fn handle(&mut self) -> anyhow::Result<()>;
+    async fn handle(&mut self) -> Result<(),MessageError>;
 }
 
 // pub trait IntoAsyncReactor<T, U> {
@@ -52,35 +52,36 @@ pub trait Handler {
 // }
 
 
+
 //region Traits
-pub trait QuasarMessage: Any + Sync + Send + Debug {
+pub trait QuasarMessage: Any + Send + Debug {
     fn as_any(&self) -> &dyn Any;
     fn type_id(&self) -> TypeId { TypeId::of::<Self>() }
 }
 
-pub trait SystemMessage: Any + Sync + Send + Debug {
+pub trait SystemMessage: Any + Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
 }
 
 //endregion
 
 
-#[async_trait]
-pub(crate) trait InternalSignalEmitter {
-    fn signal_outbox(&mut self) -> &mut OutboundSignalChannel;
-    async fn send_lifecycle(&mut self, message: impl SystemMessage) -> anyhow::Result<()> {
-        self.signal_outbox().send(Box::new(message)).await?;
-        Ok(())
-    }
-}
+// #[async_trait]
+// pub(crate) trait InternalSignalEmitter {
+//     fn signal_outbox(&mut self) -> &mut OutboundSignalChannel;
+//     async fn send_lifecycle(&mut self, message: impl SystemMessage + Send + 'static) -> Result<(),MessageError> {
+//         self.signal_outbox().send(Box::new(message)).await?;
+//         Ok(())
+//     }
+// }
 
 #[async_trait]
 pub trait ReturnAddress: Send {
-    async fn reply(&self, message: Box<dyn QuasarMessage>) -> anyhow::Result<()>;
+    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(),MessageError>;
 }
 
 #[async_trait]
-pub trait ConfigurableActor: Default + Send + Sync + Debug {
+pub trait ConfigurableActor: Default + Send + Debug {
     async fn init(name: String, root: &Context) -> Context;
 }
 

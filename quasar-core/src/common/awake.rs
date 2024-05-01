@@ -19,6 +19,7 @@
 
 use std::any::TypeId;
 use std::fmt::Debug;
+use std::pin::Pin;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use dashmap::mapref::one::Ref;
@@ -28,26 +29,31 @@ use tokio::sync::mpsc::channel;
 
 use tracing::{debug, instrument, trace, warn};
 use tracing::field::debug;
-use crate::common::{InboundChannel, MessageReactorMap, StopSignal, LifecycleReactor, InboundSignalChannel, OutboundSignalChannel, SignalReactorMap, Idle};
+use crate::common::{InboundChannel,  StopSignal, LifecycleReactor, Idle};
 use crate::common::*;
 use crate::traits::QuasarMessage;
 
 
-pub struct Awake<State: Default + Send + Sync + Debug + 'static> {
+pub struct Awake<State: Default + Send + Debug + 'static> {
     on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
 }
 
-impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
+impl<State: Default + Send + Debug + 'static> Awake<State> {
     #[instrument(skip(actor, mailbox, reactors), fields(actor.key.value))]
-    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<State>, State>, reactors: ReactorMap<State>) {
+    pub(crate) async fn wake(mut mailbox: InboundChannel, mut actor: Actor<Awake<State>, State>, reactors: ReactorMap<State>)
+        where State: Send + 'static {
         (actor.ctx.on_wake)(&actor);
         loop {
             if let Ok(envelope) = mailbox.try_recv() {
                 trace!("Received actor message: {:?}", envelope);
                 let type_id = envelope.message.as_any().type_id();
 
+                // Initialize `fut_to_execute` to None
+                let mut fut_to_execute: Option<&Box<dyn for<'a, 'b> Fn(&'a mut actor::Actor<awake::Awake<State>, State>, &'b envelope::Envelope) -> Pin<Box<(dyn futures::Future<Output = ()> + std::marker::Send + 'static)>> + std::marker::Send>> = None;
+
                 if let Some(reactor) = reactors.get(&type_id) {
+                    let value = reactor.value();
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
                             trace!("Executing reactor message");
@@ -55,51 +61,59 @@ impl<State: Default + Send + Sync + Debug + 'static> Awake<State> {
                         }
                         ReactorItem::Future(fut) => {
                             trace!("Executing reactor future");
-                            let mut actor = &mut actor;
-                            (*fut)(actor, &envelope).await;
+                            // Assign the cloned future to `fut_to_execute`
+                            // fut_to_execute = Some(fut.clone());
+                            fut(&mut actor, &envelope);
                         }
                         _ => {}
                     }
-                } else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                    trace!("SystemSignal {:?}", concrete_msg);
-                    match concrete_msg {
-                        SystemSignal::Wake => {}
-                        SystemSignal::Recreate => {}
-                        SystemSignal::Suspend => {}
-                        SystemSignal::Resume => {}
-                        SystemSignal::Terminate => {
-                            actor.terminate();
-                        }
-                        SystemSignal::Supervise => {}
-                        SystemSignal::Watch => {}
-                        SystemSignal::Unwatch => {}
-                        SystemSignal::Failed => {}
-                    }
-                } else {
-                    warn!("No reactor for message type: {:?}", type_id);
-                }
-            }
-            // Checking stop condition .
-            let should_stop = {
-                actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
-            };
+                } // `reactor` goes out of scope here
 
-            if should_stop {
-                trace!("Halt signal received, exiting capture loop");
-                break;
+                // Check and execute the future outside the scope of `reactor`
+                // if let Some(fut) = fut_to_execute {
+                //     fut(&mut actor, &envelope);
+                // }
+             else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                trace!("SystemSignal {:?}", concrete_msg);
+                match concrete_msg {
+                    SystemSignal::Wake => {}
+                    SystemSignal::Recreate => {}
+                    SystemSignal::Suspend => {}
+                    SystemSignal::Resume => {}
+                    SystemSignal::Terminate => {
+                        actor.terminate();
+                    }
+                    SystemSignal::Supervise => {}
+                    SystemSignal::Watch => {}
+                    SystemSignal::Unwatch => {}
+                    SystemSignal::Failed => {}
+                }
             } else {
-                tokio::time::sleep(Duration::from_nanos(1)).await;
+                warn!("No reactor for message type: {:?}", type_id);
             }
         }
+        // Checking stop condition .
+        let should_stop = {
+            actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
+        };
 
-        (actor.ctx.on_stop)(&actor);
+        if should_stop {
+            trace!("Halt signal received, exiting capture loop");
+            break;
+        } else {
+            tokio::time::sleep(Duration::from_nanos(1)).await;
+        }
     }
+
+    (actor.ctx.on_stop)( & actor)
+}
 }
 
 
-impl<State: Default + Send + Sync + Debug + 'static> From<Actor<Idle<State>, State>> for Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> for Actor<Awake<State>, State> {
     #[instrument("from idle to awake", skip(value))]
-    fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State> {
+    fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State>
+        where State: Send + 'static {
         let on_wake = value.ctx.on_wake;
         let on_stop = Box::new(value.ctx.on_stop);
         let halt_signal = StopSignal::new(false);

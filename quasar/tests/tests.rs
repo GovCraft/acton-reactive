@@ -169,15 +169,15 @@ impl ConfigurableActor for PoolItem {
 
 #[tokio::test]
 async fn test_actor_pool() -> anyhow::Result<()> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .compact()
-        .with_line_number(true)
-        // .without_time()
-        .finish();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    // let subscriber = FmtSubscriber::builder()
+    //     .with_max_level(Level::DEBUG)
+    //     .compact()
+    //     .with_line_number(true)
+    //     // .without_time()
+    //     .finish();
+    //
+    // tracing::subscriber::set_global_default(subscriber)
+    //     .expect("setting default subscriber failed");
 
     let actor = System::new_actor(PoolItem);
     let mut context = actor.spawn().await;
@@ -191,6 +191,74 @@ async fn test_actor_pool() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[derive(Default, Debug)]
+pub struct PoolProxyWrapper {
+    pub wrapped: Option<Context>,
+}
+
+#[tokio::test]
+async fn test_context_wrapper() -> anyhow::Result<()> {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::TRACE)
+        .compact()
+        .with_line_number(true)
+        // .without_time()
+        .finish();
+
+    tracing::subscriber::set_global_default(subscriber)
+        .expect("setting default subscriber failed");
+
+    let mut actor = System::new_actor(PoolItem);
+    actor.ctx.act_on::<Pong>(|_, _| {
+        debug!("PONG!");
+    });
+    let mut context = actor.spawn().await;
+
+    // Execute `spawn_pool`, then `terminate`
+    context.spawn_pool::<PoolItem>("pool", 10).await?;
+
+    let wrapper = PoolProxyWrapper { wrapped: Some(context) };
+
+    let mut actor = System::new_actor(wrapper);
+    actor.ctx.on_stop(|_actor| {
+        debug!("stopping");
+        // if let Some(context) = &actor.state.wrapped {
+        //     let context = context.clone();
+        //     tokio::task::spawn_local(async move {
+        //         context.terminate().await.expect("Couldn't stop wrapped context");
+        //     });
+        // }
+    }).act_on_async::<Ping>(|actor, _event| {
+        debug!("pinged");
+        let context = actor.state.wrapped.clone();
+        Box::pin(async move {
+            debug!("ping moved");
+            if let Some(context) = context {
+                debug!("context moved");
+                // tokio::task::spawn_local(async move {
+                for _ in 0..20 {
+                    let mut context = context.clone();
+                        context.pool_emit::<DistributionStrategy>("pool", Pong).await.expect("Failed to send Pong");
+                }
+                    context.terminate().await.expect("no terminations");
+                // });
+            }
+        })
+    });
+    let context = actor.spawn().await;
+    context.emit(Ping).await?;
+    context.terminate().await?;
+
+    Ok(())
+}
+
+#[quasar_message]
+pub struct Pong;
+
+
+#[quasar_message]
+pub struct Ping;
 
 
 #[quasar_message]

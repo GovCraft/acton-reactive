@@ -18,26 +18,29 @@
  */
 
 use std::time::SystemTime;
+use futures::SinkExt;
 use tracing::{debug, instrument, trace};
 
-use crate::common::{Envelope, OutboundChannel};
+use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::prelude::QuasarMessage;
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
-    reply_to: OutboundChannel,
+    reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
-    pub fn new(reply_to: OutboundChannel) -> Self {
+    pub fn new(reply_to: Option<OutboundChannel>) -> Self {
         OutboundEnvelope { reply_to }
     }
     #[instrument(skip(self))]
-    pub async fn reply(&self, message: impl QuasarMessage + 'static) -> anyhow::Result<()> {
-        trace!("{:?}", message);
+    pub async fn reply(&self, message: impl QuasarMessage + Send + 'static) -> Result<(), MessageError> {
+        trace!("{:?}", &message);
         let envelope = Envelope { message: Box::new(message), sent_time: SystemTime::now() };
-        self.reply_to.send(envelope).await?;
+        if let Some(reply_to) = &self.reply_to {
+            reply_to.send(envelope).await?;
+        }
         Ok(())
     }
 }
