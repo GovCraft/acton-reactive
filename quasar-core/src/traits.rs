@@ -52,6 +52,7 @@ pub trait Handler {
 // }
 
 
+
 //region Traits
 pub trait QuasarMessage: Any + Send + Debug {
     fn as_any(&self) -> &dyn Any;

@@ -50,7 +50,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + Sync + 'static,
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + 'static,
     ) -> &mut Self {
         // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();

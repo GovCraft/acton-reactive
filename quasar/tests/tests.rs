@@ -200,7 +200,7 @@ pub struct ContextWrapper {
 #[tokio::test]
 async fn test_context_wrapper() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::TRACE)
         .compact()
         .with_line_number(true)
         .without_time()
