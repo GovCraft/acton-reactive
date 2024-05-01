@@ -28,6 +28,7 @@ use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
+use tokio::task;
 use tokio_util::task::TaskTracker;
 use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, OutboundEnvelope, StopSignal};
 use tracing::{debug, error, instrument, trace};
@@ -83,6 +84,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (outbox, mailbox) = channel(255);
         actor.outbox = Some(outbox.clone());
 
+
+        // Run the local task set.
         task_tracker.spawn(async move {
             Awake::wake(mailbox, actor, reactors).await
         });

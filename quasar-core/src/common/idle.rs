@@ -40,6 +40,7 @@ use tokio::sync::Mutex;
 pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) reactors: ReactorMap<State>,
 }
@@ -49,7 +50,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + 'static,
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + Sync + 'static,
     ) -> &mut Self {
         // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
@@ -73,11 +74,11 @@ impl<State: Default + Send + Debug> Idle<State> {
         self
     }
     #[instrument(skip(self, message_processor))]
-    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + 'static + Send) -> &mut Self
+    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut + 'static + Sync + Send) -> &mut Self
         where M: QuasarMessage + 'static
     {
         let type_id = TypeId::of::<M>();
-        let handler_box = Box::new(move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Pin<Box<dyn Future<Output=()> + Send>> {
+        let handler_box = Box::new(move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time };
 
@@ -98,13 +99,14 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, signal_reactor))]
     pub fn act_on_internal_signal<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(Actor<Awake<State>, State>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static,
+        signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn QuasarMessage) -> Fut + Send + Sync + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
-        let handler_box: Box<SignalReactor<State>> = Box::new(move |actor: Actor<Awake<State>, State>, message: &dyn QuasarMessage| {
+        let handler_box: Box<SignalReactor<State>> = Box::new(move |actor: &mut Actor<Awake<State>, State>, message: &dyn QuasarMessage| -> Fut {
             if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                signal_reactor(actor, concrete_msg)
+                let fut = signal_reactor(actor, concrete_msg);
+                Box::pin(fut)
             } else {
                 error!("Message type mismatch: expected {:?}", std::any::type_name::<M>());
                 Box::pin(future::ready(()))
@@ -134,6 +136,11 @@ impl<State: Default + Send + Debug> Idle<State> {
         self.on_stop = Box::new(life_cycle_event_reactor);
         self
     }
+    pub fn on_before_stop(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static) -> &mut Self {
+        // Create a boxed handler that can be stored in the HashMap.
+        self.on_before_stop = Box::new(life_cycle_event_reactor);
+        self
+    }
 
     pub fn new() -> Idle<State>
         where State: Send + 'static
@@ -141,6 +148,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         Idle {
             on_before_wake: Box::new(|_| {}),
             on_wake: Box::new(|_| {}),
+            on_before_stop: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
             reactors: DashMap::new(),
         }

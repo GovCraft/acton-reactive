@@ -35,7 +35,7 @@ impl OutboundEnvelope {
         OutboundEnvelope { reply_to }
     }
     #[instrument(skip(self))]
-    pub async fn reply(&self, message: impl QuasarMessage + Send + 'static) -> Result<(), MessageError> {
+    pub async fn reply(&self, message: impl QuasarMessage + Send + Sync + 'static) -> Result<(), MessageError> {
         trace!("{:?}", &message);
         let envelope = Envelope { message: Box::new(message), sent_time: SystemTime::now() };
         if let Some(reply_to) = &self.reply_to {

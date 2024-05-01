@@ -38,14 +38,15 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
     Future(Box<FutReactor<T>>),
 }
 
-pub type SignalReactor<State> = dyn for<'a, 'b> Fn(Actor<Awake<State>, State>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + Send + 'static;
-pub type MessageReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + 'static;
-pub type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut + Send + 'static;
+pub type MessageReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
+
+pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn QuasarMessage) -> Fut + Send + Sync + 'static;
+pub type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut + Send + Sync + 'static;
 
 
-pub type Fut = Pin<Box<dyn Future<Output=()> + Send + 'static>>;
-pub type BoxFutReactor<T> = Box<FutReactor<T>>;
-pub type PinBoxFutReactor<T> = Pin<BoxFutReactor<T>>;
+pub type Fut = Pin<Box<dyn Future<Output=()> + Sync + Send + 'static>>;
+// pub type BoxFutReactor<T> = Box<FutReactor<T>>;
+// pub type PinBoxFutReactor<T> = Pin<BoxFutReactor<T>>;
 
 
 pub type OutboundChannel = Sender<Envelope>;

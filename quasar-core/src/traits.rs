@@ -30,7 +30,7 @@ use crate::common::{ActorPool, Awake, Context, ContextPool, EventRecord, Message
 
 #[async_trait]
 pub trait Handler {
-    async fn handle(&mut self) -> Result<(),MessageError>;
+    async fn handle(&mut self) -> Result<(), MessageError>;
 }
 
 // pub trait IntoAsyncReactor<T, U> {
@@ -50,7 +50,6 @@ pub trait Handler {
 //         })
 //     }
 // }
-
 
 
 //region Traits
@@ -77,7 +76,7 @@ pub trait SystemMessage: Any + Send + Sync + Debug {
 
 #[async_trait]
 pub trait ReturnAddress: Send {
-    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(),MessageError>;
+    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(), MessageError>;
 }
 
 #[async_trait]
@@ -101,14 +100,16 @@ pub trait ActorContext {
 
     fn key(&self) -> &Qrn;
 
-    async fn emit(&self, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
-        let envelope = self.return_address();
-        envelope.reply(message).await?; // Directly boxing the owned message
-        Ok(())
+    fn emit(&self, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync where Self:Sync {
+        async {
+            let envelope = self.return_address();
+            envelope.reply(message).await?; // Directly boxing the owned message
+            Ok(())
+        }
     }
 
-    async fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()>;
-    async fn terminate(&self) -> anyhow::Result<()>;
+    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync;
+    fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync;
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;

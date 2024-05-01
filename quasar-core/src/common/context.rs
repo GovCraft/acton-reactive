@@ -18,12 +18,14 @@
  */
 
 use std::fmt::Debug;
+use std::future::Future;
+use std::mem::take;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::future::join_all;
 use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal,  Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, PoolProxy, NewPoolMessage};
-use crate::traits::{ActorContext, ConfigurableActor,  QuasarMessage};
+use crate::common::{OutboundChannel, SystemSignal, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, MessageError};
+use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage};
 use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
 use tracing_subscriber::util::SubscriberInitExt;
@@ -34,7 +36,7 @@ pub struct Context
     pub(crate) outbox: Option<OutboundChannel>,
     // pub(crate) task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
-    pub(crate) key: Qrn,
+    pub key: Qrn,
     pub(crate) pools: ActorPool,
     pub(crate) current_index: usize,
 }
@@ -66,42 +68,47 @@ impl ActorContext for Context {
         &self.key
     }
 
-    async fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Send + 'static) -> anyhow::Result<()> {
-        if let Some(item) = self.pools.get(name) {
-            let pool = item.value();
-            if let Some(context) = pool.iter().nth(self.current_index){
-                let envelope = context.return_address();
-                envelope.reply(message).await;
-                self.current_index += 1;
-                if self.current_index >= pool.len() {
-                    self.current_index = 0;
+    #[allow(clippy::manual_async_fn)]
+    #[instrument(skip(self, message, name), fields(self.key.value))]
+    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
+        async {
+            if let Some(item) = self.pools.get(name) {
+                let pool = item.value();
+                if let Some(context) = pool.iter().nth(self.current_index) {
+                    let envelope = context.return_address();
+                    envelope.reply(message).await;
+                    self.current_index += 1;
+                    if self.current_index >= pool.len() {
+                        self.current_index = 0;
+                    }
                 }
             }
-        }
 
-        Ok(())
+            Ok(())
+        }
     }
 
+    #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self), fields(qrn = self.key.value))]
-    async fn terminate(&self) -> anyhow::Result<()> {
-        // Shutdown managed pools
-        let mut tasks = Vec::new();
-        for context_pool in &self.pools {
-            for (_, context) in context_pool.value().clone() {
-                let task = async move {
-                    // debug!("Terminating {}", context.key.value);
-                    context.terminate().await?;
-                    context.task_tracker.wait().await;  // Assuming wait() just waits and does not return a Result
-                    Ok::<(), anyhow::Error>(())
-                };
-                tasks.push(task);
+    fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync {
+        async {
+            for pool in &self.pools {
+                tracing::warn!("Terminating {}", self.key.value);
+                let pool_members = pool.value();
+                for member in pool_members {
+                    tracing::warn!("Terminating {}", member.key.value);
+                    member.emit(SystemSignal::Terminate).await;
+                    member.task_tracker.wait().await;
+                }
             }
+
+            self.emit(SystemSignal::Terminate).await;
+            self.task_tracker.wait().await;
+            Ok(())
         }
-        let _handle = join_all(tasks).await;
-        self.emit(SystemSignal::Terminate).await;
-        self.task_tracker.wait().await;
-        Ok(())
     }
+
+
     #[instrument(skip(self))]
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
         let mut tasks = Vec::with_capacity(size);
@@ -116,7 +123,7 @@ impl ActorContext for Context {
             items.insert(context.key.value.clone(), context);  // Collect each result
         }
         self.pools.insert(name.to_string(), items);
-        debug!("added pool: {}", name);
+        debug!("");
         Ok(())
     }
 
