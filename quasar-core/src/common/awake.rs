@@ -53,9 +53,6 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 trace!("actor: {}, message: {:?}",&actor.key.value, &envelope.message);
                 let type_id = envelope.message.as_any().type_id();
 
-                // Initialize `fut_to_execute` to None
-                let mut fut_to_execute: Option<&Box<dyn for<'a, 'b> Fn(&'a mut actor::Actor<awake::Awake<State>, State>, &'b envelope::Envelope) -> Pin<Box<(dyn futures::Future<Output = ()> + std::marker::Send + 'static)>> + std::marker::Send>> = None;
-
                 if let Some(reactor) = reactors.get(&type_id) {
                     let value = reactor.value();
                     match reactor.value() {
@@ -70,26 +67,23 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         }
                         _ => {}
                     }
-                } // `reactor` goes out of scope here
-
-                // Check and execute the future outside the scope of `reactor`
-                // if let Some(fut) = fut_to_execute {
-                //     fut(&mut actor, &envelope);
-                // }
-             else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                trace!("SystemSignal {:?}", concrete_msg);
-                match concrete_msg {
-                    SystemSignal::Wake => {}
-                    SystemSignal::Recreate => {}
-                    SystemSignal::Suspend => {}
-                    SystemSignal::Resume => {}
-                    SystemSignal::Terminate => {
-                        actor.terminate();
+                } else if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                    trace!("SystemSignal {:?}", concrete_msg);
+                    match concrete_msg {
+                        SystemSignal::Wake => {}
+                        SystemSignal::Recreate => {}
+                        SystemSignal::Suspend => {}
+                        SystemSignal::Resume => {}
+                        SystemSignal::Terminate => {
+                            actor.terminate();
+                        }
+                        SystemSignal::Supervise => {}
+                        SystemSignal::Watch => {}
+                        SystemSignal::Unwatch => {}
+                        SystemSignal::Failed => {}
                     }
-                    SystemSignal::Supervise => {}
-                    SystemSignal::Watch => {}
-                    SystemSignal::Unwatch => {}
-                    SystemSignal::Failed => {}
+                } else {
+                    warn!("No reactor for message type: {:?}", type_id);
                 }
             }
             // Checking stop condition .
@@ -102,24 +96,12 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 (actor.ctx.on_before_stop)(&actor);
                 break;
             } else {
-                warn!("No reactor for message type: {:?}", type_id);
+                tokio::time::sleep(Duration::from_nanos(1)).await;
             }
         }
-        // Checking stop condition .
-        let should_stop = {
-            actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty()
-        };
 
-        if should_stop {
-            trace!("Halt signal received, exiting capture loop");
-            break;
-        } else {
-            tokio::time::sleep(Duration::from_nanos(1)).await;
-        }
+        (actor.ctx.on_stop)(&actor);
     }
-
-    (actor.ctx.on_stop)( & actor)
-}
 }
 
 
