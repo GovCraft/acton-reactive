@@ -70,17 +70,13 @@ impl ActorContext for Context {
 
     #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self, message, name), fields(self.key.value))]
-    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
+    fn pool_emit<DistributionStrategy>(&self, index: usize, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
         async {
             if let Some(item) = self.pools.get(name) {
                 let pool = item.value();
-                if let Some(context) = pool.iter().nth(self.current_index) {
+                if let Some(context) = pool.iter().nth(index) {
                     let envelope = context.return_address();
                     envelope.reply(message).await;
-                    self.current_index += 1;
-                    if self.current_index >= pool.len() {
-                        self.current_index = 0;
-                    }
                 }
             }
 

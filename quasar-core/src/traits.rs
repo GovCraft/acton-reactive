@@ -100,7 +100,7 @@ pub trait ActorContext {
 
     fn key(&self) -> &Qrn;
 
-    fn emit(&self, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync where Self:Sync {
+    fn emit(&self, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync where Self: Sync {
         async {
             let envelope = self.return_address();
             envelope.reply(message).await?; // Directly boxing the owned message
@@ -108,7 +108,7 @@ pub trait ActorContext {
         }
     }
 
-    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync;
+    fn pool_emit<DistributionStrategy>(&self, index: usize, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync;
     fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync;
     async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
