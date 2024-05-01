@@ -16,13 +16,14 @@
  *
  *
  */
-
+mod message_error;
+pub use message_error::MessageError;
 pub use actor_pool::*;
 // pub use pool_proxy::PoolProxy;
 mod event_record;
 pub use event_record::EventRecord;
-mod origin;
-pub use origin::OutboundEnvelope;
+mod outbound_envelope;
+pub use outbound_envelope::OutboundEnvelope;
 
 mod envelope;
 pub use envelope::Envelope;

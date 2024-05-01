@@ -37,7 +37,7 @@ use futures::{future};
 use tokio::sync::Mutex;
 
 
-pub struct Idle<State: Default + Send + Sync + Debug + 'static> {
+pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
@@ -45,11 +45,11 @@ pub struct Idle<State: Default + Send + Sync + Debug + 'static> {
 }
 
 
-impl<State: Default + Send + Sync + Debug> Idle<State> {
+impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + Sync + 'static,
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>) + Send + 'static,
     ) -> &mut Self {
         // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
@@ -73,7 +73,7 @@ impl<State: Default + Send + Sync + Debug> Idle<State> {
         self
     }
     #[instrument(skip(self, message_processor))]
-    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + 'static + Send + Sync) -> &mut Self
+    pub fn act_on_async<M>(&mut self, message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Pin<Box<dyn Future<Output=()> + Send + 'static>> + 'static + Send) -> &mut Self
         where M: QuasarMessage + 'static
     {
         let type_id = TypeId::of::<M>();
@@ -98,7 +98,7 @@ impl<State: Default + Send + Sync + Debug> Idle<State> {
     #[instrument(skip(self, signal_reactor))]
     pub fn act_on_internal_signal<M: QuasarMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(Actor<Awake<State>, State>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send + Sync>> + Send + Sync + 'static,
+        signal_reactor: impl Fn(Actor<Awake<State>, State>, &dyn QuasarMessage) -> Pin<Box<dyn Future<Output=()> + Send>> + Send + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
@@ -117,25 +117,27 @@ impl<State: Default + Send + Sync + Debug> Idle<State> {
         self
     }
 
-    pub fn on_before_wake(&mut self, life_cycle_event_reactor:  impl Fn(&Actor<Idle<State>, State>) + Send + Sync + 'static) -> &mut Self {
+    pub fn on_before_wake(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Idle<State>, State>) + Send + 'static) -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
 
-    pub fn on_wake(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + Sync + 'static) -> &mut Self {
+    pub fn on_wake(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
-    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + Sync + 'static) -> &mut Self {
+    pub fn on_stop(&mut self, life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
         self
     }
 
-    pub fn new() -> Idle<State> {
+    pub fn new() -> Idle<State>
+        where State: Send + 'static
+    {
         Idle {
             on_before_wake: Box::new(|_| {}),
             on_wake: Box::new(|_| {}),
@@ -145,7 +147,7 @@ impl<State: Default + Send + Sync + Debug> Idle<State> {
     }
 }
 
-impl<State: Default + Send + Sync + Debug + 'static> Default for Idle<State> {
+impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     fn default() -> Self {
         Idle::new()
     }

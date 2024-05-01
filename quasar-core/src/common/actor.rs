@@ -23,6 +23,7 @@ use std::mem;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use async_trait::async_trait;
 use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::channel;
@@ -32,24 +33,26 @@ use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, Outboun
 use tracing::{debug, error, instrument, trace};
 use crate::traits::{QuasarMessage, SystemMessage};
 
-pub struct Actor<RefType, State: Default + Send + Sync + Debug + 'static> {
+pub struct Actor<RefType:Send + 'static, State: Default + Send + Debug + 'static> {
     pub ctx: RefType,
     pub outbox: Option<OutboundChannel>,
     pub halt_signal: StopSignal,
     pub key: Qrn,
-    pub state: State
+    pub state: State,
+}
+
+unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send for Actor<RefType, State> {
 
 }
 
-impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.outbox {
-            Option::from(OutboundEnvelope::new(envelope.clone()))
+            Option::from(OutboundEnvelope::new(Some(envelope.clone())))
         } else { None }
     }
 }
-
-impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(key: Qrn, state: State) -> Self {
         Actor {
             ctx: Idle::new(),
@@ -63,8 +66,6 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     #[instrument(skip(self))]
     // Modified Rust function to avoid the E0499 error by preventing simultaneous mutable borrows of actor.ctx
     pub async fn spawn(self) -> Context {
-
-
         let mut actor = self;
         let reactors = mem::take(&mut actor.ctx.reactors);
 
@@ -81,11 +82,12 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
         let task_tracker = TaskTracker::new();
         let (outbox, mailbox) = channel(255);
         actor.outbox = Some(outbox.clone());
+
         task_tracker.spawn(async move {
             Awake::wake(mailbox, actor, reactors).await
         });
 
-
+        let outbox = Some(outbox);
         task_tracker.close();
         debug_assert!(task_tracker.is_closed(), "Task tracker must be closed after operations");
         Context {
@@ -93,12 +95,13 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             task_tracker,
             key: qrn,
             pools: Default::default(),
-            current_index: 0
+            //TODO: Revisit this is a bad solution. Currently used for a rudimentary round-robin distribution
+            current_index: 0,
         }
     }
-    }
+}
 
-impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send +  Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
         if !self.halt_signal.load(Ordering::SeqCst) {
@@ -106,6 +109,5 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Awake<State>, State> 
             self.halt_signal.store(true, Ordering::SeqCst);
         }
     }
-
 }
 

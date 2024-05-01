@@ -36,6 +36,9 @@ pub struct PoolProxy<T> {
     _phantom: PhantomData<T>,
 }
 
+
+
+
 #[async_trait]
 impl<T: ConfigurableActor + 'static> ConfigurableActor for PoolProxy<T> {
     #[instrument]
