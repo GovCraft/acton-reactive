@@ -27,7 +27,8 @@ pub struct System<State: Default + Send + Debug> {
 }
 
 impl<State: Default + Send + Debug> System<State> {
-    pub fn new_actor(actor: State) -> Actor<Idle<State>, State> {
+    pub fn new_actor(actor: State) -> Actor<Idle<State>, State>
+    where State: Default{
 
         //append to the qrn
 
