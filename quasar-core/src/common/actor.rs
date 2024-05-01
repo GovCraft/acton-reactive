@@ -37,6 +37,7 @@ use crate::traits::{QuasarMessage, SystemMessage};
 pub struct Actor<RefType:Send + 'static, State: Default + Send + Debug + 'static> {
     pub ctx: RefType,
     pub outbox: Option<OutboundChannel>,
+    pub parent_return_envelope: Option<OutboundEnvelope>,
     pub halt_signal: StopSignal,
     pub key: Qrn,
     pub state: State,
@@ -54,10 +55,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     }
 }
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
-    pub(crate) fn new(key: Qrn, state: State) -> Self {
+    pub(crate) fn new(key: Qrn, state: State, parent_return_envelope:Option<OutboundEnvelope>) -> Self {
         Actor {
             ctx: Idle::new(),
             outbox: None,
+            parent_return_envelope,
             halt_signal: Default::default(),
             key,
             state,

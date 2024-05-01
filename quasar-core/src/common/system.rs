@@ -32,7 +32,7 @@ impl<State: Default + Send + Debug> System<State> {
 
         //append to the qrn
 
-        Actor::new(Qrn::default(), actor)
+        Actor::new(Qrn::default(), actor, None)
     }
 }
 

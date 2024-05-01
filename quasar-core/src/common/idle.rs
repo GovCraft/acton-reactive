@@ -29,7 +29,7 @@ use std::sync::{Arc};
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
 use tracing::{debug, error, instrument};
-use crate::common::{ LifecycleReactor, SignalReactor};
+use crate::common::{LifecycleReactor, SignalReactor};
 use crate::common::*;
 use crate::common::event_record::EventRecord;
 use crate::traits::{QuasarMessage, SystemMessage};
@@ -58,7 +58,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let handler_box: Box<MessageReactor<State>> = Box::new(move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                 let cloned_message = concrete_msg.clone();  // Cloning the message
-                let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time };
+                let event_record = EventRecord { message: cloned_message, sent_time: envelope.sent_time, return_address: Some(OutboundEnvelope::new(envelope.return_address.clone())) };
                 // Here, ensure the future is 'static
                 message_reactor(actor, &event_record);
                 Box::pin(())
@@ -80,7 +80,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
         let handler_box = Box::new(move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
             if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time };
+                let event_record = EventRecord { message: concrete_msg, sent_time: envelope.sent_time, return_address: Some(OutboundEnvelope::new(envelope.return_address.clone())) };
 
                 // Call the user-provided function and get the future
                 let user_future = message_processor(actor, &event_record);

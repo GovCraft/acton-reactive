@@ -20,11 +20,13 @@
 use std::time::SystemTime;
 use crate::traits::QuasarMessage;
 use static_assertions::assert_impl_all;
+use crate::common::OutboundChannel;
 
 #[derive(Debug)]
 pub struct Envelope {
     pub message: Box<dyn QuasarMessage + Send + Sync + 'static>,
     pub sent_time: SystemTime,
+    pub return_address: Option<OutboundChannel>
 }
 
 impl Envelope {
@@ -32,6 +34,7 @@ impl Envelope {
         Envelope {
             message,
             sent_time: SystemTime::now(),
+            return_address:None
         }
     }
 }

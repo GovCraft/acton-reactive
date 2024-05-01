@@ -152,15 +152,27 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 }
 
 #[derive(Default, Debug)]
-pub struct PoolItem;
+pub struct PoolItem {
+    receive_count: usize,
+}
 
 #[async_trait]
 impl ConfigurableActor for PoolItem {
-    async fn init(name: String, context: &Context) -> Context {
-        let mut actor = context.new_actor::<PoolItem>(&name);
+    async fn init(name: String, parent: &Context) -> Context {
+        let mut actor = parent.new_actor::<PoolItem>(&name);
         actor.ctx
-            .act_on::<Pong>(|actor, _| {
+            .act_on_async::<Pong>(|actor, event| {
                 info!("{} PONG!", actor.key.value);
+                let return_address = &event.return_address.clone();
+                if let Some(return_address) = return_address.clone() {
+                    Box::pin(async move {
+                        return_address.reply(Tally::AddCount).await.expect("couldn't reply");
+                        // return_address.emit(envelope).await.expect("couldn't reply");
+                    })
+                } else {
+                    tracing::error!("no return address");
+                    Box::pin(async {})
+                }
             });
 
         actor.spawn().await
@@ -179,7 +191,7 @@ async fn test_actor_pool() -> anyhow::Result<()> {
     // tracing::subscriber::set_global_default(subscriber)
     //     .expect("setting default subscriber failed");
 
-    let actor = System::new_actor(PoolItem);
+    let actor = System::new_actor(PoolItem::default());
     let mut context = actor.spawn().await;
 
     // Execute `spawn_pool`, then `terminate`
@@ -193,7 +205,7 @@ async fn test_actor_pool() -> anyhow::Result<()> {
             }
         };
 
-        context.pool_emit::<DistributionStrategy>(index,"pool", FunnyJoke::Pun).await?;
+        context.pool_emit::<DistributionStrategy>(index, "pool", FunnyJoke::Pun).await?;
     }
     context.terminate().await?;
 
@@ -208,7 +220,7 @@ pub struct ContextWrapper {
 #[tokio::test]
 async fn test_context_wrapper() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::TRACE)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -217,7 +229,17 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)
         .expect("setting default subscriber failed");
 
-    let actor = System::new_actor(PoolItem);
+    let mut actor = System::new_actor(PoolItem::default());
+    actor.ctx.on_stop(|actor| {
+        tracing::warn!("Got {} PONGS",actor.state.receive_count )
+    }).act_on::<Tally>(|actor, event| {
+        match event.message {
+            Tally::AddCount => {
+                actor.state.receive_count += 1
+            }
+        }
+    });
+
     let mut context = actor.spawn().await;
     context.spawn_pool::<PoolItem>("pool", 10).await?;
 
@@ -238,7 +260,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
                             0
                         }
                     };
-                    context.pool_emit::<DistributionStrategy>(index,"pool", Pong).await.expect("Failed to send Pong");
+                    context.pool_emit::<DistributionStrategy>(index, "pool", Pong).await.expect("Failed to send Pong");
                 }
                 context.terminate().await.expect("nope");
             }

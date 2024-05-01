@@ -122,6 +122,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> fo
                 key,
             },
             outbox: None,
+            parent_return_envelope: None,
             halt_signal: Default::default(),
             key: value.key,
             state: value.state,

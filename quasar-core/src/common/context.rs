@@ -47,8 +47,8 @@ impl Context {
         //append to the qrn
         let mut qrn = self.key().clone();
         qrn.append_part(id);
-
-        Actor::new(qrn, actor)
+        let envelope = self.return_address().clone();
+        Actor::new(qrn, actor, Some(envelope))
     }
 }
 
