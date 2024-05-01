@@ -70,17 +70,13 @@ impl ActorContext for Context {
 
     #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self, message, name), fields(self.key.value))]
-    fn pool_emit<DistributionStrategy>(&mut self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
+    fn pool_emit<DistributionStrategy>(&self, index: usize, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
         async {
             if let Some(item) = self.pools.get(name) {
                 let pool = item.value();
-                if let Some(context) = pool.iter().nth(self.current_index) {
+                if let Some(context) = pool.iter().nth(index) {
                     let envelope = context.return_address();
                     envelope.reply(message).await;
-                    self.current_index += 1;
-                    if self.current_index >= pool.len() {
-                        self.current_index = 0;
-                    }
                 }
             }
 
@@ -93,10 +89,9 @@ impl ActorContext for Context {
     fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync {
         async {
             for pool in &self.pools {
-                tracing::warn!("Terminating {}", self.key.value);
                 let pool_members = pool.value();
                 for member in pool_members {
-                    tracing::warn!("Terminating {}", member.key.value);
+                    tracing::trace!("Terminating {}", member.key.value);
                     member.emit(SystemSignal::Terminate).await;
                     member.task_tracker.wait().await;
                 }
@@ -123,7 +118,7 @@ impl ActorContext for Context {
             items.insert(context.key.value.clone(), context);  // Collect each result
         }
         self.pools.insert(name.to_string(), items);
-        debug!("");
+        trace!("");
         Ok(())
     }
 

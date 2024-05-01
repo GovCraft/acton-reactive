@@ -184,8 +184,16 @@ async fn test_actor_pool() -> anyhow::Result<()> {
 
     // Execute `spawn_pool`, then `terminate`
     context.spawn_pool::<PoolItem>("pool", 10).await?;
-    for _ in 0..20 {
-        context.pool_emit::<DistributionStrategy>("pool", FunnyJoke::Pun).await?;
+    for i in 0..20 {
+        let index = {
+            if i <= 10 {
+                i
+            } else {
+                0
+            }
+        };
+
+        context.pool_emit::<DistributionStrategy>(index,"pool", FunnyJoke::Pun).await?;
     }
     context.terminate().await?;
 
@@ -210,10 +218,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
         .expect("setting default subscriber failed");
 
     let actor = System::new_actor(PoolItem);
-
     let mut context = actor.spawn().await;
-
-    // create a pool of PoolItems`
     context.spawn_pool::<PoolItem>("pool", 10).await?;
 
     //TODO: make on_before_stop async and tidy up async handlers removing Box::pin
@@ -224,9 +229,16 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
     actor.ctx.act_on_async::<Ping>(|actor, _event| {
         let context = actor.state.wrapped.clone();
         Box::pin(async move {
-            if let Some(mut context) = context {
-                for _ in 0..20 {
-                    context.pool_emit::<DistributionStrategy>("pool", Pong).await.expect("Failed to send Pong");
+            if let Some(context) = context {
+                for i in 0..20 {
+                    let index = {
+                        if i <= 10 {
+                            i
+                        } else {
+                            0
+                        }
+                    };
+                    context.pool_emit::<DistributionStrategy>(index,"pool", Pong).await.expect("Failed to send Pong");
                 }
                 context.terminate().await.expect("nope");
             }
