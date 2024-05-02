@@ -38,6 +38,7 @@ use crate::traits::QuasarMessage;
 pub struct Awake<State: Default + Send + Debug + 'static> {
     on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub key: Qrn,
 
@@ -94,6 +95,10 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
             if should_stop {
                 trace!("Halt signal received, exiting capture loop");
                 (actor.ctx.on_before_stop)(&actor);
+                if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
+                    (on_before_stop_async)(&actor).await;
+                }
+
                 break;
             } else {
                 tokio::time::sleep(Duration::from_nanos(1)).await;
@@ -112,6 +117,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> fo
         let on_wake = value.ctx.on_wake;
         let on_stop = Box::new(value.ctx.on_stop);
         let on_before_stop = value.ctx.on_before_stop;
+        let on_before_stop_async = value.ctx.on_before_stop_async;
         let halt_signal = StopSignal::new(false);
         let parent_return_envelope = value.parent_return_envelope;
         let key = value.key.clone();
@@ -119,6 +125,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> fo
             ctx: Awake {
                 on_wake,
                 on_before_stop,
+                on_before_stop_async,
                 on_stop,
                 key,
             },
