@@ -54,9 +54,11 @@ impl Context {
 
 #[async_trait]
 impl ActorContext for Context {
+    #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        OutboundEnvelope::new(outbox)
+        tracing::trace!("Sending from: {}", self.key.value);
+        OutboundEnvelope::new(outbox, self.key.clone())
     }
 
     fn get_task_tracker(&mut self) -> &mut TaskTracker {
@@ -69,14 +71,15 @@ impl ActorContext for Context {
     }
 
     #[allow(clippy::manual_async_fn)]
-    #[instrument(skip(self, message, name), fields(self.key.value))]
+    #[instrument]
     fn pool_emit<DistributionStrategy>(&self, index: usize, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
+        tracing::trace!("Sending from: {}", self.key.value);
         async {
             if let Some(item) = self.pools.get(name) {
                 let pool = item.value();
                 if let Some(context) = pool.iter().nth(index) {
-                    let envelope = context.return_address();
-                    envelope.reply(message).await;
+                    let outbound_envelope = context.return_address();
+                    outbound_envelope.reply(message).await;
                 }
             }
 

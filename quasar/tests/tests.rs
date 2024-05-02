@@ -26,7 +26,7 @@ use std::time::Duration;
 use quasar::prelude::async_trait::async_trait;
 use quasar_core::prelude::*;
 use quasar::prelude::*;
-use tracing::{debug, info, Level};
+use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -161,13 +161,12 @@ impl ConfigurableActor for PoolItem {
     async fn init(name: String, parent: &Context) -> Context {
         let mut actor = parent.new_actor::<PoolItem>(&name);
         actor.ctx
-            .act_on_async::<Pong>(|actor, event| {
-                info!("{} PONG!", actor.key.value);
+            .act_on_async::<Pong>(|_actor, event| {
+                // info!("{} PONG!", actor.key.value);
                 let return_address = &event.return_address.clone();
                 if let Some(return_address) = return_address.clone() {
                     Box::pin(async move {
                         return_address.reply(Tally::AddCount).await.expect("couldn't reply");
-                        // return_address.emit(envelope).await.expect("couldn't reply");
                     })
                 } else {
                     tracing::error!("no return address");
@@ -220,7 +219,7 @@ pub struct ContextWrapper {
 #[tokio::test]
 async fn test_context_wrapper() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::TRACE)
+        .with_max_level(Level::DEBUG)
         .compact()
         .with_line_number(true)
         .without_time()
@@ -231,7 +230,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 
     let mut actor = System::new_actor(PoolItem::default());
     actor.ctx.on_stop(|actor| {
-        tracing::warn!("Got {} PONGS",actor.state.receive_count )
+        tracing::debug!("Processed {} PONGS",actor.state.receive_count )
     }).act_on::<Tally>(|actor, event| {
         match event.message {
             Tally::AddCount => {
@@ -248,13 +247,15 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
     let wrapper = ContextWrapper { wrapped: Some(context) };
 
     let mut actor = System::new_actor(wrapper);
+
     actor.ctx.act_on_async::<Ping>(|actor, _event| {
+        debug!("PING!");
         let context = actor.state.wrapped.clone();
         Box::pin(async move {
             if let Some(context) = context {
                 for i in 0..20 {
                     let index = {
-                        if i <= 10 {
+                        if i < 10 {
                             i
                         } else {
                             0

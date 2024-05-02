@@ -34,28 +34,27 @@ use crate::common::{SystemSignal, Context, Idle, Awake, OutboundChannel, Outboun
 use tracing::{debug, error, instrument, trace};
 use crate::traits::{QuasarMessage, SystemMessage};
 
-pub struct Actor<RefType:Send + 'static, State: Default + Send + Debug + 'static> {
+pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     pub ctx: RefType,
     pub outbox: Option<OutboundChannel>,
-    pub parent_return_envelope: Option<OutboundEnvelope>,
+    pub(crate) parent_return_envelope: Option<OutboundEnvelope>,
     pub halt_signal: StopSignal,
     pub key: Qrn,
     pub state: State,
 }
 
-unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send for Actor<RefType, State> {
-
-}
+unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send for Actor<RefType, State> {}
 
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.outbox {
-            Option::from(OutboundEnvelope::new(Some(envelope.clone())))
+            Option::from(OutboundEnvelope::new(Some(envelope.clone()), self.key.clone()))
         } else { None }
     }
 }
+
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
-    pub(crate) fn new(key: Qrn, state: State, parent_return_envelope:Option<OutboundEnvelope>) -> Self {
+    pub(crate) fn new(key: Qrn, state: State, parent_return_envelope: Option<OutboundEnvelope>) -> Self {
         Actor {
             ctx: Idle::new(),
             outbox: None,
@@ -77,6 +76,14 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         (actor.ctx.on_before_wake)(&actor);
 
         let active_actor: Actor<Awake<State>, State> = actor.into();
+        // if active_actor.parent_return_envelope.clone().is_none() {
+        //     tracing::error!("{}", active_actor.key.value);
+        // } else {
+        //     if let Some(env) = &active_actor.parent_return_envelope {
+        //         tracing::error!("sender: {}", env.sender.value);
+        //     }
+        // }
+        // debug_assert!(&active_actor.parent_return_envelope.clone().is_some(), "Task tracker must be closed after operations");
 
         let mut actor = active_actor;
 
@@ -84,6 +91,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
         let task_tracker = TaskTracker::new();
         let (outbox, mailbox) = channel(255);
+        // actor.parent_return_envelope = Some(OutboundEnvelope::new(Some(outbox.clone())));
         actor.outbox = Some(outbox.clone());
 
 
@@ -106,7 +114,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     }
 }
 
-impl<State: Default + Send +  Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
         if !self.halt_signal.load(Ordering::SeqCst) {

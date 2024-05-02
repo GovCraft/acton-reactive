@@ -30,11 +30,11 @@ pub struct Envelope {
 }
 
 impl Envelope {
-    pub fn new(message: Box<dyn QuasarMessage + Sync + Send + 'static>) -> Self {
+    pub fn new(message: Box<dyn QuasarMessage + Sync + Send + 'static>, return_address: Option<OutboundChannel>) -> Self {
         Envelope {
             message,
             sent_time: SystemTime::now(),
-            return_address:None
+            return_address
         }
     }
 }

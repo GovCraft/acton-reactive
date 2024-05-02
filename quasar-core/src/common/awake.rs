@@ -83,7 +83,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Failed => {}
                     }
                 } else {
-                    warn!("No reactor for message type: {:?}", type_id);
+                    warn!("{}: No reactor for message type: {:?}", &actor.key.value, type_id);
                 }
             }
             // Checking stop condition .
@@ -113,6 +113,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> fo
         let on_stop = Box::new(value.ctx.on_stop);
         let on_before_stop = value.ctx.on_before_stop;
         let halt_signal = StopSignal::new(false);
+        let parent_return_envelope = value.parent_return_envelope;
         let key = value.key.clone();
         Actor {
             ctx: Awake {
@@ -122,7 +123,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>> fo
                 key,
             },
             outbox: None,
-            parent_return_envelope: None,
+            parent_return_envelope,
             halt_signal: Default::default(),
             key: value.key,
             state: value.state,
