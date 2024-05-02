@@ -42,6 +42,7 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) reactors: ReactorMap<State>,
 }
 
@@ -143,6 +144,14 @@ impl<State: Default + Send + Debug> Idle<State> {
         self.on_before_stop = Box::new(life_cycle_event_reactor);
         self
     }
+    pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
+        where
+            F: for<'a> Fn(&'a Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static
+    {
+        self.on_before_stop_async = Some(Box::new(f));
+        self
+    }
+
 
     pub fn new() -> Idle<State>
         where State: Send + 'static
@@ -152,6 +161,7 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_wake: Box::new(|_| {}),
             on_before_stop: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
+            on_before_stop_async: None,
             reactors: DashMap::new(),
         }
     }

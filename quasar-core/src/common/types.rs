@@ -56,4 +56,5 @@ pub type StopSignal = AtomicBool;
 pub type ContextPool = DashMap<String, Context>;
 pub type ActorPool = DashMap<String, ContextPool>;
 pub type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub type LifecycleReactorAsync<State> = Box< dyn for<'a, 'b> Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 pub type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;

@@ -237,12 +237,19 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
                 actor.state.receive_count += 1
             }
         }
-    });
+    })
+        .on_before_stop_async(|actor| {
+            let value = actor.key.value.clone();
+            Box::pin(async move {
+                // Async cleanup actions
+                debug!("BEFORE STOP: {}", value);
+            })
+        });
 
     let mut context = actor.spawn().await;
     context.spawn_pool::<PoolItem>("pool", 10).await?;
 
-    //TODO: make on_before_stop async and tidy up async handlers removing Box::pin
+    //TODO: tidy up async handlers removing Box::pin
 
     let wrapper = ContextWrapper { wrapped: Some(context) };
 
