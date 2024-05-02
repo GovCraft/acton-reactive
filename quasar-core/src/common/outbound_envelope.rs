@@ -19,6 +19,7 @@
 
 use std::time::SystemTime;
 use futures::SinkExt;
+use quasar_qrn::Qrn;
 use tracing::{debug, instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
@@ -27,18 +28,20 @@ use crate::prelude::QuasarMessage;
 
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
+    pub sender: Qrn,
     reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
-    pub fn new(reply_to: Option<OutboundChannel>) -> Self {
-        OutboundEnvelope { reply_to }
+    pub fn new(reply_to: Option<OutboundChannel>, sender: Qrn) -> Self {
+        OutboundEnvelope { reply_to, sender }
     }
     #[instrument(skip(self))]
-    pub async fn reply(&self, message: impl QuasarMessage + Send + Sync + 'static) -> Result<(), MessageError> {
-        trace!("{:?}", &message);
-        let envelope = Envelope { message: Box::new(message), sent_time: SystemTime::now() };
+    pub async fn reply(&self,  message: impl QuasarMessage + Send + Sync + 'static) -> Result<(), MessageError> {
+        tracing::trace!("{}", self.sender.value);
+
         if let Some(reply_to) = &self.reply_to {
+            let envelope = Envelope::new(Box::new(message), self.reply_to.clone());
             reply_to.send(envelope).await?;
         }
         Ok(())
