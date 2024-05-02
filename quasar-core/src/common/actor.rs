@@ -46,7 +46,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
 unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send for Actor<RefType, State> {}
 
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
-    pub fn new_envelope(&mut self) -> Option<OutboundEnvelope> {
+    pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.outbox {
             Option::from(OutboundEnvelope::new(Some(envelope.clone()), self.key.clone()))
         } else { None }

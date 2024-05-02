@@ -239,6 +239,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
         }
     })
         .on_before_stop_async(|actor| {
+
             let value = actor.key.value.clone();
             Box::pin(async move {
                 // Async cleanup actions
