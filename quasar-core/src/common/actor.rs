@@ -51,6 +51,9 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
             Option::from(OutboundEnvelope::new(Some(envelope.clone()), self.key.clone()))
         } else { None }
     }
+    pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
+        self.parent_return_envelope.clone()
+    }
 }
 
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
