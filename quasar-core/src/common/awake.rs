@@ -61,7 +61,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 );
                 let type_id = envelope.message.as_any().type_id();
 
-                while let Some(reactor) = reactors.get(&type_id) {
+                if let Some(reactor) = reactors.get(&type_id) {
                     let value = reactor.value();
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
@@ -70,14 +70,12 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         }
                         ReactorItem::Future(fut) => {
                             trace!("Executing reactor future");
-                            // Assign the cloned future to `fut_to_execute`
                             fut(&mut actor, &envelope).await;
                         }
                         _ => {}
                     }
-                }
-
-                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<SystemSignal>()
+                } else if let Some(concrete_msg) =
+                    envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
                     trace!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
@@ -86,6 +84,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Suspend => {}
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
+                            mailbox.close();
                             actor.terminate();
                         }
                         SystemSignal::Supervise => {}
@@ -103,7 +102,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
             // Checking stop condition .
             let should_stop = { actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
-            if should_stop {
+            if should_stop && mailbox.is_empty() && mailbox.is_closed() {
                 trace!("Halt signal received, exiting capture loop");
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
