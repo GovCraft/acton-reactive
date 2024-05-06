@@ -53,7 +53,6 @@ impl<State: Default + Send + Debug> Idle<State> {
             + Sync
             + 'static,
     ) -> &mut Self {
-        // let message_handler = Arc::new(message_reactor);
         let type_id = TypeId::of::<M>();
 
         let handler_box: Box<MessageReactor<State>> = Box::new(
@@ -68,7 +67,6 @@ impl<State: Default + Send + Debug> Idle<State> {
                             actor.key.clone(),
                         )),
                     };
-                    // Here, ensure the future is 'static
                     message_reactor(actor, &event_record);
                     Box::pin(())
                 } else {
@@ -77,7 +75,6 @@ impl<State: Default + Send + Debug> Idle<State> {
                         std::any::type_name::<M>()
                     );
                     unreachable!("Shouldn't get here");
-                    // Box::pin(future::ready(())) // Ensure this future is also 'static
                 };
             },
         );
@@ -108,9 +105,6 @@ impl<State: Default + Send + Debug> Idle<State> {
                         sent_time: envelope.sent_time,
                         return_address: actor.parent_return_envelope.clone(),
                     };
-                    if let Some(envelope) = &event_record.return_address {
-                        // tracing::error!("sender: {}", &envelope.sender);
-                    }
                     // Call the user-provided function and get the future
                     let user_future = message_processor(actor, &event_record);
 

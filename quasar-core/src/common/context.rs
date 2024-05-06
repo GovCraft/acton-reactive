@@ -17,24 +17,25 @@
  *
  */
 
-use std::fmt::Debug;
-use std::future::Future;
-use std::mem::take;
+use crate::common::{
+    Actor, ActorPool, ContextPool, Idle, MessageError, OutboundChannel, OutboundEnvelope,
+    SystemSignal,
+};
+use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::future::join_all;
-use tokio_util::task::TaskTracker;
-use crate::common::{OutboundChannel, SystemSignal, Actor, Idle, OutboundEnvelope, ActorPool, ContextPool, MessageError};
-use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage};
 use quasar_qrn::Qrn;
+use std::fmt::Debug;
+use std::future::Future;
+use std::mem::take;
+use tokio_util::task::TaskTracker;
 use tracing::{debug, instrument, trace};
 use tracing_subscriber::util::SubscriberInitExt;
 
 #[derive(Debug, Clone, Default)]
-pub struct Context
-{
+pub struct Context {
     pub(crate) outbox: Option<OutboundChannel>,
-    // pub(crate) task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
     pub key: Qrn,
     pub(crate) pools: ActorPool,
@@ -65,14 +66,18 @@ impl ActorContext for Context {
         &mut self.task_tracker
     }
 
-
     fn key(&self) -> &Qrn {
         &self.key
     }
 
     #[allow(clippy::manual_async_fn)]
     #[instrument]
-    fn pool_emit<DistributionStrategy>(&self, index: usize, name: &str, message: impl QuasarMessage + Sync + Send + 'static) -> impl Future<Output=Result<(), MessageError>> + Sync {
+    fn pool_emit<DistributionStrategy>(
+        &self,
+        index: usize,
+        name: &str,
+        message: impl QuasarMessage + Sync + Send + 'static,
+    ) -> impl Future<Output = Result<(), MessageError>> + Sync {
         tracing::trace!("Sending from: {}", self.key.value);
         async {
             if let Some(item) = self.pools.get(name) {
@@ -89,7 +94,7 @@ impl ActorContext for Context {
 
     #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self), fields(qrn = self.key.value))]
-    fn terminate(&self) -> impl Future<Output=Result<(), MessageError>> + Sync {
+    fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
         async {
             for pool in &self.pools {
                 let pool_members = pool.value();
@@ -106,9 +111,12 @@ impl ActorContext for Context {
         }
     }
 
-
     #[instrument(skip(self))]
-    async fn spawn_pool<T: ConfigurableActor + 'static>(&mut self, name: &str, size: usize) -> anyhow::Result<()> {
+    async fn spawn_pool<T: ConfigurableActor + 'static>(
+        &mut self,
+        name: &str,
+        size: usize,
+    ) -> anyhow::Result<()> {
         let mut tasks = Vec::with_capacity(size);
         for i in 0..size {
             let actor_name = format!("{}{}", name, i);
@@ -116,15 +124,14 @@ impl ActorContext for Context {
             tasks.push(pool_item);
         }
         let contexts = join_all(tasks).await;
-        let mut items = DashMap::new();  // DashMap to store the results
+        let mut items = DashMap::new(); // DashMap to store the results
         for context in contexts {
-            items.insert(context.key.value.clone(), context);  // Collect each result
+            items.insert(context.key.value.clone(), context); // Collect each result
         }
         self.pools.insert(name.to_string(), items);
         trace!("");
         Ok(())
     }
-
 
     async fn wake(&mut self) -> anyhow::Result<()> {
         // self.signal_outbox.send(Box::new(SystemSignal::Wake)).await?;

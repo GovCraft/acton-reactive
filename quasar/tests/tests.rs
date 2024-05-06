@@ -17,15 +17,9 @@
  *
  */
 
-
-
-
-
-
-use std::time::Duration;
 use quasar::prelude::async_trait::async_trait;
-use quasar_core::prelude::*;
 use quasar::prelude::*;
+use std::time::Duration;
 use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -39,46 +33,50 @@ pub struct Comedian {
 #[tokio::test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     // console_subscriber::init();
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .compact()
-        .with_line_number(true)
-        .without_time()
-        .finish();
+    //se quasar_core::prelude::*;   let subscriber = FmtSubscriber::builder()
+    //      .with_max_level(Level::DEBUG)
+    //      .compact()
+    //      .with_line_number(true)
+    //      .without_time()
+    //      .finish();
 
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    //  tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let mut comedy_show = System::new_actor(Comedian::default());
 
-    comedy_show.ctx.act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
-        actor.state.jokes_told += 1;
+    comedy_show
+        .ctx
+        .act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
+            actor.state.jokes_told += 1;
 
-        if let Some(envelope) = actor.new_envelope() {
-            match record.message {
-                FunnyJoke::ChickenCrossesRoad => {
-                    Box::pin(async move {
-                        envelope.reply(AudienceReaction::Chuckle).await.expect("TODO: panic message");
-                    })
+            if let Some(envelope) = actor.new_envelope() {
+                match record.message {
+                    FunnyJoke::ChickenCrossesRoad => Box::pin(async move {
+                        envelope
+                            .reply(AudienceReaction::Chuckle)
+                            .await
+                            .expect("TODO: panic message");
+                    }),
+                    FunnyJoke::Pun => Box::pin(async move {
+                        envelope
+                            .reply(AudienceReaction::Groan)
+                            .await
+                            .expect("TODO: panic message");
+                    }),
                 }
-                FunnyJoke::Pun => {
-                    Box::pin(async move {
-                        envelope.reply(AudienceReaction::Groan).await.expect("TODO: panic message");
-                    })
-                }
-            }
-        } else {
-            Box::pin(async {})
-        }
-    })
-        .act_on::<AudienceReaction>(|actor, event| {
-            match event.message {
-                AudienceReaction::Chuckle => { actor.state.funny += 1 }
-                AudienceReaction::Groan => { actor.state.bombers += 1 }
+            } else {
+                Box::pin(async {})
             }
         })
+        .act_on::<AudienceReaction>(|actor, event| match event.message {
+            AudienceReaction::Chuckle => actor.state.funny += 1,
+            AudienceReaction::Groan => actor.state.bombers += 1,
+        })
         .on_stop(|actor| {
-            debug!("Jokes Told: {}\tFunny: {}\tBombers: {}", actor.state.jokes_told,actor.state.funny, actor.state.bombers);
+            debug!(
+                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                actor.state.jokes_told, actor.state.funny, actor.state.bombers
+            );
         });
 
     let comedian = comedy_show.spawn().await;
@@ -102,44 +100,39 @@ pub struct Messenger {
 
 #[tokio::test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
-    let counter = Counter {
-        count: 0,
-    };
+    let counter = Counter { count: 0 };
 
     let mut count = System::new_actor(counter);
-    count.ctx.act_on::<Tally>(|actor, _event| {
-        actor.state.count += 1;
-    }).on_stop(|actor| {
-        assert_eq!(4, actor.state.count);
-        debug_assert!(false);
-    });
+    count
+        .ctx
+        .act_on::<Tally>(|actor, _event| {
+            actor.state.count += 1;
+        })
+        .on_stop(|actor| {
+            assert_eq!(4, actor.state.count);
+            debug_assert!(false);
+        });
     let count = count.spawn().await;
-
 
     let actor = Messenger {
         sender: Some(count.return_address()),
     };
     let mut actor = System::new_actor(actor);
-    actor.ctx
+    actor
+        .ctx
         .on_before_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move {
-                    envelope.reply(Tally::AddCount).await
-                });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
             }
         })
         .on_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move {
-                    envelope.reply(Tally::AddCount).await
-                });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
             }
         })
         .on_stop(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move {
-                    envelope.reply(Tally::AddCount).await
-                });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
             }
         });
 
@@ -160,19 +153,21 @@ pub struct PoolItem {
 impl ConfigurableActor for PoolItem {
     async fn init(name: String, parent: &Context) -> Context {
         let mut actor = parent.new_actor::<PoolItem>(&name);
-        actor.ctx
-            .act_on_async::<Pong>(|_actor, event| {
-                // info!("{} PONG!", actor.key.value);
-                let return_address = &event.return_address.clone();
-                if let Some(return_address) = return_address.clone() {
-                    Box::pin(async move {
-                        return_address.reply(Tally::AddCount).await.expect("couldn't reply");
-                    })
-                } else {
-                    tracing::error!("no return address");
-                    Box::pin(async {})
-                }
-            });
+        actor.ctx.act_on_async::<Pong>(|_actor, event| {
+            // info!("{} PONG!", actor.key.value);
+            let return_address = &event.return_address.clone();
+            if let Some(return_address) = return_address.clone() {
+                Box::pin(async move {
+                    return_address
+                        .reply(Tally::AddCount)
+                        .await
+                        .expect("couldn't reply");
+                })
+            } else {
+                tracing::error!("no return address");
+                Box::pin(async {})
+            }
+        });
 
         actor.spawn().await
     }
@@ -204,7 +199,9 @@ async fn test_actor_pool() -> anyhow::Result<()> {
             }
         };
 
-        context.pool_emit::<DistributionStrategy>(index, "pool", FunnyJoke::Pun).await?;
+        context
+            .pool_emit::<DistributionStrategy>(index, "pool", FunnyJoke::Pun)
+            .await?;
     }
     context.terminate().await?;
 
@@ -224,22 +221,16 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
         .with_line_number(true)
         .without_time()
         .finish();
-
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let mut actor = System::new_actor(PoolItem::default());
-    actor.ctx.on_stop(|actor| {
-        tracing::debug!("Processed {} PONGS",actor.state.receive_count )
-    }).act_on::<Tally>(|actor, event| {
-        match event.message {
-            Tally::AddCount => {
-                actor.state.receive_count += 1
-            }
-        }
-    })
+    actor
+        .ctx
+        .on_stop(|actor| tracing::debug!("Processed {} PONGS", actor.state.receive_count))
+        .act_on::<Tally>(|actor, event| match event.message {
+            Tally::AddCount => actor.state.receive_count += 1,
+        })
         .on_before_stop_async(|actor| {
-
             let value = actor.key.value.clone();
             Box::pin(async move {
                 // Async cleanup actions
@@ -252,7 +243,9 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 
     //TODO: tidy up async handlers removing Box::pin
 
-    let wrapper = ContextWrapper { wrapped: Some(context) };
+    let wrapper = ContextWrapper {
+        wrapped: Some(context),
+    };
 
     let mut actor = System::new_actor(wrapper);
 
@@ -269,7 +262,10 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
                             0
                         }
                     };
-                    context.pool_emit::<DistributionStrategy>(index, "pool", Pong).await.expect("Failed to send Pong");
+                    context
+                        .pool_emit::<DistributionStrategy>(index, "pool", Pong)
+                        .await
+                        .expect("Failed to send Pong");
                 }
                 context.terminate().await.expect("nope");
             }
@@ -285,10 +281,8 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 #[quasar_message]
 pub struct Pong;
 
-
 #[quasar_message]
 pub struct Ping;
-
 
 #[quasar_message]
 pub enum FunnyJoke {
@@ -306,3 +300,4 @@ pub enum AudienceReaction {
 pub enum Tally {
     AddCount,
 }
+
