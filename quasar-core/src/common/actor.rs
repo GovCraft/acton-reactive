@@ -40,6 +40,8 @@ use tokio::task;
 use tokio_util::task::{task_tracker, TaskTracker};
 use tracing::{debug, error, instrument, trace};
 
+use super::{Envelope, SupervisorMessage};
+
 pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     pub ctx: RefType,
     pub outbox: Option<OutboundChannel>,
@@ -145,6 +147,29 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     ) {
         let pool_item = ActorPoolDef::new::<T>(name.to_string(), pool_size, parent).await;
         self.subordinates.insert(name.to_string(), pool_item);
+    }
+
+    pub(crate) fn pool_emit(&self, message: &SupervisorMessage) -> impl Future<Output = ()> + Sync {
+        let envelope = self.new_envelope().clone();
+        // TODO: almost there
+        // need to send the inner_msg from this function to a pool member by the provided name
+        // need to add the name to this supevisor message so we know which to use
+        // then we need to abandon the approach below and emit directly from the context of
+        // the stored pool item
+        //      match message {
+        //          SupervisorMessage::PoolEmit(inner_message) => {
+        //              if let Some(envelope) = envelope {
+        //                  async move { envelope.reply(*message).await }
+        //              } else {
+        //                  async move { () }
+        //              }
+        //          }
+        //          _ => {
+        //              tracing::debug!("didnt' get it");
+        //              async move {}
+        //          }
+        //      };
+        async move {}
     }
 }
 #[derive(Clone)]

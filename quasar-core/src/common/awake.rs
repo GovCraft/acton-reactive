@@ -101,7 +101,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 {
                     match concrete_msg {
                         SupervisorMessage::PoolEmit(message) => {
-                            tracing::debug!("emit msg");
+                            actor.pool_emit(&concrete_msg).await;
                         }
                         _ => {}
                     }
