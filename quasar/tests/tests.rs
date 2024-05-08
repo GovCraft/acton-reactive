@@ -1,25 +1,27 @@
 /*
- *
- *  * Copyright (c) 2024 Govcraft.
- *  *
- *  * Licensed under the Apache License, Version 2.0 (the "License");
- *  * you may not use this file except in compliance with the License.
- *  * You may obtain a copy of the License at
- *  *
- *  *     http://www.apache.org/licenses/LICENSE-2.0
- *  *
- *  * Unless required by applicable law or agreed to in writing, software
- *  * distributed under the License is distributed on an "AS IS" BASIS,
- *  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  * See the License for the specific language governing permissions and
- *  * limitations under the License.
- *
- *
- */
 
+*
+*  * Copyright (c) 2024 Govcraft.
+*  *
+*  * Licensed under the Apache License, Version 2.0 (the "License");
+*  * you may not use this file except in compliance with the License.
+*  * You may obtain a copy of the License at
+*  *
+*  *     http://www.apache.org/licenses/LICENSE-2.0
+*  *
+*  * Unless required by applicable law or agreed to in writing, software
+*  * distributed under the License is distributed on an "AS IS" BASIS,
+*  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  * See the License for the specific language governing permissions and
+*  * limitations under the License.
+*
+*
+*/
+
+use core::pin::Pin;
+use futures::Future;
 use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
-use std::time::Duration;
 use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -140,69 +142,35 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     actor.terminate().await?;
     count.terminate().await?;
-    tokio::time::sleep(Duration::from_millis(50)).await;
+    //    tokio::time::sleep(Duration::from_millis(50)).await;
     Ok(())
 }
 
-#[derive(Default, Debug)]
-pub struct PoolItem {
-    receive_count: usize,
+#[quasar_message]
+pub enum StatusReport {
+    Complete(usize),
 }
-
-#[async_trait]
-impl ConfigurableActor for PoolItem {
-    async fn init(name: String, parent: &Context) -> Context {
-        let mut actor = parent.new_actor::<PoolItem>(&name);
-        actor.ctx.act_on_async::<Pong>(|_actor, event| {
-            // info!("{} PONG!", actor.key.value);
-            let return_address = &event.return_address.clone();
-            if let Some(return_address) = return_address.clone() {
-                Box::pin(async move {
-                    return_address
-                        .reply(Tally::AddCount)
-                        .await
-                        .expect("couldn't reply");
-                })
-            } else {
-                tracing::error!("no return address");
-                Box::pin(async {})
-            }
-        });
-
-        actor.spawn().await
-    }
+pub(crate) fn init_tracing() {
+    let subscriber = FmtSubscriber::builder()
+        .with_max_level(Level::DEBUG)
+        .compact()
+        .with_line_number(true)
+        .without_time()
+        .finish();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 }
-
 #[tokio::test]
 async fn test_actor_pool() -> anyhow::Result<()> {
-    // let subscriber = FmtSubscriber::builder()
-    //     .with_max_level(Level::DEBUG)
-    //     .compact()
-    //     .with_line_number(true)
-    //     // .without_time()
-    //     .finish();
-    //
-    // tracing::subscriber::set_global_default(subscriber)
-    //     .expect("setting default subscriber failed");
-
-    let actor = System::new_actor(PoolItem::default());
-    let mut context = actor.spawn().await;
-
-    // Execute `spawn_pool`, then `terminate`
-    context.spawn_pool::<PoolItem>("pool", 10).await?;
-    for i in 0..20 {
-        let index = {
-            if i <= 10 {
-                i
-            } else {
-                0
-            }
-        };
-
-        context
-            .pool_emit::<DistributionStrategy>(index, "pool", FunnyJoke::Pun)
-            .await?;
-    }
+    init_tracing();
+    let mut actor = System::new_actor(PoolItem::default());
+    actor.ctx.act_on::<Ping>(|_actor, _event| {
+        tracing::debug!("PING");
+    });
+    actor.define_pool::<PoolItem>("pool", 1).await;
+    let context = actor.spawn().await;
+    //   for _ in 0..20 {
+    context.pool_emit("pool", Ping).await?;
+    //  }
     context.terminate().await?;
 
     Ok(())
@@ -212,36 +180,67 @@ async fn test_actor_pool() -> anyhow::Result<()> {
 pub struct ContextWrapper {
     pub wrapped: Option<Context>,
 }
+#[derive(Default, Debug)]
+pub struct PoolItem {
+    receive_count: usize,
+}
+
+#[async_trait]
+impl ConfigurableActor for PoolItem {
+    async fn init(name: String, parent: &Context) -> Context {
+        let mut actor = parent.new_actor::<PoolItem>(&name);
+        //tracing::info!("{} PONG!", &actor.key.value.clone());
+        actor
+            .ctx
+            .act_on::<Pong>(|actor, _event| {
+                tracing::debug!("PONG!");
+                actor.state.receive_count += 1;
+            })
+            .on_before_stop_async(|actor| {
+                let final_count = actor.state.receive_count;
+                let value = actor.key.value.clone();
+                if let Some(envelope) = actor.new_parent_envelope() {
+                    Box::pin(async move {
+                        tracing::trace!(
+                            "Reporting {} complete to {} from {}.",
+                            final_count,
+                            envelope.sender,
+                            value
+                        );
+                        let _ = envelope.reply(StatusReport::Complete(final_count)).await;
+                    })
+                } else {
+                    Box::pin(async {})
+                }
+            });
+
+        //tracing::debug!("spawning subordinate");
+        actor.spawn().await
+    }
+}
 
 #[tokio::test]
 async fn test_context_wrapper() -> anyhow::Result<()> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .compact()
-        .with_line_number(true)
-        .without_time()
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
-
     let mut actor = System::new_actor(PoolItem::default());
+
     actor
         .ctx
         .on_stop(|actor| tracing::debug!("Processed {} PONGS", actor.state.receive_count))
-        .act_on::<Tally>(|actor, event| match event.message {
-            Tally::AddCount => actor.state.receive_count += 1,
+        .act_on::<StatusReport>(|actor, event| match event.message {
+            StatusReport::Complete(report) => actor.state.receive_count += report,
         })
-        .on_before_stop_async(|actor| {
-            let value = actor.key.value.clone();
-            Box::pin(async move {
-                // Async cleanup actions
-                debug!("BEFORE STOP: {}", value);
-            })
+        .act_on_async::<Pong>(|_actor, event| {
+            // TODO: The actor needs to have access to it's processor pool
+            // actor.state.;
+            let context = event.return_address.clone();
+
+            Box::pin(async move { if let Some(_context) = context {} })
         });
+    actor.define_pool::<PoolItem>("pool", 10).await;
+    let context = actor.spawn().await;
+    //    context.spawn_pool::<PoolItem>("pool", 10).await?;
 
-    let mut context = actor.spawn().await;
-    context.spawn_pool::<PoolItem>("pool", 10).await?;
-
-    //TODO: tidy up async handlers removing Box::pin
+    // TODO: tidy up async handlers removing Box::pin
 
     let wrapper = ContextWrapper {
         wrapped: Some(context),
@@ -249,28 +248,53 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 
     let mut actor = System::new_actor(wrapper);
 
-    actor.ctx.act_on_async::<Ping>(|actor, _event| {
-        debug!("PING!");
-        let context = actor.state.wrapped.clone();
-        Box::pin(async move {
-            if let Some(context) = context {
-                for i in 0..20 {
-                    let index = {
-                        if i < 10 {
+    actor
+        .ctx
+        .act_on_async::<Ping>(|actor, _event| {
+            debug!("PING!");
+            let context = actor.state.wrapped.clone();
+            //           let mut tasks = FuturesOrdered::new();
+            //            let env = actor.new_envelope().unwrap();
+            if let Some(_context) = context {
+                for i in 0..75000 {
+                    let _index = {
+                        if i < 1000 {
                             i
                         } else {
                             0
                         }
                     };
-                    context
-                        .pool_emit::<DistributionStrategy>(index, "pool", Pong)
-                        .await
-                        .expect("Failed to send Pong");
+                    //                  let task = env.reply::<DistributionStrategy>(index, "pool", Pong);
+                    //                  tasks.push_back(task);
                 }
-                context.terminate().await.expect("nope");
+                //                    context.terminate().await.expect("nope");
             }
+            Box::pin(async move {
+                //            while let Some(result) = tasks.next().await {
+                //                //tracing::debug!("Task completed with result: {:?}", result);
+                //            }
+            })
         })
-    });
+        .on_before_stop_async(|actor| {
+            actor
+                .state
+                .wrapped
+                .as_ref()
+                .map(|supervisor| {
+                    tracing::trace!("Stopping"); // Consider if this should be conditional or moved
+                    let supervisor = supervisor.clone(); // Clone only if necessary
+                    Box::pin(async move {
+                        tracing::debug!("Stopping supervisor");
+                        let _ = supervisor.terminate().await;
+                    })
+                        as Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>
+                })
+                .unwrap_or_else(|| {
+                    tracing::debug!("else happened");
+                    Box::pin(async {})
+                }) // Clean handling of None case
+        });
+
     let context = actor.spawn().await;
     context.emit(Ping).await?;
     context.terminate().await?;
@@ -300,4 +324,3 @@ pub enum AudienceReaction {
 pub enum Tally {
     AddCount,
 }
-

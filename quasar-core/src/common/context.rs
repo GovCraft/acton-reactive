@@ -35,11 +35,10 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 #[derive(Debug, Clone, Default)]
 pub struct Context {
+    pub key: Qrn,
     pub(crate) outbox: Option<OutboundChannel>,
     pub(crate) task_tracker: TaskTracker,
-    pub key: Qrn,
-    pub(crate) pools: ActorPool,
-    pub(crate) current_index: usize,
+    //    pub(crate) pools: ActorPool,
 }
 
 impl Context {
@@ -71,66 +70,22 @@ impl ActorContext for Context {
     }
 
     #[allow(clippy::manual_async_fn)]
-    #[instrument]
-    fn pool_emit<DistributionStrategy>(
-        &self,
-        index: usize,
-        name: &str,
-        message: impl QuasarMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync {
-        tracing::trace!("Sending from: {}", self.key.value);
-        async {
-            if let Some(item) = self.pools.get(name) {
-                let pool = item.value();
-                if let Some(context) = pool.iter().nth(index) {
-                    let outbound_envelope = context.return_address();
-                    outbound_envelope.reply(message).await;
-                }
-            }
-
-            Ok(())
-        }
-    }
-
-    #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self), fields(qrn = self.key.value))]
     fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
         async {
-            for pool in &self.pools {
-                let pool_members = pool.value();
-                for member in pool_members {
-                    tracing::trace!("Terminating {}", member.key.value);
-                    member.emit(SystemSignal::Terminate).await;
-                    member.task_tracker.wait().await;
-                }
-            }
+            //          for pool in &self.pools {
+            //              let pool_members = pool.value();
+            //              for member in pool_members {
+            //                  tracing::trace!("Terminating {}", member.key.value);
+            //                  member.emit(SystemSignal::Terminate).await;
+            //                  member.task_tracker.wait().await;
+            //              }
+            //          }
 
             self.emit(SystemSignal::Terminate).await;
             self.task_tracker.wait().await;
             Ok(())
         }
-    }
-
-    #[instrument(skip(self))]
-    async fn spawn_pool<T: ConfigurableActor + 'static>(
-        &mut self,
-        name: &str,
-        size: usize,
-    ) -> anyhow::Result<()> {
-        let mut tasks = Vec::with_capacity(size);
-        for i in 0..size {
-            let actor_name = format!("{}{}", name, i);
-            let pool_item = T::init(actor_name, self);
-            tasks.push(pool_item);
-        }
-        let contexts = join_all(tasks).await;
-        let mut items = DashMap::new(); // DashMap to store the results
-        for context in contexts {
-            items.insert(context.key.value.clone(), context); // Collect each result
-        }
-        self.pools.insert(name.to_string(), items);
-        trace!("");
-        Ok(())
     }
 
     async fn wake(&mut self) -> anyhow::Result<()> {

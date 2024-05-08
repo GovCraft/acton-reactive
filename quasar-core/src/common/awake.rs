@@ -53,6 +53,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
     {
         (actor.ctx.on_wake)(&actor);
         loop {
+            //   tracing::debug!("looping");
             if let Ok(envelope) = mailbox.try_recv() {
                 trace!(
                     "actor: {}, message: {:?}",
@@ -62,6 +63,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = reactors.get(&type_id) {
+                    tracing::debug!("QuasarMessage");
                     let value = reactor.value();
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
@@ -77,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 } else if let Some(concrete_msg) =
                     envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
-                    trace!("SystemSignal {:?}", concrete_msg);
+                    //tracing::debug!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
                         SystemSignal::Wake => {}
                         SystemSignal::Recreate => {}
@@ -85,12 +87,23 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
                             mailbox.close();
-                            actor.terminate();
+                            &actor.terminate().await;
                         }
                         SystemSignal::Supervise => {}
                         SystemSignal::Watch => {}
                         SystemSignal::Unwatch => {}
                         SystemSignal::Failed => {}
+                    }
+                } else if let Some(concrete_msg) = envelope
+                    .message
+                    .as_any()
+                    .downcast_ref::<SupervisorMessage>()
+                {
+                    match concrete_msg {
+                        SupervisorMessage::PoolEmit(message) => {
+                            tracing::debug!("emit msg");
+                        }
+                        _ => {}
                     }
                 } else {
                     warn!(
@@ -102,8 +115,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
             // Checking stop condition .
             let should_stop = { actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
-            if should_stop && mailbox.is_empty() && mailbox.is_closed() {
-                trace!("Halt signal received, exiting capture loop");
+            if should_stop && mailbox.is_closed() {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
                     (on_before_stop_async)(&actor).await;
@@ -134,6 +146,8 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let halt_signal = StopSignal::new(false);
         let parent_return_envelope = value.parent_return_envelope;
         let key = value.key.clone();
+        let subordinates = value.subordinates;
+        let outbox = value.ctx.outbox;
         Actor {
             ctx: Awake {
                 on_wake,
@@ -142,11 +156,13 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
                 on_stop,
                 key,
             },
-            outbox: None,
+            outbox: Some(outbox),
             parent_return_envelope,
             halt_signal: Default::default(),
             key: value.key,
             state: value.state,
+            subordinates,
+            //            subordinate: None,
         }
     }
 }

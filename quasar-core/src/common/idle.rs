@@ -28,13 +28,14 @@ use std::sync::Arc;
 use crate::common::event_record::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::{QuasarMessage, SystemMessage};
+use crate::traits::{ConfigurableActor, QuasarMessage, SystemMessage};
 use dashmap::DashMap;
 use futures::future;
 use quasar_qrn::Qrn;
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio_util::task::TaskTracker;
 use tracing::{debug, error, instrument};
-
 pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
@@ -42,6 +43,9 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) reactors: ReactorMap<State>,
+    pub(crate) context: Context,
+    pub(crate) mailbox: Option<Receiver<Envelope>>,
+    pub(crate) outbox: Sender<Envelope>,
 }
 
 impl<State: Default + Send + Debug> Idle<State> {
@@ -196,10 +200,16 @@ impl<State: Default + Send + Debug> Idle<State> {
         self
     }
 
-    pub fn new() -> Idle<State>
+    pub(crate) fn new(key: Qrn) -> Idle<State>
     where
         State: Send + 'static,
     {
+        let (outbox, mailbox) = channel(255);
+        let context = Context {
+            key,
+            outbox: Some(outbox.clone()),
+            task_tracker: TaskTracker::new(),
+        };
         Idle {
             on_before_wake: Box::new(|_| {}),
             on_wake: Box::new(|_| {}),
@@ -207,13 +217,15 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
+            outbox,
+            mailbox: Some(mailbox),
+            context,
         }
     }
 }
 
 impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     fn default() -> Self {
-        Idle::new()
+        Idle::new(Qrn::default())
     }
 }
-//endregion

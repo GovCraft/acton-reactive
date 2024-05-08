@@ -20,6 +20,7 @@
 use crate::common::{
     ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope,
 };
+use crate::prelude::SupervisorMessage;
 use async_trait::async_trait;
 use quasar_qrn::prelude::*;
 use std::any::{Any, TypeId};
@@ -29,6 +30,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
+use tracing::instrument;
 
 #[async_trait]
 pub trait Handler {
@@ -52,7 +54,7 @@ pub trait ReturnAddress: Send {
 }
 
 #[async_trait]
-pub trait ConfigurableActor: Default + Send + Debug {
+pub trait ConfigurableActor: Send + Debug {
     async fn init(name: String, root: &Context) -> Context;
 }
 
@@ -70,6 +72,7 @@ pub trait ActorContext {
 
     fn key(&self) -> &Qrn;
 
+    #[instrument(skip(self))]
     fn emit(
         &self,
         message: impl QuasarMessage + Sync + Send + 'static,
@@ -83,19 +86,34 @@ pub trait ActorContext {
             Ok(())
         }
     }
-
-    fn pool_emit<DistributionStrategy>(
+    fn pool_emit(
         &self,
-        index: usize,
         name: &str,
         message: impl QuasarMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync;
+    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    where
+        Self: Sync,
+    {
+        async {
+            let envelope = self.return_address();
+            let supervisor_message = SupervisorMessage::PoolEmit(Box::new(message));
+            envelope.reply(supervisor_message).await?; // Directly boxing the owned message
+            Ok(())
+        }
+    }
+
+    //  fn pool_emit<DistributionStrategy>(
+    //      &self,
+    //      index: usize,
+    //      name: &str,
+    //      message: impl QuasarMessage + Sync + Send + 'static,
+    //  ) -> impl Future<Output = Result<(), MessageError>> + Sync;
     fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync;
-    async fn spawn_pool<T: ConfigurableActor + 'static>(
-        &mut self,
-        name: &str,
-        size: usize,
-    ) -> anyhow::Result<()>;
+    //  async fn spawn_pool<T: ConfigurableActor + 'static>(
+    //      &mut self,
+    //      name: &str,
+    //      size: usize,
+    //  ) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;
     async fn suspend(&mut self) -> anyhow::Result<()>;
