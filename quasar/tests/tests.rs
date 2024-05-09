@@ -163,9 +163,23 @@ pub(crate) fn init_tracing() {
 async fn test_actor_pool() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = System::new_actor(PoolItem::default());
-    actor.ctx.act_on::<Ping>(|_actor, _event| {
-        tracing::debug!("PING");
-    });
+    actor
+        .ctx
+        .act_on::<Ping>(|_actor, _event| {
+            tracing::debug!("PING");
+        })
+        .act_on::<StatusReport>(|actor, event| {
+            match event.message {
+                StatusReport::Complete(total) => {
+                    tracing::debug!("reported {}", total);
+                    actor.state.receive_count += total;
+                }
+            }
+            tracing::debug!("PING");
+        })
+        .on_before_stop(|actor| {
+            tracing::debug!("Processed {} PINGS", actor.state.receive_count);
+        });
     actor.define_pool::<PoolItem>("pool", 5).await;
     let context = actor.spawn().await;
 
@@ -195,16 +209,16 @@ impl ConfigurableActor for PoolItem {
         actor
             .ctx
             .act_on::<Pong>(|actor, _event| {
-                tracing::debug!("{} PONG!", &actor.key.value);
+                tracing::trace!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
-                tracing::debug!("stopping");
                 let final_count = actor.state.receive_count;
                 let value = actor.key.value.clone();
+
                 if let Some(envelope) = actor.new_parent_envelope() {
                     Box::pin(async move {
-                        tracing::debug!(
+                        tracing::trace!(
                             "Reporting {} complete to {} from {}.",
                             final_count,
                             envelope.sender,

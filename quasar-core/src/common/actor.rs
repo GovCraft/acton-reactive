@@ -80,6 +80,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         state: State,
         parent_return_envelope: Option<OutboundEnvelope>,
     ) -> Self {
+        //tracing::debug!("{:?}", &parent_return_envelope);
         Actor {
             ctx: Idle::new(key.clone()),
             outbox: None,
@@ -110,15 +111,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let supervisor_mailbox = actor.ctx.supervisor_mailbox.take();
         debug_assert!(supervisor_mailbox.is_some());
         let subordinates = mem::take(&mut actor.subordinates);
-        // we should take the subordinates and add them to a supervisor object which
-        // should have it's own message loop
-        // this object should distribute messages to the pool with a given distribution
-        // strategy, initially only round robin for now
         let active_actor: Actor<Awake<State>, State> = actor.into();
         let mut actor = active_actor;
 
         let supervisor = Supervisor {
-            key: actor.key.clone(),
+            key: actor.ctx.key.clone(),
             halt_signal: StopSignal::new(false),
             subordinates,
         };
@@ -133,6 +130,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         }
         if let Some(supervisor_mailbox) = supervisor_mailbox {
             debug_assert!(!supervisor_mailbox.is_closed());
+            //          context
+            //              .task_tracker
+            //              .track_future(Supervisor::wake_supervisor(supervisor_mailbox, supervisor))
+            //              .await;
             context.task_tracker.spawn(async move {
                 Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
             });
@@ -145,7 +146,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) {
+    pub(crate) fn terminate(&self) { //        tracing::warn!("first shutdown supervised actors");
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         self.halt_signal.store(true, Ordering::SeqCst);
     }

@@ -43,14 +43,13 @@ pub struct Supervisor {
 }
 impl Debug for Supervisor {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, stringify!(self.key.value))
+        write!(f, "{}", self.key.value)
     }
 }
 
 impl Supervisor {
     #[instrument(skip(supervisor, mailbox))]
     pub(crate) async fn wake_supervisor(mut mailbox: InboundChannel, supervisor: Supervisor) {
-        //tracing::debug!("supervisor woke");
         loop {
             if let Ok(envelope) = mailbox.try_recv() {
                 if let Some(ref pool_id) = envelope.pool_id {
@@ -62,13 +61,13 @@ impl Supervisor {
                     if let Some(concrete_msg) =
                         envelope.message.as_any().downcast_ref::<SystemSignal>()
                     {
-                        //tracing::debug!("SystemSignal {:?}", concrete_msg);
                         match concrete_msg {
                             SystemSignal::Wake => {}
                             SystemSignal::Recreate => {}
                             SystemSignal::Suspend => {}
                             SystemSignal::Resume => {}
                             SystemSignal::Terminate => {
+                                tracing::debug!("supervisor: {:?}", &supervisor);
                                 supervisor.terminate().await;
                             }
                             SystemSignal::Supervise => {}
@@ -97,8 +96,12 @@ impl Supervisor {
             if !halt_signal {
                 for item in &subordinates {
                     for context in &item.value().pool {
-                        tracing::debug!("Terminating {}", &context.key.value);
+                        let supervisor = &context.supervisor_return_address();
+                        tracing::trace!("Terminating {}", &context.key.value);
                         context.terminate().await;
+                        //                      if let Some(envelope) = &supervisor {
+                        //                          envelope.reply(SystemSignal::Terminate, None);
+                        //                      }
                     }
                 }
             }

@@ -57,7 +57,6 @@ impl OutboundEnvelope {
         tracing::trace!("{}", self.sender.value);
 
         if let Some(reply_to) = &self.reply_to {
-            tracing::debug!("{}", self.sender.value);
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
             reply_to.send(envelope).await?;
         }
