@@ -74,13 +74,11 @@ pub(crate) trait SupervisorContext: ActorContext {
         let actor = self.return_address().clone();
         async move {
             //first shut down all subordinates
-            let mut supervisor_task;
             if let Some(supervisor) = &supervisor {
-                supervisor_task = supervisor.reply_all(SystemSignal::Terminate);
-                let actor_task = actor.reply(SystemSignal::Terminate, None); // Directly boxing the owned message
-                join(supervisor_task, actor_task).await;
+                supervisor.reply_all(SystemSignal::Terminate).await;
                 // Directly boxing the owned message
             }
+            actor.reply(SystemSignal::Terminate, None).await; // Directly boxing the owned message
         }
     }
 

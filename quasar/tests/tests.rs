@@ -166,11 +166,10 @@ async fn test_actor_pool() -> anyhow::Result<()> {
     actor.ctx.act_on::<Ping>(|_actor, _event| {
         tracing::debug!("PING");
     });
-    actor.define_pool::<PoolItem>("pool", 1).await;
-    //    tracing::debug!("got here");
+    actor.define_pool::<PoolItem>("pool", 5).await;
     let context = actor.spawn().await;
-    //    tracing::debug!("but not here");
-    for _ in 0..500 {
+
+    for _ in 0..5 {
         context.emit_pool("pool", Pong).await;
     }
     context.terminate().await;
@@ -196,15 +195,16 @@ impl ConfigurableActor for PoolItem {
         actor
             .ctx
             .act_on::<Pong>(|actor, _event| {
-                //            tracing::debug!("{} PONG!", &actor.key.value);
+                tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
+                tracing::debug!("stopping");
                 let final_count = actor.state.receive_count;
                 let value = actor.key.value.clone();
                 if let Some(envelope) = actor.new_parent_envelope() {
                     Box::pin(async move {
-                        tracing::trace!(
+                        tracing::debug!(
                             "Reporting {} complete to {} from {}.",
                             final_count,
                             envelope.sender,

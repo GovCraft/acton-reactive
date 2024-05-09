@@ -86,7 +86,6 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Suspend => {}
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
-                            mailbox.close();
                             tracing::debug!("Terminating {}", &actor.key.value);
                             actor.terminate();
                         }
@@ -105,7 +104,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
             // Checking stop condition .
             let should_stop = { actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
-            if should_stop && mailbox.is_closed() {
+            if should_stop {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
                     (on_before_stop_async)(&actor).await;

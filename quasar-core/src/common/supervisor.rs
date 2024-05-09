@@ -62,15 +62,14 @@ impl Supervisor {
                     if let Some(concrete_msg) =
                         envelope.message.as_any().downcast_ref::<SystemSignal>()
                     {
-                        tracing::debug!("SystemSignal {:?}", concrete_msg);
+                        //tracing::debug!("SystemSignal {:?}", concrete_msg);
                         match concrete_msg {
                             SystemSignal::Wake => {}
                             SystemSignal::Recreate => {}
                             SystemSignal::Suspend => {}
                             SystemSignal::Resume => {}
                             SystemSignal::Terminate => {
-                                mailbox.close();
-                                supervisor.terminate();
+                                supervisor.terminate().await;
                             }
                             SystemSignal::Supervise => {}
                             SystemSignal::Watch => {}
@@ -83,7 +82,7 @@ impl Supervisor {
             let should_stop =
                 { supervisor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
-            if should_stop && mailbox.is_closed() {
+            if should_stop {
                 break;
             } else {
                 tokio::time::sleep(Duration::from_nanos(1)).await;
