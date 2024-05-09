@@ -67,7 +67,7 @@ impl Supervisor {
                             SystemSignal::Suspend => {}
                             SystemSignal::Resume => {}
                             SystemSignal::Terminate => {
-                                tracing::debug!("supervisor: {:?}", &supervisor);
+                                tracing::trace!("supervisor: {:?}", &supervisor);
                                 supervisor.terminate().await;
                             }
                             SystemSignal::Supervise => {}
@@ -92,21 +92,27 @@ impl Supervisor {
     pub(crate) fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         let subordinates = self.subordinates.clone();
+        //tracing::debug!("entering with {} subordinates", &subordinates.len());
         let fut = async move {
             if !halt_signal {
                 for item in &subordinates {
                     for context in &item.value().pool {
                         let supervisor = &context.supervisor_return_address();
-                        tracing::trace!("Terminating {}", &context.key.value);
+                        //tracing::debug!("Terminating {}", &context.key.value);
+                        //tracing::debug!("Terminating done {}", &context.key.value);
+                        if let Some(envelope) = &supervisor {
+                            envelope.reply(SystemSignal::Terminate, None);
+                        }
                         context.terminate().await;
-                        //                      if let Some(envelope) = &supervisor {
-                        //                          envelope.reply(SystemSignal::Terminate, None);
-                        //                      }
+                        context.supervisor_task_tracker().wait().await;
+                        //tracing::warn!("subordinate supervisor done");
                     }
                 }
             }
             Ok(())
         };
+
+        //tracing::error!("exiting");
         self.halt_signal.store(true, Ordering::SeqCst);
         fut
     }

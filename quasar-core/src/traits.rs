@@ -69,16 +69,38 @@ pub enum DistributionStrategy {
 
 #[async_trait]
 pub(crate) trait SupervisorContext: ActorContext {
+    fn supervisor_task_tracker(&self) -> TaskTracker;
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
-    fn terminate_all(&self) -> impl Future<Output = ()> + Sync {
+    fn terminate_all(&self) -> impl Future<Output = ()> + Sync
+    where
+        Self: Sync,
+    {
+        async move {
+            self.terminate_supervisor().await;
+            self.terminate_actor().await;
+        }
+    }
+
+    fn terminate_actor(&self) -> impl Future<Output = ()> + Sync
+    where
+        Self: Sync,
+    {
+        let actor = self.return_address().clone();
+        let tracker = self.get_task_tracker().clone();
+        async move {
+            actor.reply(SystemSignal::Terminate, None).await;
+            tracker.wait().await;
+        }
+    }
+
+    fn terminate_supervisor(&self) -> impl Future<Output = ()> + Sync {
         let supervisor = self.supervisor_return_address().clone();
         let actor = self.return_address().clone();
+        let supervisor_tracker = self.supervisor_task_tracker().clone();
         async move {
-            //first shut down all subordinates
             if let Some(supervisor) = supervisor {
                 supervisor.reply_all(SystemSignal::Terminate).await;
-                actor.reply(SystemSignal::Terminate, None).await; // Directly boxing the owned message
-                                                                  // Directly boxing the owned message
+                supervisor_tracker.wait().await;
             }
         }
     }
@@ -120,7 +142,7 @@ pub(crate) trait SupervisorContext: ActorContext {
 #[async_trait]
 pub trait ActorContext {
     fn return_address(&self) -> OutboundEnvelope;
-    fn get_task_tracker(&mut self) -> &mut TaskTracker;
+    fn get_task_tracker(&self) -> TaskTracker;
 
     fn key(&self) -> &Qrn;
 

@@ -133,7 +133,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             subordinates,
         };
         let actor_tracker = &actor.task_tracker.clone();
-        let supervisor_tracker = &actor.task_tracker.clone();
+        let supervisor_tracker = &context.supervisor_task_tracker.clone();
 
         if let Some(mailbox) = mailbox {
             actor_tracker.spawn(async move { Awake::wake(mailbox, actor, reactors).await });
@@ -146,6 +146,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
             });
         }
+        //close the trackers
+        context.supervisor_task_tracker().close();
         context.task_tracker.close();
 
         context
@@ -155,7 +157,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
-        //        tracing::warn!("first shutdown supervised actors");
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         self.halt_signal.store(true, Ordering::SeqCst);
     }

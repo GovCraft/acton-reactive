@@ -40,6 +40,7 @@ use super::{supervisor, Supervisor};
 pub struct Context {
     pub key: Qrn,
     pub(crate) outbox: Option<OutboundChannel>,
+    pub(crate) supervisor_task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) supervisor_outbox: Option<OutboundChannel>,
     pub(crate) supervisor_cancellation_token: Option<CancellationToken>,
@@ -59,7 +60,6 @@ impl Context {
     #[instrument]
     pub async fn terminate(&self) {
         self.terminate_all().await;
-        self.task_tracker.wait().await;
     }
 }
 
@@ -74,6 +74,9 @@ impl SupervisorContext for Context {
             None
         }
     }
+    fn supervisor_task_tracker(&self) -> TaskTracker {
+        self.supervisor_task_tracker.clone()
+    }
 }
 
 #[async_trait]
@@ -85,8 +88,8 @@ impl ActorContext for Context {
         OutboundEnvelope::new(outbox, self.key.clone())
     }
 
-    fn get_task_tracker(&mut self) -> &mut TaskTracker {
-        &mut self.task_tracker
+    fn get_task_tracker(&self) -> TaskTracker {
+        self.task_tracker.clone()
     }
 
     fn key(&self) -> &Qrn {

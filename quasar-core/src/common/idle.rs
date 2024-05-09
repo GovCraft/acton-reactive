@@ -212,6 +212,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let context = Context {
             key,
             outbox: Some(outbox.clone()),
+            supervisor_task_tracker: TaskTracker::new(),
             task_tracker: TaskTracker::new(),
             supervisor_outbox: Some(supervisor_outbox.clone()),
             supervisor_cancellation_token: Some(CancellationToken::new()),
