@@ -28,23 +28,37 @@ use crate::prelude::QuasarMessage;
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
     pub sender: Qrn,
-    reply_to: Option<OutboundChannel>,
+    pub(crate) reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
+    #[instrument(skip(reply_to))]
     pub fn new(reply_to: Option<OutboundChannel>, sender: Qrn) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
-    #[instrument(skip(self))]
+    #[instrument(skip(self, message, pool_id))]
     pub async fn reply(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
+        pool_id: Option<String>,
     ) -> Result<(), MessageError> {
-        tracing::trace!("{}", self.sender.value);
+        //        tracing::trace!("{}", self.sender.value);
 
         if let Some(reply_to) = &self.reply_to {
-            let envelope = Envelope::new(Box::new(message), self.reply_to.clone());
+            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             reply_to.send(envelope).await?;
+        }
+        Ok(())
+    }
+    #[instrument()]
+    pub(crate) async fn reply_all(
+        &self,
+        message: impl QuasarMessage + Send + Sync + 'static,
+    ) -> Result<(), MessageError> {
+        if let Some(reply_to) = &self.reply_to {
+            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
+            reply_to.send(envelope).await?;
+            tracing::trace!("",);
         }
         Ok(())
     }

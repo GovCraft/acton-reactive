@@ -20,8 +20,11 @@
 use crate::common::{
     ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope,
 };
-use crate::prelude::SupervisorMessage;
+use crate::prelude::{Envelope, SupervisorMessage, SystemSignal};
 use async_trait::async_trait;
+use futures::future::{self, join};
+use futures::TryFutureExt;
+use log::trace;
 use quasar_qrn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
@@ -66,9 +69,52 @@ pub enum DistributionStrategy {
 }
 
 #[async_trait]
+pub(crate) trait SupervisorContext: ActorContext {
+    fn supervisor_task_tracker(&self) -> TaskTracker;
+    fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
+    //fn terminate_all(&self) -> impl Future<Output = ()> + Sync
+    //where
+    //   Self: Sync;
+
+    #[instrument(skip(self))]
+    fn emit_envelope(
+        &self,
+        envelope: Envelope,
+    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    where
+        Self: Sync,
+    {
+        async {
+            let forward_address = self.return_address();
+            tracing::trace!("{:?}", &forward_address);
+            if let Some(reply_to) = forward_address.reply_to {
+                reply_to.send(envelope).await;
+            }
+            Ok(())
+        }
+    }
+
+    fn pool_emit(
+        &self,
+        name: &str,
+        message: impl QuasarMessage + Sync + Send + 'static,
+    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    where
+        Self: Sync,
+    {
+        async {
+            if let Some(envelope) = self.supervisor_return_address() {
+                //                tracing::debug!("");
+                envelope.reply(message, Some(name.to_string())).await?; // Directly boxing the owned message
+            }
+            Ok(())
+        }
+    }
+}
+#[async_trait]
 pub trait ActorContext {
     fn return_address(&self) -> OutboundEnvelope;
-    fn get_task_tracker(&mut self) -> &mut TaskTracker;
+    fn get_task_tracker(&self) -> TaskTracker;
 
     fn key(&self) -> &Qrn;
 
@@ -82,38 +128,11 @@ pub trait ActorContext {
     {
         async {
             let envelope = self.return_address();
-            envelope.reply(message).await?; // Directly boxing the owned message
-            Ok(())
-        }
-    }
-    fn pool_emit(
-        &self,
-        name: &str,
-        message: impl QuasarMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync
-    where
-        Self: Sync,
-    {
-        async {
-            let envelope = self.return_address();
-            let supervisor_message = SupervisorMessage::PoolEmit(Box::new(message));
-            envelope.reply(supervisor_message).await?; // Directly boxing the owned message
+            envelope.reply(message, None).await?; // Directly boxing the owned message
             Ok(())
         }
     }
 
-    //  fn pool_emit<DistributionStrategy>(
-    //      &self,
-    //      index: usize,
-    //      name: &str,
-    //      message: impl QuasarMessage + Sync + Send + 'static,
-    //  ) -> impl Future<Output = Result<(), MessageError>> + Sync;
-    fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync;
-    //  async fn spawn_pool<T: ConfigurableActor + 'static>(
-    //      &mut self,
-    //      name: &str,
-    //      size: usize,
-    //  ) -> anyhow::Result<()>;
     async fn wake(&mut self) -> anyhow::Result<()>;
     async fn recreate(&mut self) -> anyhow::Result<()>;
     async fn suspend(&mut self) -> anyhow::Result<()>;

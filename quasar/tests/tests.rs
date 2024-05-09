@@ -55,13 +55,13 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 match record.message {
                     FunnyJoke::ChickenCrossesRoad => Box::pin(async move {
                         envelope
-                            .reply(AudienceReaction::Chuckle)
+                            .reply(AudienceReaction::Chuckle, None)
                             .await
                             .expect("TODO: panic message");
                     }),
                     FunnyJoke::Pun => Box::pin(async move {
                         envelope
-                            .reply(AudienceReaction::Groan)
+                            .reply(AudienceReaction::Groan, None)
                             .await
                             .expect("TODO: panic message");
                     }),
@@ -86,7 +86,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     // let mut comedian = Actor::spawn(joke_counter).await;
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
-    comedian.terminate().await.expect("TODO: panic message");
+    comedian.terminate().await;
     Ok(())
 }
 
@@ -124,24 +124,24 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         .ctx
         .on_before_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         })
         .on_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         })
         .on_stop(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         });
 
     let actor = actor.spawn().await;
 
-    actor.terminate().await?;
-    count.terminate().await?;
+    actor.terminate().await;
+    count.terminate().await;
     //    tokio::time::sleep(Duration::from_millis(50)).await;
     Ok(())
 }
@@ -163,15 +163,29 @@ pub(crate) fn init_tracing() {
 async fn test_actor_pool() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = System::new_actor(PoolItem::default());
-    actor.ctx.act_on::<Ping>(|_actor, _event| {
-        tracing::debug!("PING");
-    });
-    actor.define_pool::<PoolItem>("pool", 1).await;
+    actor
+        .ctx
+        .act_on::<Pong>(|_actor, _event| {
+            tracing::error!("PONG");
+        })
+        .act_on::<StatusReport>(|actor, event| match event.message {
+            StatusReport::Complete(total) => {
+                tracing::debug!("reported {}", total);
+                actor.state.receive_count += total;
+            }
+        })
+        .on_before_stop(|actor| {
+            tracing::warn!("Processed {} PINGS", actor.state.receive_count);
+        });
+    actor.define_pool::<PoolItem>("pool", 5).await;
     let context = actor.spawn().await;
-    //   for _ in 0..20 {
-    context.pool_emit("pool", Ping).await?;
-    //  }
-    context.terminate().await?;
+
+    for _ in 0..5 {
+        tracing::trace!("Emitting PING");
+        context.emit_pool("pool", Ping).await;
+    }
+    tracing::trace!("Terminating main actor");
+    context.terminate().await;
 
     Ok(())
 }
@@ -192,13 +206,14 @@ impl ConfigurableActor for PoolItem {
         //tracing::info!("{} PONG!", &actor.key.value.clone());
         actor
             .ctx
-            .act_on::<Pong>(|actor, _event| {
-                tracing::debug!("PONG!");
+            .act_on::<Ping>(|actor, _event| {
+                tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
                 let final_count = actor.state.receive_count;
                 let value = actor.key.value.clone();
+
                 if let Some(envelope) = actor.new_parent_envelope() {
                     Box::pin(async move {
                         tracing::trace!(
@@ -207,14 +222,15 @@ impl ConfigurableActor for PoolItem {
                             envelope.sender,
                             value
                         );
-                        let _ = envelope.reply(StatusReport::Complete(final_count)).await;
+                        let _ = envelope
+                            .reply(StatusReport::Complete(final_count), None)
+                            .await;
                     })
                 } else {
                     Box::pin(async {})
                 }
             });
 
-        //tracing::debug!("spawning subordinate");
         actor.spawn().await
     }
 }
@@ -297,7 +313,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 
     let context = actor.spawn().await;
     context.emit(Ping).await?;
-    context.terminate().await?;
+    context.terminate().await;
 
     Ok(())
 }

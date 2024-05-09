@@ -32,13 +32,14 @@ use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub(crate) enum SupervisorMessage {
-    PoolEmit(Box<dyn QuasarMessage + Send + Sync + 'static>),
+    PoolEmit(String, Box<dyn QuasarMessage>),
 }
 impl QuasarMessage for SupervisorMessage {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 }
+unsafe impl Sync for SupervisorMessage {}
 pub type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 pub enum ReactorItem<T: Default + Send + Debug + 'static> {

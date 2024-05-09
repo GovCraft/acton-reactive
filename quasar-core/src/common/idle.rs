@@ -34,6 +34,7 @@ use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{debug, error, instrument};
 pub struct Idle<State: Default + Send + Debug + 'static> {
@@ -44,6 +45,8 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) reactors: ReactorMap<State>,
     pub(crate) context: Context,
+    pub(crate) supervisor_mailbox: Option<Receiver<Envelope>>,
+    pub(crate) supervisor_outbox: Sender<Envelope>,
     pub(crate) mailbox: Option<Receiver<Envelope>>,
     pub(crate) outbox: Sender<Envelope>,
 }
@@ -205,10 +208,14 @@ impl<State: Default + Send + Debug> Idle<State> {
         State: Send + 'static,
     {
         let (outbox, mailbox) = channel(255);
+        let (supervisor_outbox, supervisor_mailbox) = channel(255);
         let context = Context {
             key,
             outbox: Some(outbox.clone()),
+            supervisor_task_tracker: TaskTracker::new(),
             task_tracker: TaskTracker::new(),
+            supervisor_outbox: Some(supervisor_outbox.clone()),
+            supervisor_cancellation_token: Some(CancellationToken::new()),
         };
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -219,6 +226,8 @@ impl<State: Default + Send + Debug> Idle<State> {
             reactors: DashMap::new(),
             outbox,
             mailbox: Some(mailbox),
+            supervisor_outbox,
+            supervisor_mailbox: Some(supervisor_mailbox),
             context,
         }
     }

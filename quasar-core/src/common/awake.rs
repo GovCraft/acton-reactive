@@ -51,11 +51,12 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
     ) where
         State: Send + 'static,
     {
+        //tracing::debug!("actor woke");
         (actor.ctx.on_wake)(&actor);
         loop {
             //   tracing::debug!("looping");
             if let Ok(envelope) = mailbox.try_recv() {
-                trace!(
+                tracing::trace!(
                     "actor: {}, message: {:?}",
                     &actor.key.value,
                     &envelope.message
@@ -63,7 +64,6 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = reactors.get(&type_id) {
-                    tracing::debug!("QuasarMessage");
                     let value = reactor.value();
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
@@ -79,45 +79,40 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 } else if let Some(concrete_msg) =
                     envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
-                    //tracing::debug!("SystemSignal {:?}", concrete_msg);
+                    //                    tracing::debug!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
                         SystemSignal::Wake => {}
                         SystemSignal::Recreate => {}
                         SystemSignal::Suspend => {}
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
-                            mailbox.close();
-                            &actor.terminate().await;
+                            //                            if &actor.key.value == "qrn:quasar:system:framework:root" {
+                            tracing::trace!("Terminating {}", &actor.key.value);
+                            //                           }
+                            actor.terminate();
                         }
                         SystemSignal::Supervise => {}
                         SystemSignal::Watch => {}
                         SystemSignal::Unwatch => {}
                         SystemSignal::Failed => {}
                     }
-                } else if let Some(concrete_msg) = envelope
-                    .message
-                    .as_any()
-                    .downcast_ref::<SupervisorMessage>()
-                {
-                    match concrete_msg {
-                        SupervisorMessage::PoolEmit(message) => {
-                            tracing::debug!("emit msg");
-                        }
-                        _ => {}
-                    }
                 } else {
-                    warn!(
+                    tracing::error!(
                         "{}: No reactor for message type: {:?}",
-                        &actor.key.value, type_id
+                        &actor.key.value,
+                        type_id
                     );
                 }
             }
             // Checking stop condition .
             let should_stop = { actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
-            if should_stop && mailbox.is_closed() {
+            if should_stop {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
+                    //if &actor.key.value == "qrn:quasar:system:framework:root" {
+                    tracing::trace!("on_before_stop {}: ", &actor.key.value);
+                    // }
                     (on_before_stop_async)(&actor).await;
                 }
 
@@ -147,6 +142,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let parent_return_envelope = value.parent_return_envelope;
         let key = value.key.clone();
         let subordinates = value.subordinates;
+        let task_tracker = value.task_tracker.clone();
         let outbox = value.ctx.outbox;
         Actor {
             ctx: Awake {
@@ -158,11 +154,11 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
             },
             outbox: Some(outbox),
             parent_return_envelope,
-            halt_signal: Default::default(),
+            halt_signal,
             key: value.key,
             state: value.state,
             subordinates,
-            //            subordinate: None,
+            task_tracker,
         }
     }
 }
