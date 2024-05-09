@@ -34,6 +34,7 @@ use futures::future;
 use quasar_qrn::Qrn;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{debug, error, instrument};
 pub struct Idle<State: Default + Send + Debug + 'static> {
@@ -213,6 +214,7 @@ impl<State: Default + Send + Debug> Idle<State> {
             outbox: Some(outbox.clone()),
             task_tracker: TaskTracker::new(),
             supervisor_outbox: Some(supervisor_outbox.clone()),
+            supervisor_cancellation_token: Some(CancellationToken::new()),
         };
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -225,7 +227,6 @@ impl<State: Default + Send + Debug> Idle<State> {
             mailbox: Some(mailbox),
             supervisor_outbox,
             supervisor_mailbox: Some(supervisor_mailbox),
-
             context,
         }
     }

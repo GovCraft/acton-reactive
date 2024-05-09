@@ -17,27 +17,31 @@
  *
  */
 
-use std::fmt::Debug;
-use quasar_qrn::Qrn;
 use crate::common::{Actor, Idle};
+use quasar_qrn::Qrn;
+use std::fmt::Debug;
 
 #[derive(Debug)]
 pub struct System<State: Default + Send + Debug> {
-    pub root_actor: State
+    pub root_actor: State,
 }
 
 impl<State: Default + Send + Debug> System<State> {
     pub fn new_actor(actor: State) -> Actor<Idle<State>, State>
-    where State: Default{
-
+    where
+        State: Default,
+    {
         //append to the qrn
 
-        Actor::new(Qrn::default(), actor, None)
+        Actor::new("", actor, None)
     }
 }
 
 impl<State: Default + Send + Debug> Default for System<State> {
     fn default() -> Self {
-        System{ root_actor: State::default() }
+        System {
+            root_actor: State::default(),
+        }
     }
 }
+

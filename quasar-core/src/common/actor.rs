@@ -51,6 +51,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub key: Qrn,
     pub state: State,
     pub(crate) subordinates: DashMap<String, ActorPoolDef>,
+    pub(crate) task_tracker: TaskTracker,
 }
 
 unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send
@@ -75,12 +76,23 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 }
 
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
-    pub(crate) fn new(
-        key: Qrn,
-        state: State,
-        parent_return_envelope: Option<OutboundEnvelope>,
-    ) -> Self {
+    pub(crate) fn new(id: &str, state: State, parent_context: Option<&Context>) -> Self {
         //tracing::debug!("{:?}", &parent_return_envelope);
+        //append to the qrn
+        let parent_return_envelope;
+        let mut key;
+        let mut task_tracker;
+        if let Some(parent_context) = &parent_context {
+            parent_return_envelope = Some(parent_context.return_address().clone());
+            key = parent_context.key().clone();
+            key.append_part(id);
+            task_tracker = parent_context.task_tracker.clone();
+        } else {
+            parent_return_envelope = None;
+            key = Qrn::default();
+            task_tracker = TaskTracker::new();
+        }
+
         Actor {
             ctx: Idle::new(key.clone()),
             outbox: None,
@@ -89,6 +101,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             key,
             state,
             subordinates: DashMap::new(), //            subordinate: None,
+            task_tracker,
         }
     }
 
@@ -119,22 +132,17 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             halt_signal: StopSignal::new(false),
             subordinates,
         };
+        let actor_tracker = &actor.task_tracker.clone();
+        let supervisor_tracker = &actor.task_tracker.clone();
 
         if let Some(mailbox) = mailbox {
-            //tracing::debug!("waking actor");
-            context
-                .task_tracker
-                .spawn(async move { Awake::wake(mailbox, actor, reactors).await });
+            actor_tracker.spawn(async move { Awake::wake(mailbox, actor, reactors).await });
         } else {
             tracing::error!("no woke actor");
         }
         if let Some(supervisor_mailbox) = supervisor_mailbox {
             debug_assert!(!supervisor_mailbox.is_closed());
-            //          context
-            //              .task_tracker
-            //              .track_future(Supervisor::wake_supervisor(supervisor_mailbox, supervisor))
-            //              .await;
-            context.task_tracker.spawn(async move {
+            supervisor_tracker.spawn(async move {
                 Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
             });
         }
@@ -146,7 +154,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) { //        tracing::warn!("first shutdown supervised actors");
+    pub(crate) fn terminate(&self) {
+        //        tracing::warn!("first shutdown supervised actors");
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         self.halt_signal.store(true, Ordering::SeqCst);
     }

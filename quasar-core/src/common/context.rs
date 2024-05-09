@@ -29,6 +29,7 @@ use quasar_qrn::Qrn;
 use std::fmt::Debug;
 use std::future::Future;
 use std::mem::take;
+use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{debug, instrument, trace};
 use tracing_subscriber::util::SubscriberInitExt;
@@ -41,16 +42,13 @@ pub struct Context {
     pub(crate) outbox: Option<OutboundChannel>,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) supervisor_outbox: Option<OutboundChannel>,
+    pub(crate) supervisor_cancellation_token: Option<CancellationToken>,
 }
 
 impl Context {
     pub fn new_actor<State: Default + Send + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
         let actor = Default::default();
-        //append to the qrn
-        let mut qrn = self.key().clone();
-        qrn.append_part(id);
-        let envelope = self.return_address().clone();
-        Actor::new(qrn, actor, Some(envelope))
+        Actor::new(id, actor, Some(self))
     }
 
     #[instrument]

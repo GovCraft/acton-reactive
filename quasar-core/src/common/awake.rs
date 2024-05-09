@@ -136,6 +136,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let parent_return_envelope = value.parent_return_envelope;
         let key = value.key.clone();
         let subordinates = value.subordinates;
+        let task_tracker = value.task_tracker.clone();
         let outbox = value.ctx.outbox;
         Actor {
             ctx: Awake {
@@ -151,6 +152,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
             key: value.key,
             state: value.state,
             subordinates,
+            task_tracker,
         }
     }
 }
