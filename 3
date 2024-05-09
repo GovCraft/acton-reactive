@@ -76,7 +76,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 }
 
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
-    //    #[instrument(skip(parent_context, state))]
+    #[instrument(skip(parent_context, state))]
     pub(crate) fn new(id: &str, state: State, parent_context: Option<&Context>) -> Self {
         //tracing::debug!("{:?}", &parent_return_envelope);
         //append to the qrn
@@ -87,14 +87,12 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             parent_return_envelope = Some(parent_context.return_address().clone());
             key = parent_context.key().clone();
             key.append_part(id);
-            task_tracker = TaskTracker::new();
-            tracing::trace!("NEW ACTOR KEY: {}", key.value);
-            task_tracker = parent_context.task_tracker.clone();
+            task_tracker = parent_context.supervisor_task_tracker().clone();
+            tracing::warn!("NEW ACTOR KEY: {}", key.value);
         } else {
             parent_return_envelope = None;
             key = Qrn::default();
             task_tracker = TaskTracker::new();
-            tracing::trace!("NEW ACTOR KEY: {}", key.value);
         }
         Actor {
             ctx: Idle::new(key.clone()),
@@ -151,7 +149,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         }
         //close the trackers
         context.supervisor_task_tracker().close();
-        //        context.task_tracker.close();
+        context.task_tracker.close();
 
         context
     }

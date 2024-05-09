@@ -24,6 +24,7 @@ use crate::prelude::{Envelope, SupervisorMessage, SystemSignal};
 use async_trait::async_trait;
 use futures::future::{self, join};
 use futures::TryFutureExt;
+use log::trace;
 use quasar_qrn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
@@ -71,39 +72,9 @@ pub enum DistributionStrategy {
 pub(crate) trait SupervisorContext: ActorContext {
     fn supervisor_task_tracker(&self) -> TaskTracker;
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
-    fn terminate_all(&self) -> impl Future<Output = ()> + Sync
-    where
-        Self: Sync,
-    {
-        async move {
-            self.terminate_supervisor().await;
-            self.terminate_actor().await;
-        }
-    }
-
-    fn terminate_actor(&self) -> impl Future<Output = ()> + Sync
-    where
-        Self: Sync,
-    {
-        let actor = self.return_address().clone();
-        let tracker = self.get_task_tracker().clone();
-        async move {
-            actor.reply(SystemSignal::Terminate, None).await;
-            tracker.wait().await;
-        }
-    }
-
-    fn terminate_supervisor(&self) -> impl Future<Output = ()> + Sync {
-        let supervisor = self.supervisor_return_address().clone();
-        let actor = self.return_address().clone();
-        let supervisor_tracker = self.supervisor_task_tracker().clone();
-        async move {
-            if let Some(supervisor) = supervisor {
-                supervisor.reply_all(SystemSignal::Terminate).await;
-                supervisor_tracker.wait().await;
-            }
-        }
-    }
+    //fn terminate_all(&self) -> impl Future<Output = ()> + Sync
+    //where
+    //   Self: Sync;
 
     #[instrument(skip(self))]
     fn emit_envelope(
@@ -115,6 +86,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             let forward_address = self.return_address();
+            tracing::trace!("{:?}", &forward_address);
             if let Some(reply_to) = forward_address.reply_to {
                 reply_to.send(envelope).await;
             }

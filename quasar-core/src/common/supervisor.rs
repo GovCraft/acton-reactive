@@ -33,6 +33,7 @@ use std::pin::Pin;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::mpsc::channel;
+use tokio_util::context;
 use tracing::field::debug;
 use tracing::{debug, instrument, trace, warn};
 
@@ -89,31 +90,24 @@ impl Supervisor {
         }
     }
     #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
-        let halt_signal = self.halt_signal.load(Ordering::SeqCst);
+    pub(crate) async fn terminate(&self) {
         let subordinates = self.subordinates.clone();
-        //tracing::debug!("entering with {} subordinates", &subordinates.len());
-        let fut = async move {
-            if !halt_signal {
-                for item in &subordinates {
-                    for context in &item.value().pool {
-                        let supervisor = &context.supervisor_return_address();
-                        //tracing::debug!("Terminating {}", &context.key.value);
-                        //tracing::debug!("Terminating done {}", &context.key.value);
-                        if let Some(envelope) = &supervisor {
-                            envelope.reply(SystemSignal::Terminate, None);
-                        }
-                        context.terminate().await;
-                        context.supervisor_task_tracker().wait().await;
-                        //tracing::warn!("subordinate supervisor done");
-                    }
+        tracing::trace!("subordinate count: {}", subordinates.len());
+        let halt_signal = self.halt_signal.load(Ordering::SeqCst);
+        if !halt_signal {
+            for item in &subordinates {
+                for context in &item.value().pool {
+                    let envelope = &context.return_address();
+                    //                    tracing::warn!("Terminating {}", &context.key.value);
+                    tracing::trace!("Terminating done {:?}", &context);
+                    //                        if let Some(envelope) = supervisor {
+                    envelope.reply(SystemSignal::Terminate, None);
+                    //                       }
+                    //context.terminate_subordinates().await;
+                    context.terminate_actor().await;
                 }
             }
-            Ok(())
-        };
-
-        //tracing::error!("exiting");
-        self.halt_signal.store(true, Ordering::SeqCst);
-        fut
+            self.halt_signal.store(true, Ordering::SeqCst);
+        }
     }
 }
