@@ -51,6 +51,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
     ) where
         State: Send + 'static,
     {
+        tracing::debug!("actor woke");
         (actor.ctx.on_wake)(&actor);
         loop {
             //   tracing::debug!("looping");
@@ -63,7 +64,6 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 let type_id = envelope.message.as_any().type_id();
 
                 if let Some(reactor) = reactors.get(&type_id) {
-                    tracing::debug!("QuasarMessage");
                     let value = reactor.value();
                     match reactor.value() {
                         ReactorItem::Message(reactor) => {
@@ -79,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 } else if let Some(concrete_msg) =
                     envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
-                    //tracing::debug!("SystemSignal {:?}", concrete_msg);
+                    tracing::debug!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
                         SystemSignal::Wake => {}
                         SystemSignal::Recreate => {}
@@ -87,23 +87,12 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
                             mailbox.close();
-                            &actor.terminate().await;
+                            actor.terminate().await;
                         }
                         SystemSignal::Supervise => {}
                         SystemSignal::Watch => {}
                         SystemSignal::Unwatch => {}
                         SystemSignal::Failed => {}
-                    }
-                } else if let Some(concrete_msg) = envelope
-                    .message
-                    .as_any()
-                    .downcast_ref::<SupervisorMessage>()
-                {
-                    match concrete_msg {
-                        SupervisorMessage::PoolEmit(message) => {
-                            actor.pool_emit(&concrete_msg).await;
-                        }
-                        _ => {}
                     }
                 } else {
                     warn!(
@@ -158,11 +147,10 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
             },
             outbox: Some(outbox),
             parent_return_envelope,
-            halt_signal: Default::default(),
+            halt_signal,
             key: value.key,
             state: value.state,
             subordinates,
-            //            subordinate: None,
         }
     }
 }

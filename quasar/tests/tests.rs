@@ -22,7 +22,7 @@ use core::pin::Pin;
 use futures::Future;
 use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
-use tracing::{debug, Level};
+use tracing::{debug, instrument, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -55,13 +55,13 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 match record.message {
                     FunnyJoke::ChickenCrossesRoad => Box::pin(async move {
                         envelope
-                            .reply(AudienceReaction::Chuckle)
+                            .reply(AudienceReaction::Chuckle, None)
                             .await
                             .expect("TODO: panic message");
                     }),
                     FunnyJoke::Pun => Box::pin(async move {
                         envelope
-                            .reply(AudienceReaction::Groan)
+                            .reply(AudienceReaction::Groan, None)
                             .await
                             .expect("TODO: panic message");
                     }),
@@ -86,7 +86,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     // let mut comedian = Actor::spawn(joke_counter).await;
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
-    comedian.terminate().await.expect("TODO: panic message");
+    comedian.terminate().await;
     Ok(())
 }
 
@@ -124,24 +124,24 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         .ctx
         .on_before_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         })
         .on_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         })
         .on_stop(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
             }
         });
 
     let actor = actor.spawn().await;
 
-    actor.terminate().await?;
-    count.terminate().await?;
+    actor.terminate().await;
+    count.terminate().await;
     //    tokio::time::sleep(Duration::from_millis(50)).await;
     Ok(())
 }
@@ -168,10 +168,11 @@ async fn test_actor_pool() -> anyhow::Result<()> {
     });
     actor.define_pool::<PoolItem>("pool", 1).await;
     let context = actor.spawn().await;
-    //   for _ in 0..20 {
-    context.pool_emit("pool", Ping).await?;
-    //  }
-    context.terminate().await?;
+    for _ in 0..5 {
+        tracing::debug!("sending to pool");
+        context.emit_pool("pool", Pong).await;
+    }
+    context.terminate().await;
 
     Ok(())
 }
@@ -187,13 +188,14 @@ pub struct PoolItem {
 
 #[async_trait]
 impl ConfigurableActor for PoolItem {
+    #[instrument]
     async fn init(name: String, parent: &Context) -> Context {
         let mut actor = parent.new_actor::<PoolItem>(&name);
         //tracing::info!("{} PONG!", &actor.key.value.clone());
         actor
             .ctx
             .act_on::<Pong>(|actor, _event| {
-                tracing::debug!("PONG!");
+                tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
@@ -207,7 +209,9 @@ impl ConfigurableActor for PoolItem {
                             envelope.sender,
                             value
                         );
-                        let _ = envelope.reply(StatusReport::Complete(final_count)).await;
+                        let _ = envelope
+                            .reply(StatusReport::Complete(final_count), None)
+                            .await;
                     })
                 } else {
                     Box::pin(async {})
@@ -297,7 +301,7 @@ async fn test_context_wrapper() -> anyhow::Result<()> {
 
     let context = actor.spawn().await;
     context.emit(Ping).await?;
-    context.terminate().await?;
+    context.terminate().await;
 
     Ok(())
 }

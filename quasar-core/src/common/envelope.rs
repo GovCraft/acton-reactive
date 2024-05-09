@@ -17,25 +17,32 @@
  *
  */
 
-use std::time::SystemTime;
+use crate::common::OutboundChannel;
 use crate::traits::QuasarMessage;
 use static_assertions::assert_impl_all;
-use crate::common::OutboundChannel;
+use std::time::SystemTime;
 
 #[derive(Debug)]
 pub struct Envelope {
     pub message: Box<dyn QuasarMessage + Send + Sync + 'static>,
+    pub pool_id: Option<String>,
     pub sent_time: SystemTime,
-    pub return_address: Option<OutboundChannel>
+    pub return_address: Option<OutboundChannel>,
 }
 
 impl Envelope {
-    pub fn new(message: Box<dyn QuasarMessage + Sync + Send + 'static>, return_address: Option<OutboundChannel>) -> Self {
+    pub fn new(
+        message: Box<dyn QuasarMessage + Sync + Send + 'static>,
+        return_address: Option<OutboundChannel>,
+        pool_id: Option<String>,
+    ) -> Self {
         Envelope {
             message,
             sent_time: SystemTime::now(),
-            return_address
+            return_address,
+            pool_id,
         }
     }
 }
 assert_impl_all!(Envelope: Send);
+

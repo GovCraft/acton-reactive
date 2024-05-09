@@ -21,7 +21,7 @@ use crate::common::{
     Actor, ActorPool, ContextPool, Idle, MessageError, OutboundChannel, OutboundEnvelope,
     SystemSignal,
 };
-use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage};
+use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage, SupervisorContext};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::future::join_all;
@@ -33,12 +33,14 @@ use tokio_util::task::TaskTracker;
 use tracing::{debug, instrument, trace};
 use tracing_subscriber::util::SubscriberInitExt;
 
+use super::{supervisor, Supervisor};
+
 #[derive(Debug, Clone, Default)]
 pub struct Context {
     pub key: Qrn,
     pub(crate) outbox: Option<OutboundChannel>,
     pub(crate) task_tracker: TaskTracker,
-    //    pub(crate) pools: ActorPool,
+    pub(crate) supervisor_outbox: Option<OutboundChannel>,
 }
 
 impl Context {
@@ -49,6 +51,25 @@ impl Context {
         qrn.append_part(id);
         let envelope = self.return_address().clone();
         Actor::new(qrn, actor, Some(envelope))
+    }
+    pub async fn emit_pool(&self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) {
+        self.pool_emit(name, message).await;
+    }
+    pub async fn terminate(&self) {
+        self.terminate_all().await;
+    }
+}
+
+#[async_trait]
+impl SupervisorContext for Context {
+    #[instrument(skip(self))]
+    fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
+        if let Some(outbox) = &self.supervisor_outbox {
+            let outbox = outbox.clone();
+            Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
+        } else {
+            None
+        }
     }
 }
 
@@ -67,25 +88,6 @@ impl ActorContext for Context {
 
     fn key(&self) -> &Qrn {
         &self.key
-    }
-
-    #[allow(clippy::manual_async_fn)]
-    #[instrument(skip(self), fields(qrn = self.key.value))]
-    fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
-        async {
-            //          for pool in &self.pools {
-            //              let pool_members = pool.value();
-            //              for member in pool_members {
-            //                  tracing::trace!("Terminating {}", member.key.value);
-            //                  member.emit(SystemSignal::Terminate).await;
-            //                  member.task_tracker.wait().await;
-            //              }
-            //          }
-
-            self.emit(SystemSignal::Terminate).await;
-            self.task_tracker.wait().await;
-            Ok(())
-        }
     }
 
     async fn wake(&mut self) -> anyhow::Result<()> {
@@ -128,10 +130,3 @@ impl ActorContext for Context {
         Ok(())
     }
 }
-
-// #[async_trait]
-// impl InternalSignalEmitter for Context {
-//     fn signal_outbox(&mut self) -> &mut OutboundSignalChannel {
-//         &mut self.signal_outbox
-//     }
-// }

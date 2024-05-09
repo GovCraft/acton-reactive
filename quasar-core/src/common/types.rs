@@ -32,7 +32,7 @@ use tokio::sync::Mutex;
 
 #[derive(Debug)]
 pub(crate) enum SupervisorMessage {
-    PoolEmit(Box<dyn QuasarMessage>),
+    PoolEmit(String, Box<dyn QuasarMessage>),
 }
 impl QuasarMessage for SupervisorMessage {
     fn as_any(&self) -> &dyn std::any::Any {

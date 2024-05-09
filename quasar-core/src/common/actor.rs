@@ -18,11 +18,12 @@
  */
 
 use crate::common::MessageError;
+use crate::common::Supervisor;
 use crate::common::{
     Awake, Context, Idle, OutboundChannel, OutboundEnvelope, StopSignal, SystemSignal,
 };
-use crate::traits::ActorContext;
 use crate::traits::ConfigurableActor;
+use crate::traits::{ActorContext, SupervisorContext};
 use crate::traits::{QuasarMessage, SystemMessage};
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -106,15 +107,41 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let reactors = mem::take(&mut actor.ctx.reactors);
         let context = actor.ctx.context.clone();
         let mailbox = actor.ctx.mailbox.take();
+        let supervisor_mailbox = actor.ctx.supervisor_mailbox.take();
+        let subordinates = mem::take(&mut actor.subordinates);
+        // we should take the subordinates and add them to a supervisor object which
+        // should have it's own message loop
+        // this object should distribute messages to the pool with a given distribution
+        // strategy, initially only round robin for now
         let active_actor: Actor<Awake<State>, State> = actor.into();
         let mut actor = active_actor;
 
+        let supervisor = Supervisor {
+            key: actor.key.clone(),
+            halt_signal: StopSignal::new(false),
+            subordinates,
+        };
+
         if let Some(mailbox) = mailbox {
+            //tracing::debug!("waking actor");
             context
                 .task_tracker
                 .spawn(async move { Awake::wake(mailbox, actor, reactors).await });
+            //Awake::wake(mailbox, actor, reactors).await
+        } else {
+            tracing::error!("no woke actor");
         }
-        &context.task_tracker.close();
+        //tracing::debug!("waking supervisor")
+        if let Some(mailbox) = supervisor_mailbox {
+            //          context
+            //             .task_tracker
+            //             .spawn(async move { Supervisor::wake_supervisor(mailbox, supervisor).await });
+            Supervisor::wake_supervisor(mailbox, supervisor).await;
+        }
+        //we should spawn a separate task here for the supervisor that way when we shut down
+        //we can wait for the graceful shutdown of both
+        //the supervisor sending channel needs to be stored in the context
+        context.task_tracker.close();
 
         context
     }
@@ -123,8 +150,9 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
-        let halt_signal = self.halt_signal.load(Ordering::SeqCst).clone();
+        let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         let subordinates = self.subordinates.clone();
+        tracing::debug!("terminating");
         let fut = async move {
             if !halt_signal {
                 for item in &subordinates {
@@ -148,30 +176,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         let pool_item = ActorPoolDef::new::<T>(name.to_string(), pool_size, parent).await;
         self.subordinates.insert(name.to_string(), pool_item);
     }
-
-    pub(crate) fn pool_emit(&self, message: &SupervisorMessage) -> impl Future<Output = ()> + Sync {
-        let envelope = self.new_envelope().clone();
-        // TODO: almost there
-        // need to send the inner_msg from this function to a pool member by the provided name
-        // need to add the name to this supevisor message so we know which to use
-        // then we need to abandon the approach below and emit directly from the context of
-        // the stored pool item
-        //      match message {
-        //          SupervisorMessage::PoolEmit(inner_message) => {
-        //              if let Some(envelope) = envelope {
-        //                  async move { envelope.reply(*message).await }
-        //              } else {
-        //                  async move { () }
-        //              }
-        //          }
-        //          _ => {
-        //              tracing::debug!("didnt' get it");
-        //              async move {}
-        //          }
-        //      };
-        async move {}
-    }
 }
+
 #[derive(Clone)]
 pub(crate) struct ActorPoolDef {
     pub(crate) pool: Vec<Context>,

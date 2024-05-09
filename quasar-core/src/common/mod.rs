@@ -23,7 +23,8 @@ mod event_record;
 pub use event_record::EventRecord;
 mod outbound_envelope;
 pub use outbound_envelope::OutboundEnvelope;
-
+mod supervisor;
+pub use supervisor::Supervisor;
 mod envelope;
 pub use envelope::Envelope;
 mod system;
@@ -47,3 +48,4 @@ pub use context::Context;
 mod actor;
 
 pub use actor::Actor;
+

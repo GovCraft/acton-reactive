@@ -28,7 +28,7 @@ use crate::prelude::QuasarMessage;
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
     pub sender: Qrn,
-    reply_to: Option<OutboundChannel>,
+    pub(crate) reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
@@ -39,11 +39,12 @@ impl OutboundEnvelope {
     pub async fn reply(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
+        pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         tracing::trace!("{}", self.sender.value);
 
         if let Some(reply_to) = &self.reply_to {
-            let envelope = Envelope::new(Box::new(message), self.reply_to.clone());
+            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             reply_to.send(envelope).await?;
         }
         Ok(())
