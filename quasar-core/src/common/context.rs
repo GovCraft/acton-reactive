@@ -52,11 +52,13 @@ impl Context {
         let envelope = self.return_address().clone();
         Actor::new(qrn, actor, Some(envelope))
     }
+    #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) {
-        self.pool_emit(name, message).await;
+        self.pool_emit(name, message).await.expect("");
     }
     pub async fn terminate(&self) {
         self.terminate_all().await;
+        self.task_tracker.wait().await;
     }
 }
 

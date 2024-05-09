@@ -22,6 +22,7 @@ use crate::common::{
 };
 use crate::prelude::{Envelope, SupervisorMessage, SystemSignal};
 use async_trait::async_trait;
+use futures::future::{self, join};
 use quasar_qrn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
@@ -73,10 +74,13 @@ pub(crate) trait SupervisorContext: ActorContext {
         let actor = self.return_address().clone();
         async move {
             //first shut down all subordinates
-            if let Some(envelope) = &supervisor {
-                envelope.reply(SystemSignal::Terminate, None).await; // Directly boxing the owned message
+            let mut supervisor_task;
+            if let Some(supervisor) = &supervisor {
+                supervisor_task = supervisor.reply_all(SystemSignal::Terminate);
+                let actor_task = actor.reply(SystemSignal::Terminate, None); // Directly boxing the owned message
+                join(supervisor_task, actor_task).await;
+                // Directly boxing the owned message
             }
-            actor.reply(SystemSignal::Terminate, None).await; // Directly boxing the owned message
         }
     }
 
@@ -107,6 +111,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             if let Some(envelope) = self.supervisor_return_address() {
+                //                tracing::debug!("");
                 envelope.reply(message, Some(name.to_string())).await?; // Directly boxing the owned message
             }
             Ok(())

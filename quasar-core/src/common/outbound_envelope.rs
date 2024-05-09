@@ -49,4 +49,18 @@ impl OutboundEnvelope {
         }
         Ok(())
     }
+    #[instrument(skip(self))]
+    pub(crate) async fn reply_all(
+        &self,
+        message: impl QuasarMessage + Send + Sync + 'static,
+    ) -> Result<(), MessageError> {
+        tracing::trace!("{}", self.sender.value);
+
+        if let Some(reply_to) = &self.reply_to {
+            tracing::debug!("{}", self.sender.value);
+            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
+            reply_to.send(envelope).await?;
+        }
+        Ok(())
+    }
 }

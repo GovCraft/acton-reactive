@@ -51,12 +51,12 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
     ) where
         State: Send + 'static,
     {
-        tracing::debug!("actor woke");
+        //tracing::debug!("actor woke");
         (actor.ctx.on_wake)(&actor);
         loop {
             //   tracing::debug!("looping");
             if let Ok(envelope) = mailbox.try_recv() {
-                trace!(
+                tracing::trace!(
                     "actor: {}, message: {:?}",
                     &actor.key.value,
                     &envelope.message
@@ -79,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 } else if let Some(concrete_msg) =
                     envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
-                    tracing::debug!("SystemSignal {:?}", concrete_msg);
+                    //                    tracing::debug!("SystemSignal {:?}", concrete_msg);
                     match concrete_msg {
                         SystemSignal::Wake => {}
                         SystemSignal::Recreate => {}
@@ -87,7 +87,8 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
                             mailbox.close();
-                            actor.terminate().await;
+                            tracing::debug!("Terminating {}", &actor.key.value);
+                            actor.terminate();
                         }
                         SystemSignal::Supervise => {}
                         SystemSignal::Watch => {}

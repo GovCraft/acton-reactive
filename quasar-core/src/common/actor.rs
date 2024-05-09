@@ -108,6 +108,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let context = actor.ctx.context.clone();
         let mailbox = actor.ctx.mailbox.take();
         let supervisor_mailbox = actor.ctx.supervisor_mailbox.take();
+        debug_assert!(supervisor_mailbox.is_some());
         let subordinates = mem::take(&mut actor.subordinates);
         // we should take the subordinates and add them to a supervisor object which
         // should have it's own message loop
@@ -127,20 +128,15 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             context
                 .task_tracker
                 .spawn(async move { Awake::wake(mailbox, actor, reactors).await });
-            //Awake::wake(mailbox, actor, reactors).await
         } else {
             tracing::error!("no woke actor");
         }
-        //tracing::debug!("waking supervisor")
-        if let Some(mailbox) = supervisor_mailbox {
-            //          context
-            //             .task_tracker
-            //             .spawn(async move { Supervisor::wake_supervisor(mailbox, supervisor).await });
-            Supervisor::wake_supervisor(mailbox, supervisor).await;
+        if let Some(supervisor_mailbox) = supervisor_mailbox {
+            debug_assert!(!supervisor_mailbox.is_closed());
+            context.task_tracker.spawn(async move {
+                Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
+            });
         }
-        //we should spawn a separate task here for the supervisor that way when we shut down
-        //we can wait for the graceful shutdown of both
-        //the supervisor sending channel needs to be stored in the context
         context.task_tracker.close();
 
         context
@@ -149,22 +145,9 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) -> impl Future<Output = Result<(), MessageError>> + Sync {
+    pub(crate) fn terminate(&self) {
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
-        let subordinates = self.subordinates.clone();
-        tracing::debug!("terminating");
-        let fut = async move {
-            if !halt_signal {
-                for item in &subordinates {
-                    for context in &item.value().pool {
-                        context.terminate().await;
-                    }
-                }
-            }
-            Ok(())
-        };
         self.halt_signal.store(true, Ordering::SeqCst);
-        fut
     }
 
     pub async fn spawn_pool<T: ConfigurableActor + Send + Sync + Default + 'static>(

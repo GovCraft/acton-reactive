@@ -50,24 +50,40 @@ impl Debug for Supervisor {
 impl Supervisor {
     #[instrument(skip(supervisor, mailbox))]
     pub(crate) async fn wake_supervisor(mut mailbox: InboundChannel, supervisor: Supervisor) {
-        tracing::debug!("supervisor woke");
+        //tracing::debug!("supervisor woke");
         loop {
-            //   tracing::debug!("looping");
             if let Ok(envelope) = mailbox.try_recv() {
-                tracing::debug!("recvd supervisor msg");
                 if let Some(ref pool_id) = envelope.pool_id {
                     if let Some(pool_def) = &supervisor.subordinates.get(pool_id) {
                         let context = &pool_def.pool[0];
                         context.emit_envelope(envelope).await;
                     }
+                } else {
+                    if let Some(concrete_msg) =
+                        envelope.message.as_any().downcast_ref::<SystemSignal>()
+                    {
+                        tracing::debug!("SystemSignal {:?}", concrete_msg);
+                        match concrete_msg {
+                            SystemSignal::Wake => {}
+                            SystemSignal::Recreate => {}
+                            SystemSignal::Suspend => {}
+                            SystemSignal::Resume => {}
+                            SystemSignal::Terminate => {
+                                mailbox.close();
+                                supervisor.terminate();
+                            }
+                            SystemSignal::Supervise => {}
+                            SystemSignal::Watch => {}
+                            SystemSignal::Unwatch => {}
+                            SystemSignal::Failed => {}
+                        }
+                    } // Checking stop condition .
                 }
             }
-            // Checking stop condition .
             let should_stop =
                 { supervisor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
 
             if should_stop && mailbox.is_closed() {
-                tracing::debug!("breaking supervisor loop");
                 break;
             } else {
                 tokio::time::sleep(Duration::from_nanos(1)).await;
@@ -82,6 +98,7 @@ impl Supervisor {
             if !halt_signal {
                 for item in &subordinates {
                     for context in &item.value().pool {
+                        tracing::debug!("Terminating {}", &context.key.value);
                         context.terminate().await;
                     }
                 }

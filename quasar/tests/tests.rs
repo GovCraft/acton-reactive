@@ -167,9 +167,10 @@ async fn test_actor_pool() -> anyhow::Result<()> {
         tracing::debug!("PING");
     });
     actor.define_pool::<PoolItem>("pool", 1).await;
+    //    tracing::debug!("got here");
     let context = actor.spawn().await;
-    for _ in 0..5 {
-        tracing::debug!("sending to pool");
+    //    tracing::debug!("but not here");
+    for _ in 0..500 {
         context.emit_pool("pool", Pong).await;
     }
     context.terminate().await;
@@ -195,7 +196,7 @@ impl ConfigurableActor for PoolItem {
         actor
             .ctx
             .act_on::<Pong>(|actor, _event| {
-                tracing::debug!("{} PONG!", &actor.key.value);
+                //            tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
