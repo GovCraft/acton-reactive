@@ -213,8 +213,8 @@ impl<State: Default + Send + Debug> Idle<State> {
             key,
             outbox: Some(outbox.clone()),
             supervisor_task_tracker: TaskTracker::new(),
-            task_tracker: TaskTracker::new(),
             supervisor_outbox: Some(supervisor_outbox.clone()),
+            task_tracker: TaskTracker::new(),
             supervisor_cancellation_token: Some(CancellationToken::new()),
         };
         Idle {

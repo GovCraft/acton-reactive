@@ -20,7 +20,7 @@
 use crate::common::{
     ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope,
 };
-use crate::prelude::{Envelope, SupervisorMessage, SystemSignal};
+use crate::prelude::{Envelope, PoolItem, SupervisorMessage, SystemSignal};
 use async_trait::async_trait;
 use futures::future::{self, join};
 use futures::TryFutureExt;
@@ -31,9 +31,14 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::usize;
 use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
+
+pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
+    fn select_item(&mut self, items: &[Context]) -> Option<usize>;
+}
 
 #[async_trait]
 pub trait Handler {
@@ -58,7 +63,8 @@ pub trait ReturnAddress: Send {
 
 #[async_trait]
 pub trait ConfigurableActor: Send + Debug {
-    async fn init(name: String, root: &Context) -> Context;
+    async fn init(&self, name: String, root: &Context) -> Context;
+    //    fn new() -> Self;
 }
 
 pub enum DistributionStrategy {
@@ -104,7 +110,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             if let Some(envelope) = self.supervisor_return_address() {
-                //                tracing::debug!("");
+                tracing::trace!("");
                 envelope.reply(message, Some(name.to_string())).await?; // Directly boxing the owned message
             }
             Ok(())

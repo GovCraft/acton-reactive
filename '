@@ -41,56 +41,57 @@ use tracing::field::debug;
 use tracing::{debug, instrument, trace, warn};
 
 #[derive(Debug)]
-pub(crate) struct PoolDef {
+pub(crate) struct PoolDef<T: ConfigurableActor + Debug + Send + 'static> {
     pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn ConfigurableActor>,
+    pub(crate) actor_type: T,
     pub(crate) strategy: LBStrategy,
 }
 
-#[derive(Debug, Default)]
-pub struct PoolBuilder {
-    pools: HashMap<String, PoolDef>,
+#[derive(Debug)]
+pub struct PoolBuilder<
+    T: ConfigurableActor + Debug + Send + 'static,
+    S: LoadBalancerStrategy + Default,
+> {
+    pools: HashMap<String, PoolDef<T>>,
+    lbs: S,
 }
-impl PoolBuilder {
-    pub fn add_pool<T: ConfigurableActor + Default + Debug + Send + 'static>(
-        mut self,
-        name: &str,
-        size: usize,
-        strategy: LBStrategy,
-    ) -> Self {
-        let pool = T::default();
+impl<T: ConfigurableActor + Debug + Send + 'static, S: LoadBalancerStrategy + Default>
+    PoolBuilder<T, S>
+{
+    pub fn new() -> PoolBuilder<T, S> {
+        PoolBuilder {
+            pools: HashMap::new(),
+            lbs: S::default(),
+        }
+    }
+    pub fn add_pool(mut self, name: String, size: usize, strategy: LBStrategy) -> Self {
+        let pool = T::new();
         let def = PoolDef {
             size,
-            actor_type: Box::new(pool),
+            actor_type: pool,
             strategy,
         };
-        self.pools.insert(name.to_string(), def);
+        self.pools.insert(name, def);
         self
     }
     pub(crate) async fn spawn(mut self, parent: &Context) -> Supervisor {
         let subordinates = DashMap::new();
-        for (pool_name, pool_def) in &mut self.pools {
+        for (pool_name, pool_def) in &self.pools {
             let pool_name = pool_name.to_string();
             let mut context_items = Vec::with_capacity(pool_def.size);
-            for i in 0..pool_def.size {
-                let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name, parent).await;
+            for _i in 0..pool_def.size {
+                let context = pool_def.actor_type.init(pool_name.clone(), parent).await;
                 context_items.push(context);
             }
-            let strategy: Box<dyn LoadBalancerStrategy> = match &pool_def.strategy {
-                LBStrategy::RoundRobin => Box::<RoundRobinStrategy>::default(),
-                LBStrategy::Random => Box::<RandomStrategy>::default(),
-            };
             let item = PoolItem {
                 id: pool_name.clone(),
                 pool: context_items,
-                strategy,
             };
             subordinates.insert(pool_name, item);
         }
         let (outbox, mailbox) = channel(255);
         let task_tracker = TaskTracker::new();
-        //tracing::trace!("{:?}", subordinates);
+        tracing::trace!("{:?}", subordinates);
         Supervisor {
             key: parent.key.clone(),
             halt_signal: StopSignal::new(false),
@@ -117,9 +118,9 @@ impl Debug for Supervisor {
 
 #[derive(Debug)]
 pub(crate) struct PoolItem {
-    pub(crate) id: String,
-    pub(crate) pool: Vec<Context>,
-    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
+    id: String,
+    pool: Vec<Context>,
+    strategy: LBStrategy,
 }
 
 impl Supervisor {
@@ -129,17 +130,9 @@ impl Supervisor {
             if let Ok(envelope) = self.mailbox.try_recv() {
                 if let Some(ref pool_id) = envelope.pool_id {
                     tracing::trace!("{:?}", self.subordinates);
-                    if let Some(mut pool_def) = self.subordinates.get_mut(pool_id) {
-                        // First, clone or copy the data needed for the immutable borrow.
-                        // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
-                        let pool_clone = pool_def.pool.clone();
-
-                        // Now perform the selection outside of the mutable borrow's scope.
-                        if let Some(index) = pool_def.strategy.select_item(&pool_clone) {
-                            // Access the original data using the index now that we're outside the conflicting borrow.
-                            let context = &pool_def.pool[index];
-                            context.emit_envelope(envelope).await;
-                        }
+                    if let Some(pool_def) = self.subordinates.get(pool_id) {
+                        let context = &pool_def.pool[0];
+                        context.emit_envelope(envelope).await;
                     }
                 } else if let Some(concrete_msg) =
                     envelope.message.as_any().downcast_ref::<SystemSignal>()

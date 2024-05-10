@@ -22,6 +22,7 @@ use crate::common::Supervisor;
 use crate::common::{
     Awake, Context, Idle, OutboundChannel, OutboundEnvelope, StopSignal, SystemSignal,
 };
+use crate::prelude::LoadBalancerStrategy;
 use crate::traits::ConfigurableActor;
 use crate::traits::{ActorContext, SupervisorContext};
 use crate::traits::{QuasarMessage, SystemMessage};
@@ -41,6 +42,9 @@ use tokio::task;
 use tokio_util::task::{task_tracker, TaskTracker};
 use tracing::{debug, error, instrument, trace};
 
+use super::supervisor;
+use super::PoolBuilder;
+use super::PoolDef;
 use super::{Envelope, SupervisorMessage};
 
 pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
@@ -117,7 +121,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             ActorPoolDef::new::<T>(name.to_string(), pool_size, &self.ctx.context).await;
         self.subordinates.insert(name.to_string(), pool_item);
     }
-
     #[instrument(skip(self))]
     pub async fn spawn(self) -> Context {
         let mut actor = self;
@@ -130,12 +133,12 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let active_actor: Actor<Awake<State>, State> = actor.into();
         let mut actor = active_actor;
 
-        let supervisor = Supervisor {
-            key: actor.ctx.key.clone(),
-            halt_signal: StopSignal::new(false),
-            subordinates,
-        };
-        let actor_tracker = &actor.task_tracker.clone();
+        //      let supervisor = Supervisor {
+        //          key: actor.ctx.key.clone(),
+        //          halt_signal: StopSignal::new(false),
+        //          subordinates,
+        //      };
+        let actor_tracker = &context.task_tracker.clone();
         let supervisor_tracker = &context.supervisor_task_tracker.clone();
 
         if let Some(mailbox) = mailbox {
@@ -143,15 +146,47 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         } else {
             tracing::error!("no woke actor");
         }
-        if let Some(supervisor_mailbox) = supervisor_mailbox {
-            debug_assert!(!supervisor_mailbox.is_closed());
-            supervisor_tracker.spawn(async move {
-                Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
-            });
-        }
+        //      if let Some(supervisor_mailbox) = supervisor_mailbox {
+        //          debug_assert!(!supervisor_mailbox.is_closed());
+        //          supervisor_tracker.spawn(async move {
+        //              Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
+        //          });
+        //      }
         //close the trackers
         context.supervisor_task_tracker().close();
         //        context.task_tracker.close();
+
+        context
+    }
+    #[instrument(skip(self))]
+    pub async fn spawn_with_pools(self, builder: PoolBuilder) -> Context {
+        let mut actor = self;
+
+        let reactors = mem::take(&mut actor.ctx.reactors);
+        let mut context = actor.ctx.context.clone();
+
+        let mut supervisor = builder.spawn(&context).await;
+        let mailbox = actor.ctx.mailbox.take();
+        context.supervisor_outbox = Some(supervisor.outbox.clone());
+        context.supervisor_task_tracker = supervisor.task_tracker.clone();
+        let active_actor: Actor<Awake<State>, State> = actor.into();
+        let mut actor = active_actor;
+
+        let actor_tracker = &context.task_tracker.clone();
+
+        if let Some(mailbox) = mailbox {
+            actor_tracker.spawn(async move { Awake::wake(mailbox, actor, reactors).await });
+        } else {
+            tracing::error!("no woke actor");
+        }
+        debug_assert!(!supervisor.mailbox.is_closed());
+        let supervisor_tracker = supervisor.task_tracker.clone();
+
+        supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
+        //   }
+        //close the trackers
+        supervisor_tracker.close();
+        context.task_tracker.close();
 
         context
     }
@@ -182,7 +217,7 @@ pub(crate) struct ActorPoolDef {
 
 impl ActorPoolDef {
     #[instrument(skip(parent))]
-    async fn new<T: 'static + crate::traits::ConfigurableActor + Send + Sync>(
+    pub(crate) async fn new<T: 'static + crate::traits::ConfigurableActor + Send + Sync>(
         name: String,
         pool_size: usize,
         parent: &Context,
@@ -191,8 +226,8 @@ impl ActorPoolDef {
         for i in 0..pool_size {
             let name = format!("{}{}", name, i);
             //tracing::debug!("{}", &name);
-            let context = T::init(name, parent).await;
-            pool.push(context);
+            //          let context = T::init(name, parent).await;
+            //          pool.push(context);
         }
 
         ActorPoolDef { pool }
