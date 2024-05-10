@@ -32,10 +32,11 @@ pub struct OutboundEnvelope {
 }
 
 impl OutboundEnvelope {
+    #[instrument(skip(reply_to))]
     pub fn new(reply_to: Option<OutboundChannel>, sender: Qrn) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
-    #[instrument(skip(self))]
+    #[instrument(skip(self, message, pool_id))]
     pub async fn reply(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
@@ -49,16 +50,15 @@ impl OutboundEnvelope {
         }
         Ok(())
     }
-    #[instrument(skip(self))]
+    #[instrument()]
     pub(crate) async fn reply_all(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError> {
-        tracing::trace!("{}", self.sender.value);
-
         if let Some(reply_to) = &self.reply_to {
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
             reply_to.send(envelope).await?;
+            tracing::trace!("",);
         }
         Ok(())
     }

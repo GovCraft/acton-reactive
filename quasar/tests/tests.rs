@@ -22,7 +22,8 @@ use core::pin::Pin;
 use futures::Future;
 use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
-use tracing::{debug, instrument, Level};
+use std::sync::Once;
+use tracing::{debug, Level};
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -150,42 +151,79 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 pub enum StatusReport {
     Complete(usize),
 }
+
+static INIT: Once = Once::new();
+
 pub(crate) fn init_tracing() {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
-        .compact()
-        .with_line_number(true)
-        .without_time()
-        .finish();
-    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    INIT.call_once(|| {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::DEBUG)
+            .compact()
+            .with_line_number(true)
+            .without_time()
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    });
 }
+
 #[tokio::test]
-async fn test_actor_pool() -> anyhow::Result<()> {
+async fn test_actor_pool_random() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = System::new_actor(PoolItem::default());
     actor
         .ctx
-        .act_on::<Ping>(|_actor, _event| {
-            tracing::debug!("PING");
+        .act_on::<Pong>(|_actor, _event| {
+            tracing::error!("PONG");
         })
-        .act_on::<StatusReport>(|actor, event| {
-            match event.message {
-                StatusReport::Complete(total) => {
-                    tracing::debug!("reported {}", total);
-                    actor.state.receive_count += total;
-                }
+        .act_on::<StatusReport>(|actor, event| match event.message {
+            StatusReport::Complete(total) => {
+                tracing::debug!("reported {}", total);
+                actor.state.receive_count += total;
             }
-            tracing::debug!("PING");
         })
         .on_before_stop(|actor| {
-            tracing::debug!("Processed {} PINGS", actor.state.receive_count);
+            tracing::warn!("Processed {} PONGs", actor.state.receive_count);
         });
-    actor.define_pool::<PoolItem>("pool", 5).await;
-    let context = actor.spawn().await;
+    let builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LBStrategy::Random);
+    let context = actor.spawn_with_pools(builder).await;
 
-    for _ in 0..5 {
-        context.emit_pool("pool", Pong).await;
+    for _ in 0..22 {
+        tracing::trace!("Emitting PING");
+        context.emit_pool("pool", Ping).await;
     }
+    tracing::trace!("Terminating main actor");
+    context.terminate().await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
+    init_tracing();
+    let mut actor = System::new_actor(PoolItem::default());
+    actor
+        .ctx
+        .act_on::<Pong>(|_actor, _event| {
+            tracing::error!("PONG");
+        })
+        .act_on::<StatusReport>(|actor, event| match event.message {
+            StatusReport::Complete(total) => {
+                tracing::debug!("reported {}", total);
+                actor.state.receive_count += total;
+            }
+        })
+        .on_before_stop(|actor| {
+            tracing::warn!("Processed {} PONGs", actor.state.receive_count);
+        });
+    let builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LBStrategy::RoundRobin);
+    let context = actor.spawn_with_pools(builder).await;
+
+    for _ in 0..22 {
+        tracing::trace!("Emitting PING");
+        context.emit_pool("pool", Ping).await;
+    }
+    tracing::trace!("Terminating main actor");
     context.terminate().await;
 
     Ok(())
@@ -202,14 +240,13 @@ pub struct PoolItem {
 
 #[async_trait]
 impl ConfigurableActor for PoolItem {
-    #[instrument]
-    async fn init(name: String, parent: &Context) -> Context {
+    async fn init(&self, name: String, parent: &Context) -> Context {
         let mut actor = parent.new_actor::<PoolItem>(&name);
         //tracing::info!("{} PONG!", &actor.key.value.clone());
         actor
             .ctx
-            .act_on::<Pong>(|actor, _event| {
-                tracing::trace!("{} PONG!", &actor.key.value);
+            .act_on::<Ping>(|actor, _event| {
+                tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
@@ -233,7 +270,6 @@ impl ConfigurableActor for PoolItem {
                 }
             });
 
-        //tracing::debug!("spawning subordinate");
         actor.spawn().await
     }
 }

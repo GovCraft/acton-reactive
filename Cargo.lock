@@ -876,6 +876,7 @@ dependencies = [
  "log",
  "matchit 0.8.0",
  "quasar-qrn",
+ "rand",
  "static_assertions",
  "tokio",
  "tokio-util",

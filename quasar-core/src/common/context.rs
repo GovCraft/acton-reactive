@@ -57,14 +57,39 @@ impl Context {
         self.pool_emit(name, message).await.expect("");
     }
 
-    #[instrument]
+    #[instrument(skip(self))]
     pub async fn terminate(&self) {
-        self.terminate_all().await;
+        let supervisor_tracker = self.supervisor_task_tracker().clone();
+        let tracker = self.get_task_tracker().clone();
+        self.terminate_subordinates().await;
+        supervisor_tracker.wait().await;
+        self.terminate_actor().await;
+        tracker.wait().await;
+    }
+
+    #[instrument]
+    pub(crate) async fn terminate_subordinates(&self) {
+        tracing::trace!("entering terminate_all");
+        let supervisor = self.supervisor_return_address().clone();
+        if let Some(supervisor) = supervisor {
+            supervisor.reply_all(SystemSignal::Terminate).await;
+        }
+    }
+
+    #[instrument]
+    pub(crate) async fn terminate_actor(&self) {
+        tracing::trace!("entering terminate_actor");
+        let actor = self.return_address().clone();
+        actor.reply(SystemSignal::Terminate, None).await;
     }
 }
 
 #[async_trait]
 impl SupervisorContext for Context {
+    //-> impl Future<Output = ()> + Sync
+    //  where
+    //      Self: Sync,
+
     #[instrument(skip(self))]
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
         if let Some(outbox) = &self.supervisor_outbox {
@@ -81,10 +106,10 @@ impl SupervisorContext for Context {
 
 #[async_trait]
 impl ActorContext for Context {
-    #[instrument(skip(self))]
+    #[instrument(skip(self), fields(self.key.value))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        tracing::trace!("Sending from: {}", self.key.value);
+        //tracing::trace!("");
         OutboundEnvelope::new(outbox, self.key.clone())
     }
 

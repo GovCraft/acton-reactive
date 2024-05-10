@@ -86,7 +86,9 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Suspend => {}
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
-                            tracing::debug!("Terminating {}", &actor.key.value);
+                            //                            if &actor.key.value == "qrn:quasar:system:framework:root" {
+                            tracing::trace!("Terminating {}", &actor.key.value);
+                            //                           }
                             actor.terminate();
                         }
                         SystemSignal::Supervise => {}
@@ -95,9 +97,10 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                         SystemSignal::Failed => {}
                     }
                 } else {
-                    warn!(
+                    tracing::error!(
                         "{}: No reactor for message type: {:?}",
-                        &actor.key.value, type_id
+                        &actor.key.value,
+                        type_id
                     );
                 }
             }
@@ -107,6 +110,9 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
             if should_stop {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
+                    //if &actor.key.value == "qrn:quasar:system:framework:root" {
+                    tracing::trace!("on_before_stop {}: ", &actor.key.value);
+                    // }
                     (on_before_stop_async)(&actor).await;
                 }
 
