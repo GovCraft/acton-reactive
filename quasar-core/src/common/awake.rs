@@ -51,74 +51,42 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
     ) where
         State: Send + 'static,
     {
-        //tracing::debug!("actor woke");
         (actor.ctx.on_wake)(&actor);
-        loop {
-            //   tracing::debug!("looping");
-            if let Ok(envelope) = mailbox.try_recv() {
-                tracing::trace!(
-                    "actor: {}, message: {:?}",
-                    &actor.key.value,
-                    &envelope.message
-                );
-                let type_id = envelope.message.as_any().type_id();
 
-                if let Some(reactor) = reactors.get(&type_id) {
-                    let value = reactor.value();
-                    match reactor.value() {
-                        ReactorItem::Message(reactor) => {
-                            trace!("Executing reactor message");
-                            (*reactor)(&mut actor, &envelope);
-                        }
-                        ReactorItem::Future(fut) => {
-                            trace!("Executing reactor future");
-                            fut(&mut actor, &envelope).await;
-                        }
-                        _ => {}
+        let mut yield_counter = 0;
+        while let Some(envelope) = mailbox.recv().await {
+            let type_id = envelope.message.as_any().type_id();
+
+            if let Some(reactor) = reactors.get(&type_id) {
+                match reactor.value() {
+                    ReactorItem::Message(reactor) => {
+                        (*reactor)(&mut actor, &envelope);
                     }
-                } else if let Some(concrete_msg) =
-                    envelope.message.as_any().downcast_ref::<SystemSignal>()
-                {
-                    //                    tracing::debug!("SystemSignal {:?}", concrete_msg);
-                    match concrete_msg {
-                        SystemSignal::Wake => {}
-                        SystemSignal::Recreate => {}
-                        SystemSignal::Suspend => {}
-                        SystemSignal::Resume => {}
-                        SystemSignal::Terminate => {
-                            //                            if &actor.key.value == "qrn:quasar:system:framework:root" {
-                            tracing::trace!("Terminating {}", &actor.key.value);
-                            //                           }
-                            actor.terminate();
-                        }
-                        SystemSignal::Supervise => {}
-                        SystemSignal::Watch => {}
-                        SystemSignal::Unwatch => {}
-                        SystemSignal::Failed => {}
+                    ReactorItem::Future(fut) => {
+                        fut(&mut actor, &envelope).await;
                     }
-                } else {
-                    tracing::error!(
-                        "{}: No reactor for message type: {:?}",
-                        &actor.key.value,
-                        type_id
-                    );
+                    _ => {}
                 }
             }
-            // Checking stop condition .
-            let should_stop = { actor.halt_signal.load(Ordering::SeqCst) && mailbox.is_empty() };
+            if let Some(SystemSignal::Terminate) =
+                envelope.message.as_any().downcast_ref::<SystemSignal>()
+            {
+                actor.terminate();
+            }
 
+            let should_stop = actor.halt_signal.load(Ordering::Acquire) && mailbox.is_empty();
             if should_stop {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
-                    //if &actor.key.value == "qrn:quasar:system:framework:root" {
-                    tracing::trace!("on_before_stop {}: ", &actor.key.value);
-                    // }
                     (on_before_stop_async)(&actor).await;
                 }
-
                 break;
-            } else {
-                tokio::time::sleep(Duration::from_nanos(1)).await;
+            }
+
+            // Yield less frequently to reduce context switching
+            yield_counter += 1;
+            if yield_counter % 100 == 0 {
+                tokio::task::yield_now().await;
             }
         }
 
