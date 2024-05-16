@@ -18,12 +18,10 @@
 *
 */
 
-use core::pin::Pin;
-use futures::Future;
 use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
 use std::sync::Once;
-use tracing::{debug, Level};
+use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -35,15 +33,7 @@ pub struct Comedian {
 
 #[tokio::test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
-    // console_subscriber::init();
-    //se quasar_core::prelude::*;   let subscriber = FmtSubscriber::builder()
-    //      .with_max_level(Level::DEBUG)
-    //      .compact()
-    //      .with_line_number(true)
-    //      .without_time()
-    //      .finish();
-
-    //  tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    init_tracing();
 
     let mut comedy_show = System::new_actor(Comedian::default());
 
@@ -76,15 +66,16 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             AudienceReaction::Groan => actor.state.bombers += 1,
         })
         .on_stop(|actor| {
-            debug!(
+            tracing::debug!(
                 "Jokes Told: {}\tFunny: {}\tBombers: {}",
-                actor.state.jokes_told, actor.state.funny, actor.state.bombers
+                actor.state.jokes_told,
+                actor.state.funny,
+                actor.state.bombers
             );
         });
 
     let comedian = comedy_show.spawn().await;
 
-    // let mut comedian = Actor::spawn(joke_counter).await;
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
     comedian.terminate().await;
@@ -103,17 +94,19 @@ pub struct Messenger {
 
 #[tokio::test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
+    init_tracing();
     let counter = Counter { count: 0 };
 
     let mut count = System::new_actor(counter);
     count
         .ctx
         .act_on::<Tally>(|actor, _event| {
+            tracing::warn!("on tally");
             actor.state.count += 1;
         })
         .on_stop(|actor| {
             assert_eq!(4, actor.state.count);
-            debug_assert!(false);
+            tracing::warn!("on stopping");
         });
     let count = count.spawn().await;
 
@@ -141,30 +134,14 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     let actor = actor.spawn().await;
 
-    actor.terminate().await;
     count.terminate().await;
-    //    tokio::time::sleep(Duration::from_millis(50)).await;
+    actor.terminate().await;
     Ok(())
 }
 
 #[quasar_message]
 pub enum StatusReport {
     Complete(usize),
-}
-
-static INIT: Once = Once::new();
-
-pub(crate) fn init_tracing() {
-    INIT.call_once(|| {
-        let subscriber = FmtSubscriber::builder()
-            .with_max_level(Level::DEBUG)
-            .compact()
-            .with_line_number(true)
-            .without_time()
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
-    });
 }
 
 #[tokio::test]
@@ -176,10 +153,13 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
         .act_on::<Pong>(|_actor, _event| {
             tracing::error!("PONG");
         })
-        .act_on::<StatusReport>(|actor, event| match event.message {
-            StatusReport::Complete(total) => {
-                tracing::debug!("reported {}", total);
-                actor.state.receive_count += total;
+        .act_on::<StatusReport>(|actor, event| {
+            let sender = &event.return_address.as_ref().unwrap().sender;
+            match event.message {
+                StatusReport::Complete(total) => {
+                    tracing::debug!("{} reported {}", sender.value, total);
+                    actor.state.receive_count += total;
+                }
             }
         })
         .on_before_stop(|actor| {
@@ -207,10 +187,14 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
         .act_on::<Pong>(|_actor, _event| {
             tracing::error!("PONG");
         })
-        .act_on::<StatusReport>(|actor, event| match event.message {
-            StatusReport::Complete(total) => {
-                tracing::debug!("reported {}", total);
-                actor.state.receive_count += total;
+        .act_on::<StatusReport>(|actor, event| {
+            let sender = &event.return_address.as_ref().unwrap().sender;
+
+            match event.message {
+                StatusReport::Complete(total) => {
+                    tracing::debug!("{} reported {}", sender.value, total);
+                    actor.state.receive_count += total;
+                }
             }
         })
         .on_before_stop(|actor| {
@@ -228,7 +212,6 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 
     Ok(())
 }
-
 #[derive(Default, Debug)]
 pub struct ContextWrapper {
     pub wrapped: Option<Context>,
@@ -242,11 +225,10 @@ pub struct PoolItem {
 impl ConfigurableActor for PoolItem {
     async fn init(&self, name: String, parent: &Context) -> Context {
         let mut actor = parent.new_actor::<PoolItem>(&name);
-        //tracing::info!("{} PONG!", &actor.key.value.clone());
         actor
             .ctx
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!("{} PONG!", &actor.key.value);
+                //tracing::debug!("{} PONG!", &actor.key.value);
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
@@ -273,88 +255,19 @@ impl ConfigurableActor for PoolItem {
         actor.spawn().await
     }
 }
+static INIT: Once = Once::new();
 
-#[tokio::test]
-async fn test_context_wrapper() -> anyhow::Result<()> {
-    let mut actor = System::new_actor(PoolItem::default());
-
-    actor
-        .ctx
-        .on_stop(|actor| tracing::debug!("Processed {} PONGS", actor.state.receive_count))
-        .act_on::<StatusReport>(|actor, event| match event.message {
-            StatusReport::Complete(report) => actor.state.receive_count += report,
-        })
-        .act_on_async::<Pong>(|_actor, event| {
-            // TODO: The actor needs to have access to it's processor pool
-            // actor.state.;
-            let context = event.return_address.clone();
-
-            Box::pin(async move { if let Some(_context) = context {} })
-        });
-    actor.define_pool::<PoolItem>("pool", 10).await;
-    let context = actor.spawn().await;
-    //    context.spawn_pool::<PoolItem>("pool", 10).await?;
-
-    // TODO: tidy up async handlers removing Box::pin
-
-    let wrapper = ContextWrapper {
-        wrapped: Some(context),
-    };
-
-    let mut actor = System::new_actor(wrapper);
-
-    actor
-        .ctx
-        .act_on_async::<Ping>(|actor, _event| {
-            debug!("PING!");
-            let context = actor.state.wrapped.clone();
-            //           let mut tasks = FuturesOrdered::new();
-            //            let env = actor.new_envelope().unwrap();
-            if let Some(_context) = context {
-                for i in 0..75000 {
-                    let _index = {
-                        if i < 1000 {
-                            i
-                        } else {
-                            0
-                        }
-                    };
-                    //                  let task = env.reply::<DistributionStrategy>(index, "pool", Pong);
-                    //                  tasks.push_back(task);
-                }
-                //                    context.terminate().await.expect("nope");
-            }
-            Box::pin(async move {
-                //            while let Some(result) = tasks.next().await {
-                //                //tracing::debug!("Task completed with result: {:?}", result);
-                //            }
-            })
-        })
-        .on_before_stop_async(|actor| {
-            actor
-                .state
-                .wrapped
-                .as_ref()
-                .map(|supervisor| {
-                    tracing::trace!("Stopping"); // Consider if this should be conditional or moved
-                    let supervisor = supervisor.clone(); // Clone only if necessary
-                    Box::pin(async move {
-                        tracing::debug!("Stopping supervisor");
-                        let _ = supervisor.terminate().await;
-                    })
-                        as Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>
-                })
-                .unwrap_or_else(|| {
-                    tracing::debug!("else happened");
-                    Box::pin(async {})
-                }) // Clean handling of None case
-        });
-
-    let context = actor.spawn().await;
-    context.emit(Ping).await?;
-    context.terminate().await;
-
-    Ok(())
+pub(crate) fn init_tracing() {
+    INIT.call_once(|| {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::DEBUG)
+            .compact()
+            .with_line_number(true)
+            .without_time()
+            .finish();
+        tracing::subscriber::set_global_default(subscriber)
+            .expect("setting default subscriber failed");
+    });
 }
 
 #[quasar_message]

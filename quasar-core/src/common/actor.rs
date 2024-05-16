@@ -112,49 +112,25 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         }
     }
 
-    pub async fn define_pool<T: ConfigurableActor + Send + Sync + Default + 'static>(
-        &mut self,
-        name: &str,
-        pool_size: usize,
-    ) {
-        let pool_item =
-            ActorPoolDef::new::<T>(name.to_string(), pool_size, &self.ctx.context).await;
-        self.subordinates.insert(name.to_string(), pool_item);
-    }
     #[instrument(skip(self))]
     pub async fn spawn(self) -> Context {
         let mut actor = self;
         let reactors = mem::take(&mut actor.ctx.reactors);
         let context = actor.ctx.context.clone();
         let mailbox = actor.ctx.mailbox.take();
-        let supervisor_mailbox = actor.ctx.supervisor_mailbox.take();
-        debug_assert!(supervisor_mailbox.is_some());
-        let subordinates = mem::take(&mut actor.subordinates);
         let active_actor: Actor<Awake<State>, State> = actor.into();
         let mut actor = active_actor;
 
-        //      let supervisor = Supervisor {
-        //          key: actor.ctx.key.clone(),
-        //          halt_signal: StopSignal::new(false),
-        //          subordinates,
-        //      };
         let actor_tracker = &context.task_tracker.clone();
-        let supervisor_tracker = &context.supervisor_task_tracker.clone();
 
         if let Some(mailbox) = mailbox {
             actor_tracker.spawn(async move { Awake::wake(mailbox, actor, reactors).await });
         } else {
             tracing::error!("no woke actor");
         }
-        //      if let Some(supervisor_mailbox) = supervisor_mailbox {
-        //          debug_assert!(!supervisor_mailbox.is_closed());
-        //          supervisor_tracker.spawn(async move {
-        //              Supervisor::wake_supervisor(supervisor_mailbox, supervisor).await
-        //          });
-        //      }
         //close the trackers
         context.supervisor_task_tracker().close();
-        //        context.task_tracker.close();
+        context.task_tracker.close();
 
         context
     }
@@ -183,7 +159,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let supervisor_tracker = supervisor.task_tracker.clone();
 
         supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
-        //   }
         //close the trackers
         supervisor_tracker.close();
         context.task_tracker.close();

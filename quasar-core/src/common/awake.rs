@@ -68,14 +68,10 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                     _ => {}
                 }
             }
+
             if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
-                actor.terminate();
-            }
-
-            let should_stop = actor.halt_signal.load(Ordering::Acquire) && mailbox.is_empty();
-            if should_stop {
                 (actor.ctx.on_before_stop)(&actor);
                 if let Some(ref on_before_stop_async) = actor.ctx.on_before_stop_async {
                     (on_before_stop_async)(&actor).await;
@@ -89,7 +85,6 @@ impl<State: Default + Send + Debug + 'static> Awake<State> {
                 tokio::task::yield_now().await;
             }
         }
-
         (actor.ctx.on_stop)(&actor);
     }
 }
