@@ -36,7 +36,7 @@ use std::fmt::Formatter;
 
 pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     pub ctx: RefType,
-    pub(crate) context: Context,
+    pub context: Context,
     pub(crate) parent_return_envelope: OutboundEnvelope,
     pub halt_signal: StopSignal,
     pub key: Qrn,
