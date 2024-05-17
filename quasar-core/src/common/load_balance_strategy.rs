@@ -1,6 +1,5 @@
 use crate::{common::Context, prelude::LoadBalancerStrategy};
 
-use super::PoolItem;
 use rand::{thread_rng, Rng};
 
 #[derive(Debug, Default)]
@@ -19,7 +18,6 @@ impl LoadBalancerStrategy for RoundRobinStrategy {
         if items.is_empty() {
             None
         } else {
-            let item = &items[self.current_index % items.len()];
             self.current_index = (self.current_index + 1) % items.len();
             Some(self.current_index)
         }

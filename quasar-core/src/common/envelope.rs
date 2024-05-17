@@ -36,6 +36,9 @@ impl Envelope {
         return_address: Option<OutboundChannel>,
         pool_id: Option<String>,
     ) -> Self {
+        if let Some(chan) = &return_address {
+            debug_assert!(!chan.is_closed(), "Envelope outbound channel is closed");
+        }
         Envelope {
             message,
             sent_time: SystemTime::now(),
@@ -45,4 +48,3 @@ impl Envelope {
     }
 }
 assert_impl_all!(Envelope: Send);
-

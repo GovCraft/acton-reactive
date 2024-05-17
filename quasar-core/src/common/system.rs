@@ -18,7 +18,6 @@
  */
 
 use crate::common::{Actor, Idle};
-use quasar_qrn::Qrn;
 use std::fmt::Debug;
 
 #[derive(Debug)]
@@ -44,4 +43,3 @@ impl<State: Default + Send + Debug> Default for System<State> {
         }
     }
 }
-

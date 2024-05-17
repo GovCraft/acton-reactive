@@ -17,7 +17,7 @@
  *
  */
 
-use crate::common::{OutboundChannel, OutboundEnvelope};
+use crate::common::OutboundEnvelope;
 use static_assertions::assert_impl_all;
 use std::time::SystemTime;
 
@@ -25,7 +25,6 @@ use std::time::SystemTime;
 pub struct EventRecord<S> {
     pub message: S,
     pub sent_time: SystemTime,
-    pub return_address: Option<OutboundEnvelope>,
+    pub return_address: OutboundEnvelope,
 }
 assert_impl_all!(EventRecord<u32>: Send);
-

@@ -17,10 +17,8 @@
  *
  */
 
-use futures::SinkExt;
 use quasar_qrn::Qrn;
-use std::time::SystemTime;
-use tracing::{debug, instrument, trace};
+use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::prelude::QuasarMessage;
@@ -42,9 +40,10 @@ impl OutboundEnvelope {
         message: impl QuasarMessage + Send + Sync + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
-        //        tracing::trace!("{}", self.sender.value);
+        tracing::trace!("{}", self.sender.value);
 
         if let Some(reply_to) = &self.reply_to {
+            debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply");
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             reply_to.send(envelope).await?;
         }
@@ -56,9 +55,10 @@ impl OutboundEnvelope {
         message: impl QuasarMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
+            debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
             reply_to.send(envelope).await?;
-            tracing::trace!("",);
+            tracing::trace!("reply_all completed");
         }
         Ok(())
     }

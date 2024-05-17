@@ -17,28 +17,18 @@
  *
  */
 
-use crate::common::actor::ActorPoolDef;
+use crate::common::StopSignal;
 use crate::common::*;
-use crate::common::{Idle, InboundChannel, LifecycleReactor, StopSignal};
 use crate::prelude::{ActorContext, ConfigurableActor, LoadBalancerStrategy, SupervisorContext};
-use crate::traits::QuasarMessage;
-use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use quasar_qrn::Qrn;
-use std::any::TypeId;
 use std::collections::HashMap;
-use std::env;
 use std::fmt::Debug;
-use std::future::Future;
-use std::marker::PhantomData;
-use std::pin::Pin;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio_util::context;
 use tokio_util::task::TaskTracker;
-use tracing::field::debug;
-use tracing::{debug, instrument, trace, warn};
+use tracing::instrument;
 
 #[derive(Debug)]
 pub(crate) struct PoolDef {
@@ -67,6 +57,7 @@ impl PoolBuilder {
         self.pools.insert(name.to_string(), def);
         self
     }
+
     pub(crate) async fn spawn(mut self, parent: &Context) -> Supervisor {
         let subordinates = DashMap::new();
         for (pool_name, pool_def) in &mut self.pools {
@@ -82,7 +73,6 @@ impl PoolBuilder {
                 LBStrategy::Random => Box::<RandomStrategy>::default(),
             };
             let item = PoolItem {
-                id: pool_name.clone(),
                 pool: context_items,
                 strategy,
             };
@@ -90,7 +80,6 @@ impl PoolBuilder {
         }
         let (outbox, mailbox) = channel(255);
         let task_tracker = TaskTracker::new();
-        //tracing::trace!("{:?}", subordinates);
         Supervisor {
             key: parent.key.clone(),
             halt_signal: StopSignal::new(false),
@@ -117,14 +106,13 @@ impl Debug for Supervisor {
 
 #[derive(Debug)]
 pub(crate) struct PoolItem {
-    pub(crate) id: String,
     pub(crate) pool: Vec<Context>,
     pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }
 
 impl Supervisor {
     #[instrument(skip(self))]
-    pub(crate) async fn wake_supervisor(&mut self) {
+    pub(crate) async fn wake_supervisor(&mut self) -> anyhow::Result<()> {
         loop {
             if let Ok(envelope) = self.mailbox.try_recv() {
                 if let Some(ref pool_id) = envelope.pool_id {
@@ -138,7 +126,7 @@ impl Supervisor {
                         if let Some(index) = pool_def.strategy.select_item(&pool_clone) {
                             // Access the original data using the index now that we're outside the conflicting borrow.
                             let context = &pool_def.pool[index];
-                            context.emit_envelope(envelope).await;
+                            context.emit_envelope(envelope).await?;
                         }
                     }
                 } else if let Some(concrete_msg) =
@@ -150,7 +138,7 @@ impl Supervisor {
                         SystemSignal::Suspend => {}
                         SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
-                            self.terminate().await;
+                            self.terminate().await?;
                         }
                         SystemSignal::Supervise => {}
                         SystemSignal::Watch => {}
@@ -168,9 +156,10 @@ impl Supervisor {
                 tokio::time::sleep(Duration::from_nanos(1)).await;
             }
         }
+        Ok(())
     }
     #[instrument(skip(self))]
-    pub(crate) async fn terminate(&self) {
+    pub(crate) async fn terminate(&self) -> anyhow::Result<()> {
         let subordinates = &self.subordinates;
         tracing::trace!("subordinate count: {}", subordinates.len());
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
@@ -181,13 +170,14 @@ impl Supervisor {
                     //                    tracing::warn!("Terminating {}", &context.key.value);
                     tracing::trace!("Terminating done {:?}", &context);
                     //                        if let Some(envelope) = supervisor {
-                    envelope.reply(SystemSignal::Terminate, None);
+                    envelope.reply(SystemSignal::Terminate, None).await?;
                     //                       }
                     //context.terminate_subordinates().await;
-                    context.terminate_actor().await;
+                    context.terminate_actor().await?;
                 }
             }
             self.halt_signal.store(true, Ordering::SeqCst);
         }
+        Ok(())
     }
 }

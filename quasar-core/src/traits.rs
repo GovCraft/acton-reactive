@@ -17,22 +17,14 @@
  *
  */
 
-use crate::common::{
-    ActorPool, Awake, Context, ContextPool, EventRecord, MessageError, OutboundEnvelope,
-};
-use crate::prelude::{Envelope, PoolItem, SupervisorMessage, SystemSignal};
+use crate::common::{Context, MessageError, OutboundEnvelope};
+use crate::prelude::Envelope;
 use async_trait::async_trait;
-use futures::future::{self, join};
-use futures::TryFutureExt;
-use log::trace;
 use quasar_qrn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
 use std::usize;
-use tokio::sync::Mutex;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
@@ -78,9 +70,6 @@ pub enum DistributionStrategy {
 pub(crate) trait SupervisorContext: ActorContext {
     fn supervisor_task_tracker(&self) -> TaskTracker;
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
-    //fn terminate_all(&self) -> impl Future<Output = ()> + Sync
-    //where
-    //   Self: Sync;
 
     #[instrument(skip(self))]
     fn emit_envelope(
@@ -92,9 +81,8 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             let forward_address = self.return_address();
-            tracing::trace!("{:?}", &forward_address);
             if let Some(reply_to) = forward_address.reply_to {
-                reply_to.send(envelope).await;
+                reply_to.send(envelope).await?;
             }
             Ok(())
         }
@@ -110,7 +98,6 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             if let Some(envelope) = self.supervisor_return_address() {
-                tracing::trace!("");
                 envelope.reply(message, Some(name.to_string())).await?; // Directly boxing the owned message
             }
             Ok(())

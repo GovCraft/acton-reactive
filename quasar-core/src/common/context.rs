@@ -17,24 +17,13 @@
  *
  */
 
-use crate::common::{
-    Actor, ActorPool, ContextPool, Idle, MessageError, OutboundChannel, OutboundEnvelope,
-    SystemSignal,
-};
-use crate::traits::{ActorContext, ConfigurableActor, QuasarMessage, SupervisorContext};
+use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
+use crate::traits::{ActorContext, QuasarMessage, SupervisorContext};
 use async_trait::async_trait;
-use dashmap::DashMap;
-use futures::future::join_all;
 use quasar_qrn::Qrn;
 use std::fmt::Debug;
-use std::future::Future;
-use std::mem::take;
-use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, instrument, trace};
-use tracing_subscriber::util::SubscriberInitExt;
-
-use super::{supervisor, Supervisor};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Default)]
 pub struct Context {
@@ -43,57 +32,93 @@ pub struct Context {
     pub(crate) supervisor_task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
     pub(crate) supervisor_outbox: Option<OutboundChannel>,
-    pub(crate) supervisor_cancellation_token: Option<CancellationToken>,
 }
 
 impl Context {
+    #[instrument(skip(self))]
     pub fn new_actor<State: Default + Send + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
-        let actor = Default::default();
-        Actor::new(id, actor, Some(self))
-    }
+        tracing::trace!("Creating new actor with id: {}", id);
 
+        let actor_state = State::default();
+
+        // Ensure the parent context (self) is valid and its mailboxes are open
+        debug_assert!(
+            self.outbox
+                .as_ref()
+                .map_or(true, |outbox| !outbox.is_closed()),
+            "Parent context outbox is closed in new_actor"
+        );
+        debug_assert!(
+            self.supervisor_outbox
+                .as_ref()
+                .map_or(true, |outbox| !outbox.is_closed()),
+            "Parent context supervisor outbox is closed in new_actor"
+        );
+
+        let actor = Actor::new(id, actor_state, Some(self));
+
+        // Log the mailbox state immediately after creation
+        tracing::trace!(
+            "Actor created with key: {}, mailbox closed: {}",
+            actor.key.value,
+            actor.mailbox.is_closed()
+        );
+
+        // Check if the mailbox is closed
+        debug_assert!(
+            !actor.mailbox.is_closed(),
+            "Actor mailbox is closed in new_actor"
+        );
+
+        tracing::trace!("New actor created with key: {}", actor.key.value);
+
+        actor
+    }
     #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) {
         self.pool_emit(name, message).await.expect("");
     }
 
     #[instrument(skip(self))]
-    pub async fn terminate(&self) {
+    pub async fn terminate(&self) -> anyhow::Result<()> {
         let supervisor_tracker = self.supervisor_task_tracker().clone();
         let tracker = self.get_task_tracker().clone();
-        self.terminate_subordinates().await;
+        self.terminate_subordinates().await?;
         supervisor_tracker.wait().await;
-        self.terminate_actor().await;
+        self.terminate_actor().await?;
         tracker.wait().await;
+        Ok(())
     }
 
     #[instrument]
-    pub(crate) async fn terminate_subordinates(&self) {
+    pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
         tracing::trace!("entering terminate_all");
         let supervisor = self.supervisor_return_address().clone();
         if let Some(supervisor) = supervisor {
-            supervisor.reply_all(SystemSignal::Terminate).await;
+            supervisor.reply_all(SystemSignal::Terminate).await?;
         }
+        Ok(())
     }
 
     #[instrument]
-    pub(crate) async fn terminate_actor(&self) {
+    pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
         tracing::trace!("entering terminate_actor");
         let actor = self.return_address().clone();
-        actor.reply(SystemSignal::Terminate, None).await;
+        actor.reply(SystemSignal::Terminate, None).await?;
+        Ok(())
     }
 }
 
 #[async_trait]
 impl SupervisorContext for Context {
-    //-> impl Future<Output = ()> + Sync
-    //  where
-    //      Self: Sync,
-
     #[instrument(skip(self))]
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
         if let Some(outbox) = &self.supervisor_outbox {
             let outbox = outbox.clone();
+            debug_assert!(
+                !outbox.is_closed(),
+                "Outbox was closed in supervisor_return_address"
+            );
             Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
         } else {
             None

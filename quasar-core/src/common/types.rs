@@ -22,24 +22,12 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 
 use crate::common::{Actor, Awake, Context, Envelope};
-use crate::traits::{QuasarMessage, SystemMessage};
+use crate::traits::QuasarMessage;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tokio::sync::Mutex;
 
-#[derive(Debug)]
-pub(crate) enum SupervisorMessage {
-    PoolEmit(String, Box<dyn QuasarMessage>),
-}
-impl QuasarMessage for SupervisorMessage {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-}
-unsafe impl Sync for SupervisorMessage {}
 pub type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 pub enum ReactorItem<T: Default + Send + Debug + 'static> {

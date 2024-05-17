@@ -18,8 +18,8 @@
  */
 
 // #![forbid(unsafe_code)]
-#![allow(dead_code)]
-#![allow(unused)]
+//#![allow(dead_code)]
+//#![allow(unused)]
 
 mod common;
 mod traits;
