@@ -53,30 +53,54 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         State: Send + 'static,
     {
         let on_wake = value.ctx.on_wake;
-        let on_stop = Box::new(value.ctx.on_stop);
+        let on_stop = value.ctx.on_stop;
         let on_before_stop = value.ctx.on_before_stop;
         let on_before_stop_async = value.ctx.on_before_stop_async;
-        let halt_signal = StopSignal::new(false);
+        let halt_signal = value.halt_signal;
         let parent_return_envelope = value.parent_return_envelope;
-        let key = value.key.clone();
-        let subordinates = value.subordinates;
-        let task_tracker = value.task_tracker.clone();
-        let outbox = value.ctx.outbox;
+        let key = value.key;
+        let task_tracker = value.task_tracker;
+        tracing::trace!("Checking if mailbox is closed before conversion");
+        // Add assertions to check if the mailboxes are not closed
+        debug_assert!(
+            !value.mailbox.is_closed(),
+            "Actor mailbox is closed before conversion in From<Actor<Idle<State>, State>>"
+        );
+        let mailbox = value.mailbox;
+        let context = value.context;
+        let state = value.state;
+        tracing::trace!(
+            "Converting Actor from Idle to Awake with key: {}",
+            key.value
+        );
+        tracing::trace!("Checking if mailbox is closed before conversion");
+        // Add assertions to check if the mailboxes are not closed
+        debug_assert!(
+            !mailbox.is_closed(),
+            "Actor mailbox is closed in From<Actor<Idle<State>, State>>"
+        );
+        debug_assert!(
+            context
+                .supervisor_outbox
+                .as_ref()
+                .map_or(true, |outbox| !outbox.is_closed()),
+            "Supervisor outbox is closed in From<Actor<Idle<State>, State>>"
+        );
+        tracing::trace!("Mailbox is not closed, proceeding with conversion");
         Actor {
             ctx: Awake {
                 on_wake,
                 on_before_stop,
                 on_before_stop_async,
                 on_stop,
-                key,
             },
-            outbox: Some(outbox),
+            context,
             parent_return_envelope,
             halt_signal,
-            key: value.key,
-            state: value.state,
-            subordinates,
+            key,
+            state,
             task_tracker,
+            mailbox,
         }
     }
 }

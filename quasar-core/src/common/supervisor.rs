@@ -58,6 +58,7 @@ impl PoolBuilder {
         self
     }
 
+    #[instrument(skip(self, parent), fields(id=parent.key.value))]
     pub(crate) async fn spawn(mut self, parent: &Context) -> Supervisor {
         let subordinates = DashMap::new();
         for (pool_name, pool_def) in &mut self.pools {
@@ -65,7 +66,8 @@ impl PoolBuilder {
             let mut context_items = Vec::with_capacity(pool_def.size);
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name, parent).await;
+                let context = pool_def.actor_type.init(item_name.clone(), parent).await;
+                tracing::info!("item_name: {}, context: {:?}", &item_name, &context);
                 context_items.push(context);
             }
             let strategy: Box<dyn LoadBalancerStrategy> = match &pool_def.strategy {

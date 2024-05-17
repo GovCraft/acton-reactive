@@ -38,31 +38,9 @@ impl Context {
     #[instrument(skip(self))]
     pub fn new_actor<State: Default + Send + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
         tracing::trace!("Creating new actor with id: {}", id);
+        let parent_context = self.clone();
 
-        let actor_state = State::default();
-
-        // Ensure the parent context (self) is valid and its mailboxes are open
-        debug_assert!(
-            self.outbox
-                .as_ref()
-                .map_or(true, |outbox| !outbox.is_closed()),
-            "Parent context outbox is closed in new_actor"
-        );
-        debug_assert!(
-            self.supervisor_outbox
-                .as_ref()
-                .map_or(true, |outbox| !outbox.is_closed()),
-            "Parent context supervisor outbox is closed in new_actor"
-        );
-
-        let actor = Actor::new(id, actor_state, Some(self));
-
-        // Log the mailbox state immediately after creation
-        tracing::trace!(
-            "Actor created with key: {}, mailbox closed: {}",
-            actor.key.value,
-            actor.mailbox.is_closed()
-        );
+        let actor = Actor::new(id, State::default(), Some(parent_context));
 
         // Check if the mailbox is closed
         debug_assert!(
@@ -131,10 +109,10 @@ impl SupervisorContext for Context {
 
 #[async_trait]
 impl ActorContext for Context {
-    #[instrument(skip(self), fields(self.key.value))]
+    #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        //tracing::trace!("");
+        //    tracing::trace!("");
         OutboundEnvelope::new(outbox, self.key.clone())
     }
 

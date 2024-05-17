@@ -19,24 +19,17 @@
 
 use std::any::TypeId;
 use std::fmt::Debug;
-use std::future::Future;
-use std::hash::RandomState;
-
-use std::pin::Pin;
-use std::sync::Arc;
 
 use crate::common::event_record::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::{ConfigurableActor, QuasarMessage, SystemMessage};
+use crate::traits::QuasarMessage;
 use dashmap::DashMap;
 use futures::future;
-use quasar_qrn::Qrn;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
-use tokio::sync::Mutex;
-use tokio_util::sync::CancellationToken;
-use tokio_util::task::TaskTracker;
+use std::fmt;
+use std::fmt::Formatter;
 use tracing::{debug, error, instrument};
+
 pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
@@ -44,11 +37,16 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) reactors: ReactorMap<State>,
-    pub(crate) context: Context,
-    pub(crate) supervisor_mailbox: Option<Receiver<Envelope>>,
-    pub(crate) supervisor_outbox: Sender<Envelope>,
-    pub(crate) mailbox: Option<Receiver<Envelope>>,
-    pub(crate) outbox: Sender<Envelope>,
+}
+impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Idle")
+            //          .field("on_wake", &self.on_wake)
+            //          .field("on_before_stop", &self.on_before_stop)
+            //          .field("on_before_stop_async", &self.on_before_stop_async)
+            //          .field("on_stop", &self.on_stop)
+            .finish()
+    }
 }
 
 impl<State: Default + Send + Debug> Idle<State> {
@@ -69,10 +67,10 @@ impl<State: Default + Send + Debug> Idle<State> {
                     let event_record = EventRecord {
                         message: cloned_message,
                         sent_time: envelope.sent_time,
-                        return_address: Some(OutboundEnvelope::new(
+                        return_address: OutboundEnvelope::new(
                             envelope.return_address.clone(),
                             actor.key.clone(),
-                        )),
+                        ),
                     };
                     message_reactor(actor, &event_record);
                     Box::pin(())
@@ -203,20 +201,10 @@ impl<State: Default + Send + Debug> Idle<State> {
         self
     }
 
-    pub(crate) fn new(key: Qrn) -> Idle<State>
+    pub(crate) fn new() -> Idle<State>
     where
         State: Send + 'static,
     {
-        let (outbox, mailbox) = channel(255);
-        let (supervisor_outbox, supervisor_mailbox) = channel(255);
-        let context = Context {
-            key,
-            outbox: Some(outbox.clone()),
-            supervisor_task_tracker: TaskTracker::new(),
-            supervisor_outbox: Some(supervisor_outbox.clone()),
-            task_tracker: TaskTracker::new(),
-            supervisor_cancellation_token: Some(CancellationToken::new()),
-        };
         Idle {
             on_before_wake: Box::new(|_| {}),
             on_wake: Box::new(|_| {}),
@@ -224,17 +212,12 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
-            outbox,
-            mailbox: Some(mailbox),
-            supervisor_outbox,
-            supervisor_mailbox: Some(supervisor_mailbox),
-            context,
         }
     }
 }
 
 impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     fn default() -> Self {
-        Idle::new(Qrn::default())
+        Idle::new()
     }
 }

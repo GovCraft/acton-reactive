@@ -22,6 +22,7 @@ use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
 use std::sync::Once;
 use tracing::Level;
+use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::FmtSubscriber;
 
 #[derive(Default, Debug)]
@@ -35,7 +36,7 @@ pub struct Comedian {
 async fn test_actor_mutation() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut comedy_show = System::new_actor(Comedian::default());
+    let mut comedy_show = System::<Comedian>::new_actor();
 
     comedy_show
         .ctx
@@ -78,7 +79,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
-    comedian.terminate().await;
+    comedian.terminate().await?;
     Ok(())
 }
 
@@ -95,9 +96,9 @@ pub struct Messenger {
 #[tokio::test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     init_tracing();
-    let counter = Counter { count: 0 };
+    //    let counter = Counter { count: 0 };
 
-    let mut count = System::new_actor(counter);
+    let mut count = System::<Counter>::new_actor();
     count
         .ctx
         .act_on::<Tally>(|actor, _event| {
@@ -110,10 +111,10 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
     let count = count.spawn().await;
 
-    let actor = Messenger {
-        sender: Some(count.return_address()),
-    };
-    let mut actor = System::new_actor(actor);
+    //  let actor = Messenger {
+    //      sender: Some(count.return_address()),
+    //  };
+    let mut actor = System::<Messenger>::new_actor();
     actor
         .ctx
         .on_before_wake(|actor| {
@@ -134,8 +135,8 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     let actor = actor.spawn().await;
 
-    count.terminate().await;
-    actor.terminate().await;
+    count.terminate().await?;
+    actor.terminate().await?;
     Ok(())
 }
 
@@ -147,14 +148,14 @@ pub enum StatusReport {
 #[tokio::test]
 async fn test_actor_pool_random() -> anyhow::Result<()> {
     init_tracing();
-    let mut actor = System::new_actor(PoolItem::default());
+    let mut actor = System::<PoolItem>::new_actor();
     actor
         .ctx
         .act_on::<Pong>(|_actor, _event| {
             tracing::error!("PONG");
         })
         .act_on::<StatusReport>(|actor, event| {
-            let sender = &event.return_address.as_ref().unwrap().sender;
+            let sender = &event.return_address.sender;
             match event.message {
                 StatusReport::Complete(total) => {
                     tracing::debug!("{} reported {}", sender.value, total);
@@ -163,7 +164,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
             }
         })
         .on_before_stop(|actor| {
-            tracing::warn!("Processed {} PONGs", actor.state.receive_count);
+            tracing::info!("Processed {} PONGs", actor.state.receive_count);
         });
     let builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LBStrategy::Random);
     let context = actor.spawn_with_pools(builder).await;
@@ -173,7 +174,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
         context.emit_pool("pool", Ping).await;
     }
     tracing::trace!("Terminating main actor");
-    context.terminate().await;
+    context.terminate().await?;
 
     Ok(())
 }
@@ -181,37 +182,38 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     init_tracing();
-    let mut actor = System::new_actor(PoolItem::default());
+    let mut actor = System::<PoolItem>::new_actor();
     actor
         .ctx
         .act_on::<Pong>(|_actor, _event| {
-            tracing::error!("PONG");
+            //            tracing::error!("PONG");
         })
         .act_on::<StatusReport>(|actor, event| {
-            let sender = &event.return_address.as_ref().unwrap().sender;
+            let sender = &event.return_address.sender;
 
             match event.message {
                 StatusReport::Complete(total) => {
-                    tracing::debug!("{} reported {}", sender.value, total);
+                    tracing::info!("{} reported {}", sender.value, total);
                     actor.state.receive_count += total;
                 }
             }
         })
         .on_before_stop(|actor| {
-            tracing::warn!("Processed {} PONGs", actor.state.receive_count);
+            tracing::info!("Processed {} PONGs", actor.state.receive_count);
         });
     let builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LBStrategy::RoundRobin);
     let context = actor.spawn_with_pools(builder).await;
 
     for _ in 0..22 {
-        tracing::trace!("Emitting PING");
+        //     tracing::trace!("Emitting PING");
         context.emit_pool("pool", Ping).await;
     }
-    tracing::trace!("Terminating main actor");
-    context.terminate().await;
+    //    tracing::trace!("Terminating main actor");
+    context.terminate().await?;
 
     Ok(())
 }
+
 #[derive(Default, Debug)]
 pub struct ContextWrapper {
     pub wrapped: Option<Context>,
@@ -223,48 +225,87 @@ pub struct PoolItem {
 
 #[async_trait]
 impl ConfigurableActor for PoolItem {
+    //    #[instrument(skip(self, name, parent))]
     async fn init(&self, name: String, parent: &Context) -> Context {
+        //        tracing::trace!("Initializing actor with name: {}", name);
+
         let mut actor = parent.new_actor::<PoolItem>(&name);
+
+        // Log the mailbox state immediately after actor creation
+        tracing::trace!(
+            "Actor initialized with key: {}, mailbox closed: {}",
+            actor.key.value,
+            actor.mailbox.is_closed()
+        );
+
         actor
             .ctx
             .act_on::<Ping>(|actor, _event| {
-                //tracing::debug!("{} PONG!", &actor.key.value);
+                //              tracing::trace!(
+                //                  "Received Ping event for actor with key: {}",
+                //                  actor.key.value
+                //              );
                 actor.state.receive_count += 1;
             })
             .on_before_stop_async(|actor| {
                 let final_count = actor.state.receive_count;
-                let value = actor.key.value.clone();
 
-                if let Some(envelope) = actor.new_parent_envelope() {
-                    Box::pin(async move {
-                        tracing::trace!(
-                            "Reporting {} complete to {} from {}.",
-                            final_count,
-                            envelope.sender,
-                            value
-                        );
-                        let _ = envelope
-                            .reply(StatusReport::Complete(final_count), None)
-                            .await;
-                    })
-                } else {
-                    Box::pin(async {})
-                }
+                let envelope = actor.new_parent_envelope();
+                let to_address = envelope.sender.value.clone();
+                let from_address = actor.key.value.clone();
+
+                Box::pin(async move {
+                    tracing::info!(
+                        "Reporting {} complete to {} from {}.",
+                        final_count,
+                        to_address,
+                        from_address,
+                    );
+                    let _ = envelope
+                        .reply(StatusReport::Complete(final_count), None)
+                        .await;
+                })
             });
 
-        actor.spawn().await
+        //        tracing::trace!("Spawning actor with key: {}", &actor.key.value);
+
+        let context = actor.spawn().await;
+
+        //       tracing::trace!("Actor with key: {} spawned", &context.key.value);
+
+        context
     }
 }
 static INIT: Once = Once::new();
 
 pub(crate) fn init_tracing() {
     INIT.call_once(|| {
+        // Define an environment filter to suppress logs from the specific function
+        let filter = tracing_subscriber::EnvFilter::new("")
+            .add_directive("quasar_core::common::context=off".parse().unwrap())
+            .add_directive("tests=info".parse().unwrap())
+            .add_directive("quasar_core::traits=off".parse().unwrap())
+            .add_directive("quasar_core::common::awake=off".parse().unwrap())
+            .add_directive("quasar_core::common::system=off".parse().unwrap())
+            .add_directive("quasar_core::common::supervisor=off".parse().unwrap())
+            .add_directive("quasar_core::common::actor=off".parse().unwrap())
+            .add_directive("quasar_core::common::idle=off".parse().unwrap())
+            .add_directive(
+                "quasar_core::common::outbound_envelope=off"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(tracing_subscriber::filter::LevelFilter::TRACE.into()); // Set global log level to TRACE
+
         let subscriber = FmtSubscriber::builder()
-            .with_max_level(Level::DEBUG)
+            .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
+            .with_max_level(Level::TRACE)
             .compact()
             .with_line_number(true)
             .without_time()
+            .with_env_filter(filter)
             .finish();
+
         tracing::subscriber::set_global_default(subscriber)
             .expect("setting default subscriber failed");
     });

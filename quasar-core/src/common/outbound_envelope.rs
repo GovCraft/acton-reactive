@@ -34,13 +34,13 @@ impl OutboundEnvelope {
     pub fn new(reply_to: Option<OutboundChannel>, sender: Qrn) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
-    #[instrument(skip(self, message, pool_id))]
+    #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
     pub async fn reply(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
-        tracing::trace!("{}", self.sender.value);
+        //        tracing::trace!("{}", self.sender.value);
 
         if let Some(reply_to) = &self.reply_to {
             debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply");
@@ -49,7 +49,7 @@ impl OutboundEnvelope {
         }
         Ok(())
     }
-    #[instrument()]
+    #[instrument(skip(self, message),fields(sender=self.sender.value))]
     pub(crate) async fn reply_all(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
