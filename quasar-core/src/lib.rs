@@ -17,9 +17,7 @@
  *
  */
 
-// #![forbid(unsafe_code)]
-//#![allow(dead_code)]
-//#![allow(unused)]
+#![forbid(unsafe_code)]
 
 mod common;
 mod traits;

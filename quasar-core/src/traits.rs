@@ -56,7 +56,6 @@ pub trait ReturnAddress: Send {
 #[async_trait]
 pub trait ConfigurableActor: Send + Debug {
     async fn init(&self, name: String, root: &Context) -> Context;
-    //    fn new() -> Self;
 }
 
 pub enum DistributionStrategy {
@@ -98,7 +97,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     {
         async {
             if let Some(envelope) = self.supervisor_return_address() {
-                envelope.reply(message, Some(name.to_string())).await?; // Directly boxing the owned message
+                envelope.reply(message, Some(name.to_string()))?; // Directly boxing the owned message
             }
             Ok(())
         }
@@ -121,7 +120,7 @@ pub trait ActorContext {
     {
         async {
             let envelope = self.return_address();
-            envelope.reply(message, None).await?; // Directly boxing the owned message
+            envelope.reply(message, None)?; // Directly boxing the owned message
             Ok(())
         }
     }

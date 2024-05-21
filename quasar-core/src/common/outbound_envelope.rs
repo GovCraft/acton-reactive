@@ -18,6 +18,7 @@
  */
 
 use quasar_qrn::Qrn;
+use tokio::task::block_in_place;
 use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
@@ -35,7 +36,18 @@ impl OutboundEnvelope {
         OutboundEnvelope { reply_to, sender }
     }
     #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
-    pub async fn reply(
+    pub fn reply(
+        &self,
+        message: impl QuasarMessage + Send + Sync + 'static,
+        pool_id: Option<String>,
+    ) -> Result<(), MessageError> {
+        block_in_place(|| {
+            let future = self.reply_async(message, pool_id);
+            tokio::runtime::Handle::current().block_on(future)
+        })
+    }
+    #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
+    pub async fn reply_async(
         &self,
         message: impl QuasarMessage + Send + Sync + 'static,
         pool_id: Option<String>,

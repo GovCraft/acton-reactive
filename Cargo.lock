@@ -860,6 +860,7 @@ dependencies = [
  "petgraph",
  "quasar-core",
  "quasar-macro",
+ "rand",
  "tokio",
  "tracing",
  "tracing-futures",

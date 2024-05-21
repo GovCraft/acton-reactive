@@ -20,11 +20,16 @@
 
 use quasar::prelude::async_trait::async_trait;
 use quasar::prelude::*;
+use rand::Rng;
 use std::sync::Once;
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::FmtSubscriber;
 
+// A simple actor for testing purposes
+// tracks the overall number of jokes told
+// the number of jokes audience members found funny
+// and the number of jokes which bombed with the audience
 #[derive(Default, Debug)]
 pub struct Comedian {
     pub jokes_told: usize,
@@ -32,7 +37,81 @@ pub struct Comedian {
     pub bombers: usize,
 }
 
-#[tokio::test]
+// We'll create pool of audience member actors who will hear a joke told by the comedian
+// They will randomly react to the jokes after which the Comedian will report on how many
+// jokes landed and didn't land
+
+#[derive(Default, Debug)]
+pub struct AudienceMember {
+    pub jokes_told: usize,
+    pub funny: usize,
+    pub bombers: usize,
+}
+
+#[async_trait]
+impl ConfigurableActor for AudienceMember {
+    // this trait function details what should happen for each member of the pool we are about to
+    // create, it gets created when the parent actor calls spawn_with_pool
+    async fn init(&self, name: String, root: &Context) -> Context {
+        let mut parent = root.new_actor::<AudienceMember>(&name);
+        parent.ctx.act_on::<Joke>(|actor, _event| {
+            let sender = &actor.new_parent_envelope();
+            let mut rchoice = rand::thread_rng();
+            let random_reaction = rchoice.gen_bool(0.5);
+            if random_reaction {
+                tracing::trace!("Send chuckle");
+                let _ = sender.reply(AudienceReaction::Chuckle, Some("audience".to_string()));
+            } else {
+                tracing::trace!("Send groan");
+                let _ = sender.reply(AudienceReaction::Groan, Some("audience".to_string()));
+            }
+        });
+        let context = parent.spawn().await;
+
+        context
+    }
+}
+// the joke told by the comedian
+#[quasar_message]
+pub struct Joke;
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_audience_pool() -> anyhow::Result<()> {
+    init_tracing();
+    let mut audience = System::<AudienceMember>::new_actor();
+
+    audience
+        .ctx
+        .act_on::<AudienceReaction>(|actor, event| {
+            match event.message {
+                AudienceReaction::Groan => actor.state.funny += 1,
+                AudienceReaction::Chuckle => actor.state.bombers += 1,
+            }
+            actor.state.jokes_told += 1;
+        })
+        .on_before_stop(|actor| {
+            tracing::info!(
+                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                actor.state.jokes_told,
+                actor.state.funny,
+                actor.state.bombers
+            );
+            assert_eq!(actor.state.jokes_told, 101);
+        });
+    let pool =
+        PoolBuilder::default().add_pool::<AudienceMember>("audience", 1000, LBStrategy::Random);
+
+    //here we call the init method on the 1000 pool members we created
+    let context = audience.spawn_with_pools(pool).await;
+
+    for _ in 0..1000 {
+        context.emit_pool("audience", Joke).await;
+    }
+    context.terminate().await?;
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     init_tracing();
 
@@ -46,16 +125,10 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             if let Some(envelope) = actor.new_envelope() {
                 match record.message {
                     FunnyJoke::ChickenCrossesRoad => Box::pin(async move {
-                        envelope
-                            .reply(AudienceReaction::Chuckle, None)
-                            .await
-                            .expect("TODO: panic message");
+                        let _ = envelope.reply(AudienceReaction::Chuckle, None);
                     }),
                     FunnyJoke::Pun => Box::pin(async move {
-                        envelope
-                            .reply(AudienceReaction::Groan, None)
-                            .await
-                            .expect("TODO: panic message");
+                        let _ = envelope.reply(AudienceReaction::Groan, None);
                     }),
                 }
             } else {
@@ -67,12 +140,13 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             AudienceReaction::Groan => actor.state.bombers += 1,
         })
         .on_stop(|actor| {
-            tracing::debug!(
+            tracing::info!(
                 "Jokes Told: {}\tFunny: {}\tBombers: {}",
                 actor.state.jokes_told,
                 actor.state.funny,
                 actor.state.bombers
             );
+            assert_eq!(actor.state.jokes_told, 2);
         });
 
     let comedian = comedy_show.spawn().await;
@@ -80,6 +154,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
     comedian.terminate().await?;
+
     Ok(())
 }
 
@@ -93,7 +168,7 @@ pub struct Messenger {
     pub sender: Option<OutboundEnvelope>,
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     init_tracing();
     //    let counter = Counter { count: 0 };
@@ -111,25 +186,22 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
     let count = count.spawn().await;
 
-    //  let actor = Messenger {
-    //      sender: Some(count.return_address()),
-    //  };
     let mut actor = System::<Messenger>::new_actor();
     actor
         .ctx
         .on_before_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None) });
             }
         })
         .on_wake(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None) });
             }
         })
         .on_stop(|actor| {
             if let Some(envelope) = actor.state.sender.clone() {
-                tokio::spawn(async move { envelope.reply(Tally::AddCount, None).await });
+                tokio::spawn(async move { envelope.reply(Tally::AddCount, None) });
             }
         });
 
@@ -145,20 +217,20 @@ pub enum StatusReport {
     Complete(usize),
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_random() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = System::<PoolItem>::new_actor();
     actor
         .ctx
-        .act_on::<Pong>(|_actor, _event| {
-            tracing::error!("PONG");
-        })
         .act_on::<StatusReport>(|actor, event| {
             let sender = &event.return_address.sender;
             match event.message {
                 StatusReport::Complete(total) => {
                     tracing::debug!("{} reported {}", sender.value, total);
+                    //      .act_on::<Pong>(|_actor, _event| {
+                    //          tracing::error!("PONG");
+                    //      })
                     actor.state.receive_count += total;
                 }
             }
@@ -179,7 +251,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = System::<PoolItem>::new_actor();
@@ -241,30 +313,26 @@ impl ConfigurableActor for PoolItem {
         actor
             .ctx
             .act_on::<Ping>(|actor, _event| {
-                //              tracing::trace!(
-                //                  "Received Ping event for actor with key: {}",
-                //                  actor.key.value
-                //              );
+                tracing::trace!(
+                    "Received Ping event for actor with key: {}",
+                    actor.key.value
+                );
                 actor.state.receive_count += 1;
             })
-            .on_before_stop_async(|actor| {
+            .on_before_stop(|actor| {
                 let final_count = actor.state.receive_count;
 
                 let envelope = actor.new_parent_envelope();
                 let to_address = envelope.sender.value.clone();
                 let from_address = actor.key.value.clone();
 
-                Box::pin(async move {
-                    tracing::info!(
-                        "Reporting {} complete to {} from {}.",
-                        final_count,
-                        to_address,
-                        from_address,
-                    );
-                    let _ = envelope
-                        .reply(StatusReport::Complete(final_count), None)
-                        .await;
-                })
+                tracing::info!(
+                    "Reporting {} complete to {} from {}.",
+                    final_count,
+                    to_address,
+                    from_address,
+                );
+                let _ = envelope.reply(StatusReport::Complete(final_count), None);
             });
 
         //        tracing::trace!("Spawning actor with key: {}", &actor.key.value);
@@ -283,7 +351,7 @@ pub(crate) fn init_tracing() {
         // Define an environment filter to suppress logs from the specific function
         let filter = tracing_subscriber::EnvFilter::new("")
             .add_directive("quasar_core::common::context=off".parse().unwrap())
-            .add_directive("tests=info".parse().unwrap())
+            .add_directive("tests=debug".parse().unwrap())
             .add_directive("quasar_core::traits=off".parse().unwrap())
             .add_directive("quasar_core::common::awake=off".parse().unwrap())
             .add_directive("quasar_core::common::system=off".parse().unwrap())

@@ -82,7 +82,7 @@ impl Context {
     pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
         tracing::trace!("entering terminate_actor");
         let actor = self.return_address().clone();
-        actor.reply(SystemSignal::Terminate, None).await?;
+        actor.reply(SystemSignal::Terminate, None)?;
         Ok(())
     }
 }

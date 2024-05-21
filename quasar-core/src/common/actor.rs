@@ -56,12 +56,12 @@ impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
             .finish()
     }
 }
-
+/*
 unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send
     for Actor<RefType, State>
 {
 }
-
+*/
 impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.context.outbox {
@@ -80,7 +80,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     where
         State: Send + 'static,
     {
-        (self.ctx.on_wake)(&self);
+        (self.ctx.on_wake)(self);
 
         let mut yield_counter = 0;
         while let Some(envelope) = self.mailbox.recv().await {
@@ -101,9 +101,9 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
             if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
-                (self.ctx.on_before_stop)(&self);
+                (self.ctx.on_before_stop)(self);
                 if let Some(ref on_before_stop_async) = self.ctx.on_before_stop_async {
-                    (on_before_stop_async)(&self).await;
+                    (on_before_stop_async)(self).await;
                 }
                 break;
             }
@@ -114,7 +114,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 tokio::task::yield_now().await;
             }
         }
-        (self.ctx.on_stop)(&self);
+        (self.ctx.on_stop)(self);
     }
 }
 

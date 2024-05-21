@@ -172,7 +172,7 @@ impl Supervisor {
                     //                    tracing::warn!("Terminating {}", &context.key.value);
                     tracing::trace!("Terminating done {:?}", &context);
                     //                        if let Some(envelope) = supervisor {
-                    envelope.reply(SystemSignal::Terminate, None).await?;
+                    envelope.reply(SystemSignal::Terminate, None)?;
                     //                       }
                     //context.terminate_subordinates().await;
                     context.terminate_actor().await?;
