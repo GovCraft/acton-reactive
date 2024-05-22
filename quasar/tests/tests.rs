@@ -30,7 +30,7 @@ use tracing_subscriber::FmtSubscriber;
 // tracks the overall number of jokes told
 // the number of jokes audience members found funny
 // and the number of jokes which bombed with the audience
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Comedian {
     pub jokes_told: usize,
     pub funny: usize,
@@ -41,7 +41,7 @@ pub struct Comedian {
 // They will randomly react to the jokes after which the Comedian will report on how many
 // jokes landed and didn't land
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AudienceMember {
     pub jokes_told: usize,
     pub funny: usize,
@@ -67,7 +67,6 @@ impl ConfigurableActor for AudienceMember {
             }
         });
         let context = parent.spawn().await;
-
         context
     }
 }
@@ -75,7 +74,7 @@ impl ConfigurableActor for AudienceMember {
 #[quasar_message]
 pub struct Joke;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_audience_pool() -> anyhow::Result<()> {
     init_tracing();
     let mut audience = System::<AudienceMember>::new_actor();
@@ -96,7 +95,6 @@ async fn test_audience_pool() -> anyhow::Result<()> {
                 actor.state.funny,
                 actor.state.bombers
             );
-            assert_eq!(actor.state.jokes_told, 101);
         });
     let pool =
         PoolBuilder::default().add_pool::<AudienceMember>("audience", 1000, LBStrategy::Random);
@@ -107,7 +105,9 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     for _ in 0..1000 {
         context.emit_pool("audience", Joke).await;
     }
-    context.terminate().await?;
+    //let result = context.peek_state::<AudienceMember>().await?;
+    let result = context.terminate::<AudienceMember>().await?;
+    assert_eq!(result.jokes_told, 1000);
     Ok(())
 }
 
@@ -158,12 +158,12 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Counter {
     pub count: usize,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Messenger {
     pub sender: Option<OutboundEnvelope>,
 }
@@ -290,7 +290,7 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 pub struct ContextWrapper {
     pub wrapped: Option<Context>,
 }
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct PoolItem {
     receive_count: usize,
 }
@@ -350,8 +350,13 @@ pub(crate) fn init_tracing() {
     INIT.call_once(|| {
         // Define an environment filter to suppress logs from the specific function
         let filter = tracing_subscriber::EnvFilter::new("")
+            .add_directive(
+                "quasar_core::common::context::peek_state_span=trace"
+                    .parse()
+                    .unwrap(),
+            )
             .add_directive("quasar_core::common::context=off".parse().unwrap())
-            .add_directive("tests=debug".parse().unwrap())
+            .add_directive("tests=off".parse().unwrap())
             .add_directive("quasar_core::traits=off".parse().unwrap())
             .add_directive("quasar_core::common::awake=off".parse().unwrap())
             .add_directive("quasar_core::common::system=off".parse().unwrap())

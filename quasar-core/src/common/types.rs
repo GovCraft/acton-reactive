@@ -30,7 +30,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 
 pub type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
-pub enum ReactorItem<T: Default + Send + Debug + 'static> {
+pub enum ReactorItem<T: Clone + Default + Send + Debug + 'static> {
     Signal(Box<SignalReactor<T>>),
     Message(Box<MessageReactor<T>>),
     Future(Box<FutReactor<T>>),

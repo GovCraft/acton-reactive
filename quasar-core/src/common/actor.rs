@@ -29,12 +29,13 @@ use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
+use super::signal::SupervisorSignal;
 use super::Envelope;
 use super::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
 
-pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
+pub struct Actor<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> {
     pub ctx: RefType,
     pub context: Context,
     pub(crate) parent_return_envelope: OutboundEnvelope,
@@ -44,7 +45,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub(crate) task_tracker: TaskTracker,
     pub mailbox: Receiver<Envelope>,
 }
-impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
+impl<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> Debug
     for Actor<RefType, State>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -56,13 +57,8 @@ impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
             .finish()
     }
 }
-/*
-unsafe impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Send
-    for Actor<RefType, State>
-{
-}
-*/
-impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
+
+impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.context.outbox {
             Option::from(OutboundEnvelope::new(
@@ -77,13 +73,13 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         self.parent_return_envelope.clone()
     }
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>)
-    where
-        State: Send + 'static,
+    //  where
+    //      State: Send + 'static,
     {
         (self.ctx.on_wake)(self);
 
         let mut yield_counter = 0;
-        while let Some(envelope) = self.mailbox.recv().await {
+        while let Some(mut envelope) = self.mailbox.recv().await {
             let type_id = envelope.message.as_any().type_id();
 
             if let Some(reactor) = reactors.get(&type_id) {
@@ -98,6 +94,18 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 }
             }
 
+            // Match on a mutable reference to the message
+            if let Some(SupervisorSignal::Inspect(response_channel)) = envelope
+                .message
+                .as_any_mut()
+                .downcast_mut::<SupervisorSignal<State>>()
+            {
+                let actor_state = self.state.clone();
+                // Take the Option out of the response channel
+                if let Some(response_channel) = response_channel.take() {
+                    let _ = response_channel.send(actor_state);
+                }
+            }
             if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
@@ -118,7 +126,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     }
 }
 
-impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> {
     #[instrument(skip(state, id, parent_context))]
     pub(crate) fn new(id: &str, state: State, parent_context: Option<Context>) -> Self {
         let (outbox, mailbox) = channel(255);
@@ -261,7 +269,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     }
 }
 
-impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
         self.halt_signal.load(Ordering::SeqCst);
