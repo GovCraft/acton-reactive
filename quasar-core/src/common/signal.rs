@@ -18,8 +18,22 @@
  */
 
 use crate::traits::QuasarMessage;
-use std::any::Any;
-
+use std::{any::Any, fmt::Debug};
+use tokio::sync::oneshot::Sender;
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum SupervisorSignal<T: Any + Send + Debug> {
+    Inspect(Option<Sender<T>>),
+}
+impl<T: Any + Send + Debug> QuasarMessage for SupervisorSignal<T> {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        // Implement the new method
+        self
+    }
+}
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum SystemSignal {
@@ -34,6 +48,10 @@ pub enum SystemSignal {
     Failed,
 }
 impl QuasarMessage for SystemSignal {
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        // Implement the new method
+        self
+    }
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -42,6 +42,7 @@ pub trait QuasarMessage: Any + Send + Debug {
     fn type_id(&self) -> TypeId {
         TypeId::of::<Self>()
     }
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 pub trait SystemMessage: Any + Send + Sync + Debug {

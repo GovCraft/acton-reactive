@@ -41,7 +41,11 @@ pub fn quasar_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl QuasarMessage for #name {
-            fn as_any(&self) -> &dyn std::any::Any {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        // Implement the new method
+        self
+    }
+             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
         }

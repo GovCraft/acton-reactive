@@ -30,7 +30,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use tracing::{debug, error, instrument};
 
-pub struct Idle<State: Default + Send + Debug + 'static> {
+pub struct Idle<State: Clone + Default + Send + Debug + 'static> {
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
@@ -38,7 +38,7 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) reactors: ReactorMap<State>,
 }
-impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
+impl<State: Clone + Default + Send + Debug + 'static> Debug for Idle<State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Idle")
             //          .field("on_wake", &self.on_wake)
@@ -49,7 +49,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
     }
 }
 
-impl<State: Default + Send + Debug> Idle<State> {
+impl<State: Clone + Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: QuasarMessage + 'static + Clone>(
         &mut self,
@@ -216,7 +216,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     }
 }
 
-impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
+impl<State: Clone + Default + Send + Debug + 'static> Default for Idle<State> {
     fn default() -> Self {
         Idle::new()
     }

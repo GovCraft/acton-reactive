@@ -25,13 +25,13 @@ use std::fmt;
 use std::fmt::Formatter;
 use tracing::{instrument, warn};
 
-pub struct Awake<State: Default + Send + Debug + 'static> {
+pub struct Awake<State: Clone + Default + Send + Debug + 'static> {
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
 }
-impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
+impl<State: Clone + Default + Send + Debug + 'static> Debug for Awake<State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Awake")
             //          .field("on_wake", &self.on_wake)
@@ -42,9 +42,9 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
     }
 }
 
-impl<State: Default + Send + Debug + 'static> Awake<State> {}
+impl<State: Clone + Default + Send + Debug + 'static> Awake<State> {}
 
-impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
+impl<State: Clone + Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
     for Actor<Awake<State>, State>
 {
     #[instrument("from idle to awake", skip(value))]

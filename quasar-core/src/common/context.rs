@@ -25,6 +25,8 @@ use std::fmt::Debug;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
+use super::signal::SupervisorSignal;
+
 #[derive(Debug, Clone, Default)]
 pub struct Context {
     pub key: Qrn,
@@ -36,7 +38,10 @@ pub struct Context {
 
 impl Context {
     #[instrument(skip(self))]
-    pub fn new_actor<State: Default + Send + Debug>(&self, id: &str) -> Actor<Idle<State>, State> {
+    pub fn new_actor<State: Clone + Default + Send + Debug>(
+        &self,
+        id: &str,
+    ) -> Actor<Idle<State>, State> {
         tracing::trace!("Creating new actor with id: {}", id);
         let parent_context = self.clone();
 
@@ -58,14 +63,17 @@ impl Context {
     }
 
     #[instrument(skip(self))]
-    pub async fn terminate(&self) -> anyhow::Result<()> {
+    pub async fn terminate<State: Default + Send + Debug + Clone + 'static>(
+        &self,
+    ) -> anyhow::Result<State> {
         let supervisor_tracker = self.supervisor_task_tracker().clone();
         let tracker = self.get_task_tracker().clone();
         self.terminate_subordinates().await?;
         supervisor_tracker.wait().await;
+        let result = self.peek_state().await?;
         self.terminate_actor().await?;
         tracker.wait().await;
-        Ok(())
+        Ok(result)
     }
 
     #[instrument]
@@ -84,6 +92,18 @@ impl Context {
         let actor = self.return_address().clone();
         actor.reply(SystemSignal::Terminate, None)?;
         Ok(())
+    }
+
+    #[instrument(skip(self), target = "peek_space_span")]
+    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(
+        &self,
+    ) -> anyhow::Result<State> {
+        let (sender, receiver) = tokio::sync::oneshot::channel();
+        let actor = self.return_address().clone();
+        actor.reply(SupervisorSignal::Inspect(Some(sender)), None)?;
+        let result = receiver.await?;
+
+        Ok(result)
     }
 }
 
