@@ -153,7 +153,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit(FunnyJoke::Pun).await?;
-    comedian.terminate().await?;
+    let _ = comedian.terminate::<Comedian>().await?;
 
     Ok(())
 }
@@ -207,8 +207,8 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     let actor = actor.spawn().await;
 
-    count.terminate().await?;
-    actor.terminate().await?;
+    count.terminate::<Counter>().await?;
+    actor.terminate::<Messenger>().await?;
     Ok(())
 }
 
@@ -228,9 +228,6 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
             match event.message {
                 StatusReport::Complete(total) => {
                     tracing::debug!("{} reported {}", sender.value, total);
-                    //      .act_on::<Pong>(|_actor, _event| {
-                    //          tracing::error!("PONG");
-                    //      })
                     actor.state.receive_count += total;
                 }
             }
@@ -246,7 +243,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
         context.emit_pool("pool", Ping).await;
     }
     tracing::trace!("Terminating main actor");
-    context.terminate().await?;
+    context.terminate::<PoolItem>().await?;
 
     Ok(())
 }
@@ -281,7 +278,7 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
         context.emit_pool("pool", Ping).await;
     }
     //    tracing::trace!("Terminating main actor");
-    context.terminate().await?;
+    context.terminate::<PoolItem>().await?;
 
     Ok(())
 }
