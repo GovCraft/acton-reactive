@@ -2,9 +2,9 @@
 resolver = "2"
 
 members = [
-    "quasar-core",
-    "quasar-macro",
-    "quasar",
+    "akton-core",
+    "akton-macro",
+    "akton",
 ]
 
 

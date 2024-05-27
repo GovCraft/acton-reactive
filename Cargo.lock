@@ -39,6 +39,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "akton"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "console-subscriber",
+ "futures",
+ "log",
+ "petgraph",
+ "quasar-core",
+ "quasar-macro",
+ "rand",
+ "tokio",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -846,25 +865,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3235c33eb02c1f1e212abdbe34c78b264b038fb58ca612664343271e36e55ffe"
 dependencies = [
  "prost",
-]
-
-[[package]]
-name = "quasar"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "console-subscriber",
- "futures",
- "log",
- "petgraph",
- "quasar-core",
- "quasar-macro",
- "rand",
- "tokio",
- "tracing",
- "tracing-futures",
- "tracing-subscriber",
 ]
 
 [[package]]
