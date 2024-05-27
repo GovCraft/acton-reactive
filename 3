@@ -24,11 +24,11 @@ use crate::common::{
 };
 use crate::traits::ConfigurableActor;
 use crate::traits::{ActorContext, SupervisorContext};
-use crate::traits::{QuasarMessage, SystemMessage};
+use crate::traits::{AktonMessage, SystemMessage};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::future;
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use std::fmt::Debug;
 use std::future::Future;
 use std::mem;
@@ -48,7 +48,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub outbox: Option<OutboundChannel>,
     pub(crate) parent_return_envelope: Option<OutboundEnvelope>,
     pub halt_signal: StopSignal,
-    pub key: Qrn,
+    pub key: Arn,
     pub state: State,
     pub(crate) subordinates: DashMap<String, ActorPoolDef>,
     pub(crate) task_tracker: TaskTracker,
@@ -79,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     #[instrument(skip(parent_context, state))]
     pub(crate) fn new(id: &str, state: State, parent_context: Option<&Context>) -> Self {
         //tracing::debug!("{:?}", &parent_return_envelope);
-        //append to the qrn
+        //append to the arn
         let parent_return_envelope;
         let mut key;
         let mut task_tracker;
@@ -91,7 +91,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             tracing::warn!("NEW ACTOR KEY: {}", key.value);
         } else {
             parent_return_envelope = None;
-            key = Qrn::default();
+            key = Arn::default();
             task_tracker = TaskTracker::new();
         }
         Actor {

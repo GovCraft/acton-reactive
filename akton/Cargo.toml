@@ -1,11 +1,11 @@
 [package]
-name = "quasar"
+name = "akton"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-quasar-macro = { path = "../quasar-macro" }
-quasar-core = { path = "../quasar-core" }
+akton-macro = { path = "../akton-macro" }
+akton-core = { path = "../akton-core" }
 rand = "0.8.5"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"

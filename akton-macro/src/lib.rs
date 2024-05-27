@@ -24,7 +24,7 @@ use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
 #[proc_macro_attribute]
-pub fn quasar_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn akton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let input = parse_macro_input!(item as DeriveInput);
 
     let name = &input.ident;
@@ -40,7 +40,7 @@ pub fn quasar_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl QuasarMessage for #name {
+        impl AktonMessage for #name {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         // Implement the new method
         self

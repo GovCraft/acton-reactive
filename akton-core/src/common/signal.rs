@@ -17,7 +17,7 @@
  *
  */
 
-use crate::traits::QuasarMessage;
+use crate::traits::AktonMessage;
 use std::{any::Any, fmt::Debug};
 use tokio::sync::oneshot::Sender;
 #[derive(Debug)]
@@ -25,7 +25,7 @@ use tokio::sync::oneshot::Sender;
 pub enum SupervisorSignal<T: Any + Send + Debug> {
     Inspect(Option<Sender<T>>),
 }
-impl<T: Any + Send + Debug> QuasarMessage for SupervisorSignal<T> {
+impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -47,7 +47,7 @@ pub enum SystemSignal {
     Unwatch,
     Failed,
 }
-impl QuasarMessage for SystemSignal {
+impl AktonMessage for SystemSignal {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         // Implement the new method
         self

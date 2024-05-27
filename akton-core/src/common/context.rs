@@ -18,9 +18,9 @@
  */
 
 use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::traits::{ActorContext, QuasarMessage, SupervisorContext};
+use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use std::fmt::Debug;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
@@ -29,7 +29,7 @@ use super::signal::SupervisorSignal;
 
 #[derive(Debug, Clone, Default)]
 pub struct Context {
-    pub key: Qrn,
+    pub key: Arn,
     pub(crate) outbox: Option<OutboundChannel>,
     pub(crate) supervisor_task_tracker: TaskTracker,
     pub(crate) task_tracker: TaskTracker,
@@ -58,7 +58,7 @@ impl Context {
         actor
     }
     #[instrument]
-    pub async fn emit_pool(&self, name: &str, message: impl QuasarMessage + Sync + Send + 'static) {
+    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
         self.pool_emit(name, message).await.expect("");
     }
 
@@ -140,7 +140,7 @@ impl ActorContext for Context {
         self.task_tracker.clone()
     }
 
-    fn key(&self) -> &Qrn {
+    fn key(&self) -> &Arn {
         &self.key
     }
 

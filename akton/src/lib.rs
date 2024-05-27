@@ -18,6 +18,6 @@
  */
 
 pub mod prelude {
-    pub use quasar_macro::quasar_message;
-    pub use quasar_core::prelude::*;
+    pub use akton_macro::akton_message;
+    pub use akton_core::prelude::*;
 }

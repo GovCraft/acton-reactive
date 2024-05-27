@@ -21,7 +21,7 @@ use crate::common::StopSignal;
 use crate::common::*;
 use crate::prelude::{ActorContext, ConfigurableActor, LoadBalancerStrategy, SupervisorContext};
 use dashmap::DashMap;
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::Ordering;
@@ -93,7 +93,7 @@ impl PoolBuilder {
     }
 }
 pub(crate) struct Supervisor {
-    pub(crate) key: Qrn,
+    pub(crate) key: Arn,
     pub(crate) halt_signal: StopSignal,
     pub(crate) subordinates: DashMap<String, PoolItem>,
     pub(crate) task_tracker: TaskTracker,

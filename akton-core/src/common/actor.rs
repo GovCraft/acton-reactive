@@ -21,7 +21,7 @@ use crate::common::{
     Awake, Context, Idle, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
 };
 use crate::traits::{ActorContext, SupervisorContext};
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use std::fmt::Debug;
 use std::mem;
 use std::sync::atomic::Ordering;
@@ -40,7 +40,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Clone + Send + Debug 
     pub context: Context,
     pub(crate) parent_return_envelope: OutboundEnvelope,
     pub halt_signal: StopSignal,
-    pub key: Qrn,
+    pub key: Arn,
     pub state: State,
     pub(crate) task_tracker: TaskTracker,
     pub mailbox: Receiver<Envelope>,
@@ -166,7 +166,7 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> 
                     context,
                 )
             } else {
-                let key = Qrn::default();
+                let key = Arn::default();
                 let context = Context {
                     key: key.clone(),
                     outbox: Some(outbox.clone()),

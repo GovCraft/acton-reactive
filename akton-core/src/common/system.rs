@@ -33,7 +33,7 @@ impl<State: Clone + Default + Send + Debug> System<State> {
     where
         State: Default,
     {
-        //append to the qrn
+        //append to the arn
 
         Actor::new("root", State::default(), None)
     }

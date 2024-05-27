@@ -20,7 +20,7 @@
 use crate::common::{Context, MessageError, OutboundEnvelope};
 use crate::prelude::Envelope;
 use async_trait::async_trait;
-use quasar_qrn::prelude::*;
+use akton_arn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
@@ -37,7 +37,7 @@ pub trait Handler {
     async fn handle(&mut self) -> Result<(), MessageError>;
 }
 
-pub trait QuasarMessage: Any + Send + Debug {
+pub trait AktonMessage: Any + Send + Debug {
     fn as_any(&self) -> &dyn Any;
     fn type_id(&self) -> TypeId {
         TypeId::of::<Self>()
@@ -51,7 +51,7 @@ pub trait SystemMessage: Any + Send + Sync + Debug {
 
 #[async_trait]
 pub trait ReturnAddress: Send {
-    async fn reply(&self, message: Box<dyn QuasarMessage>) -> Result<(), MessageError>;
+    async fn reply(&self, message: Box<dyn AktonMessage>) -> Result<(), MessageError>;
 }
 
 #[async_trait]
@@ -91,7 +91,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     fn pool_emit(
         &self,
         name: &str,
-        message: impl QuasarMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     ) -> impl Future<Output = Result<(), MessageError>> + Sync
     where
         Self: Sync,
@@ -109,12 +109,12 @@ pub trait ActorContext {
     fn return_address(&self) -> OutboundEnvelope;
     fn get_task_tracker(&self) -> TaskTracker;
 
-    fn key(&self) -> &Qrn;
+    fn key(&self) -> &Arn;
 
     #[instrument(skip(self))]
     fn emit(
         &self,
-        message: impl QuasarMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     ) -> impl Future<Output = Result<(), MessageError>> + Sync
     where
         Self: Sync,

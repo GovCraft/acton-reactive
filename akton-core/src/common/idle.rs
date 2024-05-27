@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use crate::common::event_record::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::QuasarMessage;
+use crate::traits::AktonMessage;
 use dashmap::DashMap;
 use futures::future;
 use std::fmt;
@@ -51,7 +51,7 @@ impl<State: Clone + Default + Send + Debug + 'static> Debug for Idle<State> {
 
 impl<State: Clone + Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: QuasarMessage + 'static + Clone>(
+    pub fn act_on<M: AktonMessage + 'static + Clone>(
         &mut self,
         message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<M>)
             + Send
@@ -99,7 +99,7 @@ impl<State: Clone + Default + Send + Debug> Idle<State> {
             + Send,
     ) -> &mut Self
     where
-        M: QuasarMessage + 'static,
+        M: AktonMessage + 'static,
     {
         let type_id = TypeId::of::<M>();
         let handler_box = Box::new(
@@ -128,9 +128,9 @@ impl<State: Clone + Default + Send + Debug> Idle<State> {
         self
     }
     #[instrument(skip(self, signal_reactor))]
-    pub fn act_on_internal_signal<M: QuasarMessage + 'static + Clone>(
+    pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn QuasarMessage) -> Fut
+        signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
             + Send
             + Sync
             + 'static,
@@ -138,7 +138,7 @@ impl<State: Clone + Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
 
         let handler_box: Box<SignalReactor<State>> = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, message: &dyn QuasarMessage| -> Fut {
+            move |actor: &mut Actor<Awake<State>, State>, message: &dyn AktonMessage| -> Fut {
                 if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                     let fut = signal_reactor(actor, concrete_msg);
                     Box::pin(fut)

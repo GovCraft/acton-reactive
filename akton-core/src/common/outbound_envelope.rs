@@ -17,28 +17,28 @@
  *
  */
 
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use tokio::task::block_in_place;
 use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
-use crate::prelude::QuasarMessage;
+use crate::prelude::AktonMessage;
 
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
-    pub sender: Qrn,
+    pub sender: Arn,
     pub(crate) reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
     #[instrument(skip(reply_to))]
-    pub fn new(reply_to: Option<OutboundChannel>, sender: Qrn) -> Self {
+    pub fn new(reply_to: Option<OutboundChannel>, sender: Arn) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
     #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
     pub fn reply(
         &self,
-        message: impl QuasarMessage + Send + Sync + 'static,
+        message: impl AktonMessage + Send + Sync + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         block_in_place(|| {
@@ -49,7 +49,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
     pub async fn reply_async(
         &self,
-        message: impl QuasarMessage + Send + Sync + 'static,
+        message: impl AktonMessage + Send + Sync + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         //        tracing::trace!("{}", self.sender.value);
@@ -64,7 +64,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self, message),fields(sender=self.sender.value))]
     pub(crate) async fn reply_all(
         &self,
-        message: impl QuasarMessage + Send + Sync + 'static,
+        message: impl AktonMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
             debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");

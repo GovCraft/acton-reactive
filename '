@@ -21,10 +21,10 @@ use crate::common::actor::ActorPoolDef;
 use crate::common::*;
 use crate::common::{Idle, InboundChannel, LifecycleReactor, StopSignal};
 use crate::prelude::{ActorContext, ConfigurableActor, LoadBalancerStrategy, SupervisorContext};
-use crate::traits::QuasarMessage;
+use crate::traits::AktonMessage;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
-use quasar_qrn::Qrn;
+use akton_arn::Arn;
 use std::any::TypeId;
 use std::collections::HashMap;
 use std::env;
@@ -103,7 +103,7 @@ impl<T: ConfigurableActor + Debug + Send + 'static, S: LoadBalancerStrategy + De
     }
 }
 pub(crate) struct Supervisor {
-    pub(crate) key: Qrn,
+    pub(crate) key: Arn,
     pub(crate) halt_signal: StopSignal,
     pub(crate) subordinates: DashMap<String, PoolItem>,
     pub(crate) task_tracker: TaskTracker,

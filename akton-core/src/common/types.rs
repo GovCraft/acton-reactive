@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 
 use crate::common::{Actor, Awake, Context, Envelope};
-use crate::traits::QuasarMessage;
+use crate::traits::AktonMessage;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 
@@ -39,7 +39,7 @@ pub enum ReactorItem<T: Clone + Default + Send + Debug + 'static> {
 pub type MessageReactor<State> =
     dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
 
-pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn QuasarMessage) -> Fut
+pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
     + Send
     + Sync
     + 'static;

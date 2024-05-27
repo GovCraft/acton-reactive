@@ -39,6 +39,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "akton"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "console-subscriber",
+ "futures",
+ "log",
+ "petgraph",
+ "akton-core",
+ "akton-macro",
+ "rand",
+ "tokio",
+ "tracing",
+ "tracing-futures",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -849,26 +868,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "quasar"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "console-subscriber",
- "futures",
- "log",
- "petgraph",
- "quasar-core",
- "quasar-macro",
- "rand",
- "tokio",
- "tracing",
- "tracing-futures",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "quasar-core"
+name = "akton-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -877,7 +877,7 @@ dependencies = [
  "futures",
  "log",
  "matchit 0.8.0",
- "quasar-qrn",
+ "akton-arn",
  "rand",
  "static_assertions",
  "tokio",
@@ -888,7 +888,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "quasar-macro"
+name = "akton-macro"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",
@@ -897,9 +897,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "quasar-qrn"
+name = "akton-arn"
 version = "0.1.0"
-source = "git+ssh://git@github.com/GovCraft/quasar-qrn.git#57da14273dfeb3c0bf08c7b972fcb449dd7feee0"
+source = "git+ssh://git@github.com/GovCraft/akton-arn.git#57da14273dfeb3c0bf08c7b972fcb449dd7feee0"
 
 [[package]]
 name = "quote"

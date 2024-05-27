@@ -18,8 +18,8 @@
 *
 */
 
-use quasar::prelude::async_trait::async_trait;
-use quasar::prelude::*;
+use akton::prelude::async_trait::async_trait;
+use akton::prelude::*;
 use rand::Rng;
 use std::sync::Once;
 use tracing::Level;
@@ -71,7 +71,7 @@ impl ConfigurableActor for AudienceMember {
     }
 }
 // the joke told by the comedian
-#[quasar_message]
+#[akton_message]
 pub struct Joke;
 
 #[tokio::test(flavor = "multi_thread")]
@@ -212,7 +212,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[quasar_message]
+#[akton_message]
 pub enum StatusReport {
     Complete(usize),
 }
@@ -348,20 +348,20 @@ pub(crate) fn init_tracing() {
         // Define an environment filter to suppress logs from the specific function
         let filter = tracing_subscriber::EnvFilter::new("")
             .add_directive(
-                "quasar_core::common::context::peek_state_span=trace"
+                "akton_core::common::context::peek_state_span=trace"
                     .parse()
                     .unwrap(),
             )
-            .add_directive("quasar_core::common::context=off".parse().unwrap())
+            .add_directive("akton_core::common::context=off".parse().unwrap())
             .add_directive("tests=off".parse().unwrap())
-            .add_directive("quasar_core::traits=off".parse().unwrap())
-            .add_directive("quasar_core::common::awake=off".parse().unwrap())
-            .add_directive("quasar_core::common::system=off".parse().unwrap())
-            .add_directive("quasar_core::common::supervisor=off".parse().unwrap())
-            .add_directive("quasar_core::common::actor=off".parse().unwrap())
-            .add_directive("quasar_core::common::idle=off".parse().unwrap())
+            .add_directive("akton_core::traits=off".parse().unwrap())
+            .add_directive("akton_core::common::awake=off".parse().unwrap())
+            .add_directive("akton_core::common::system=off".parse().unwrap())
+            .add_directive("akton_core::common::supervisor=off".parse().unwrap())
+            .add_directive("akton_core::common::actor=off".parse().unwrap())
+            .add_directive("akton_core::common::idle=off".parse().unwrap())
             .add_directive(
-                "quasar_core::common::outbound_envelope=off"
+                "akton_core::common::outbound_envelope=off"
                     .parse()
                     .unwrap(),
             )
@@ -381,25 +381,25 @@ pub(crate) fn init_tracing() {
     });
 }
 
-#[quasar_message]
+#[akton_message]
 pub struct Pong;
 
-#[quasar_message]
+#[akton_message]
 pub struct Ping;
 
-#[quasar_message]
+#[akton_message]
 pub enum FunnyJoke {
     ChickenCrossesRoad,
     Pun,
 }
 
-#[quasar_message]
+#[akton_message]
 pub enum AudienceReaction {
     Chuckle,
     Groan,
 }
 
-#[quasar_message]
+#[akton_message]
 pub enum Tally {
     AddCount,
 }
