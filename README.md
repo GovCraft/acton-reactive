@@ -1,54 +1,44 @@
-# Akton Resource Name (QRN) System
+# Akton Distributed Actor Framework
 
-## Overview
+The Akton Distributed Actor Framework is a powerful and flexible Rust-based framework designed to build scalable and efficient distributed systems. This framework leverages the actor model, allowing developers to create robust and resilient applications with ease.
 
-The Akton Resource Name (QRN) is a structured identifier used within the Akton framework to uniquely identify and manage hierarchical actors across different services and partitions. QRNs are designed to reflect the hierarchical relationships of actors within the system, facilitating effective management, security, and operational oversight.
+## Features
 
-## QRN Structure
+- **Actor-based Architecture**: Utilizes the actor model to encapsulate state and behavior, providing a natural concurrency model.
+- **Hierarchical Actor Management**: Supports hierarchical relationships between actors, enabling efficient resource management and security.
+- **Asynchronous Messaging**: Leverages Rust's async/await syntax for high-performance, non-blocking communication.
+- **Extensibility**: Easily extensible to accommodate various use cases and integrate with existing systems.
 
-A QRN is composed of several parts, each representing a specific aspect of the resource:
+## Getting Started
 
-`arn:partition:service:account-id:hierarchy/path`
+To get started with the Akton framework, add the following to your `Cargo.toml`:
+
+```toml
+[dependencies]
+akton = { path = "./akton" }
+```
+## Example Usage
+### Creating and Managing Actors
+```rust
+use akton::prelude::*;
+
+#[derive(Default, Debug)]
+struct MyActor;
+
+impl Actor for MyActor {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Self::Context) {
+        println!("Actor started!");
+    }
+}
+
+fn main() {
+    let system = System::new("example");
+    let actor = system.actor_of::<MyActor>("my-actor").unwrap();
+    actor.tell(MyMessage, None);
+    system.run();
+}
+```
 
 
-### Components
-
-- **arn**: Indicates that the string is a Akton Resource Name.
-- **partition**: Classifies the resource as internal or external (`akton-internal`, `akton-external`).
-- **service**: Specifies the service within Akton that the actor belongs to.
-- **account-id**: Identifies the owner or account responsible for the actor.
-- **hierarchy/path**: Provides a path-like structure that shows the actor's position within the tree, reflecting parent-child relationships.
-
-## Examples
-
-### Corporate Hierarchy Actor
-
-`arn:akton-internal:hr:company123:root/departmentA/team1`
-
-
-This QRN identifies an actor representing Team 1, which is part of Department A under the HR service, managed by account `company123`.
-
-### IoT Device in a Network Topology
-
-`arn:akton-external:iot:vendor456:root/region1/building5/floor3/device42`
-
-
-This QRN points to Device 42 located on Floor 3 of Building 5 in Region 1, managed by IoT services for the vendor account `vendor456`.
-
-## Usage
-
-### Path Construction
-
-When adding new actors to the system, construct their QRN by appending to the parent's QRN path, ensuring each actor’s QRN accurately reflects their position within the hierarchy.
-
-### Dynamic Tree Manipulation
-
-If an actor is moved within the hierarchy, update their QRN—and potentially those of all descendants—to reflect the new path. This keeps the identification consistent and meaningful.
-
-### Resource Management
-
-Use QRNs for logging, access control, and management tools to monitor interactions, manage permissions, and track activities based on actors' hierarchical locations.
-
-## Conclusion
-
-The QRN system provides a robust method for uniquely identifying and managing actors within a complex, hierarchical structure, supporting enhanced security, operational management, and clarity throughout the Akton framework.
