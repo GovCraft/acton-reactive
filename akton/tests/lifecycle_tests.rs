@@ -30,62 +30,26 @@
  *
  *
  */
-use crate::traits::AktonMessage;
-use std::{any::Any, fmt::Debug};
-use tokio::sync::oneshot::Sender;
+mod setup;
+use akton::prelude::*;
+use crate::setup::*;
 
-/// Signals used by the supervisor to interact with actors.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum SupervisorSignal<T: Any + Send + Debug> {
-    /// Signal to inspect the actor's state.
-    Inspect(Option<Sender<T>>),
-}
-
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-/// System-wide signals used to control actor lifecycle events.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
-    /// Signal to terminate the actor.
-    Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
-}
-
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_lifecycle_events() -> anyhow::Result<()> {
+    init_tracing();
+    let mut actor = Akton::<PoolItem>::create();
+    actor
+        .setup
+        .on_before_wake(|_actor| {
+            tracing::info!("Actor waking up");
+        })
+        .on_wake(|actor| {
+            tracing::info!("Actor woke up with key: {}", actor.key.value);
+        })
+        .on_stop(|actor| {
+            tracing::info!("Actor stopping with key: {}", actor.key.value);
+        });
+    let context = actor.activate(None).await;
+    context.terminate().await?;
+    Ok(())
 }

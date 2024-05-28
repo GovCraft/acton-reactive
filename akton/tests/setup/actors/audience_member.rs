@@ -30,62 +30,42 @@
  *
  *
  */
-use crate::traits::AktonMessage;
-use std::{any::Any, fmt::Debug};
-use tokio::sync::oneshot::Sender;
 
-/// Signals used by the supervisor to interact with actors.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum SupervisorSignal<T: Any + Send + Debug> {
-    /// Signal to inspect the actor's state.
-    Inspect(Option<Sender<T>>),
+// We'll create pool of audience member actors who will hear a joke told by the comedian
+// They will randomly react to the jokes after which the Comedian will report on how many
+// jokes landed and didn't land
+
+use rand::Rng;
+use async_trait::async_trait;
+use akton_core::prelude::*;
+use crate::setup::*;
+
+#[derive(Default, Debug, Clone)]
+pub struct AudienceMember {
+    pub jokes_told: usize,
+    pub funny: usize,
+    pub bombers: usize,
 }
 
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-/// System-wide signals used to control actor lifecycle events.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
-    /// Signal to terminate the actor.
-    Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
-}
-
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+#[async_trait]
+impl ConfigurableActor for AudienceMember {
+    // this trait function details what should happen for each member of the pool we are about to
+    // create, it gets created when the parent actor calls spawn_with_pool
+    async fn init(&self, name: String, root: &Context) -> Context {
+        let mut parent = root.supervise::<AudienceMember>(&name);
+        parent.setup.act_on::<Joke>(|actor, _event| {
+            let sender = &actor.new_parent_envelope();
+            let mut random_choice = rand::thread_rng();
+            let random_reaction = random_choice.gen_bool(0.5);
+            if random_reaction {
+                tracing::trace!("Send chuckle");
+                let _ = sender.reply(AudienceReactionMsg::Chuckle, Some("audience".to_string()));
+            } else {
+                tracing::trace!("Send groan");
+                let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
+            }
+        });
+        let context = parent.activate(None).await;
+        context
     }
 }

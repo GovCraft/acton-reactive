@@ -34,19 +34,31 @@
 use crate::{common::Context, prelude::LoadBalancerStrategy};
 
 use rand::{thread_rng, Rng};
-
+/// Implements a round-robin load balancing strategy.
 #[derive(Debug, Default)]
 pub struct RoundRobinStrategy {
+    /// The current index in the round-robin sequence.
     current_index: usize,
 }
 
 impl RoundRobinStrategy {
+    /// Creates a new `RoundRobinStrategy` instance.
+    ///
+    /// # Returns
+    /// A new `RoundRobinStrategy` instance.
     pub fn new() -> Self {
         RoundRobinStrategy { current_index: 0 }
     }
 }
 
 impl LoadBalancerStrategy for RoundRobinStrategy {
+    /// Selects an item index from the given list using round-robin strategy.
+    ///
+    /// # Parameters
+    /// - `items`: A slice of `Context` items to select from.
+    ///
+    /// # Returns
+    /// An `Option` containing the selected index, or `None` if the list is empty.
     fn select_item(&mut self, items: &[Context]) -> Option<usize> {
         if items.is_empty() {
             None
@@ -57,10 +69,18 @@ impl LoadBalancerStrategy for RoundRobinStrategy {
     }
 }
 
+/// Implements a random load balancing strategy.
 #[derive(Debug, Default)]
 pub struct RandomStrategy;
 
 impl LoadBalancerStrategy for RandomStrategy {
+    /// Selects an item index from the given list using random selection.
+    ///
+    /// # Parameters
+    /// - `items`: A slice of `Context` items to select from.
+    ///
+    /// # Returns
+    /// An `Option` containing the selected index, or `None` if the list is empty.
     fn select_item(&mut self, items: &[Context]) -> Option<usize> {
         if items.is_empty() {
             None
@@ -71,8 +91,16 @@ impl LoadBalancerStrategy for RandomStrategy {
     }
 }
 
+/// Defines the various load balancing strategies available.
 #[derive(Debug)]
-pub enum LBStrategy {
+#[non_exhaustive]
+pub enum LoadBalanceStrategy {
+    /// Uses a round-robin strategy for load balancing.
     RoundRobin,
+    /// Uses a random strategy for load balancing.
     Random,
+    /// Uses a least-busy strategy for load balancing.
+    LeastBusy,
+    /// Uses a hash-based strategy for load balancing.
+    HashBased,
 }

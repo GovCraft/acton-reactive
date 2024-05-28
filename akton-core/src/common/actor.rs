@@ -49,30 +49,66 @@ use super::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
 
+/// Represents an actor in the Akton framework.
+///
+/// # Type Parameters
+/// - `RefType`: The type used for the actor's setup reference.
+/// - `State`: The type representing the state of the actor.
 pub struct Actor<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> {
-    pub ctx: RefType,
+    /// The setup reference for the actor.
+    pub setup: RefType,
+
+    /// The context in which the actor operates.
     pub context: Context,
+
+    /// The parent actor's return envelope.
     pub(crate) parent_return_envelope: OutboundEnvelope,
+
+    /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
+
+    /// The unique identifier (ARN) for the actor.
     pub key: Arn,
+
+    /// The state of the actor.
     pub state: State,
+
+    /// The task tracker for the actor.
     pub(crate) task_tracker: TaskTracker,
+
+    /// The mailbox for receiving envelopes.
     pub mailbox: Receiver<Envelope>,
 }
+
+/// Custom implementation of the `Debug` trait for the `Actor` struct.
+///
+/// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
 impl<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> Debug
-    for Actor<RefType, State>
+for Actor<RefType, State>
 {
+    /// Formats the `Actor` struct using the given formatter.
+    ///
+    /// # Parameters
+    /// - `f`: The formatter used for writing formatted output.
+    ///
+    /// # Returns
+    /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Actor")
-            //            .field("mailbox", &self.mailbox)
-            //           .field("parent_return_envelope", &self.parent_return_envelope)
-            //.field("context", &self.context)
-            .field("task_tracker", &self.task_tracker)
+            .field("key", &self.key.value) // Only the key field is included in the debug output
             .finish()
     }
 }
 
+/// Represents an actor in the awake state.
+///
+/// # Type Parameters
+/// - `State`: The type representing the state of the actor.
 impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
+    /// Creates a new outbound envelope for the actor.
+    ///
+    /// # Returns
+    /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(envelope) = &self.context.outbox {
             Option::from(OutboundEnvelope::new(
@@ -83,14 +119,22 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
             None
         }
     }
+
+    /// Creates a new parent envelope for the actor.
+    ///
+    /// # Returns
+    /// A clone of the parent's return envelope.
     pub fn new_parent_envelope(&self) -> OutboundEnvelope {
         self.parent_return_envelope.clone()
     }
-    pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>)
-    //  where
-    //      State: Send + 'static,
-    {
-        (self.ctx.on_wake)(self);
+
+    /// Wakes the actor and processes incoming messages using the provided reactors.
+    ///
+    /// # Parameters
+    /// - `reactors`: A map of reactors to handle different message types.
+    pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
+        // Call the on_wake setup function
+        (self.setup.on_wake)(self);
 
         let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
@@ -108,24 +152,27 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
                 }
             }
 
-            // Match on a mutable reference to the message
+            // Match on a mutable reference to the message for SupervisorSignal::Inspect
             if let Some(SupervisorSignal::Inspect(response_channel)) = envelope
                 .message
                 .as_any_mut()
                 .downcast_mut::<SupervisorSignal<State>>()
             {
                 let actor_state = self.state.clone();
-                // Take the Option out of the response channel
+                // Send the actor's state through the response channel if available
                 if let Some(response_channel) = response_channel.take() {
                     let _ = response_channel.send(actor_state);
                 }
             }
+
+            // Handle SystemSignal::Terminate to stop the actor
             if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
-                (self.ctx.on_before_stop)(self);
-                if let Some(ref on_before_stop_async) = self.ctx.on_before_stop_async {
-                    (on_before_stop_async)(self).await;
+                // Call the on_before_stop setup function
+                (self.setup.on_before_stop)(self);
+                if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
+                    on_before_stop_async(self).await;
                 }
                 break;
             }
@@ -136,73 +183,89 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
                 tokio::task::yield_now().await;
             }
         }
-        (self.ctx.on_stop)(self);
+        // Call the on_stop setup function
+        (self.setup.on_stop)(self);
     }
 }
 
+/// Represents an actor in the idle state.
+///
+/// # Type Parameters
+/// - `State`: The type representing the state of the actor.
 impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> {
+    /// Creates a new actor with the given ID, state, and optional parent context.
+    ///
+    /// # Parameters
+    /// - `id`: The identifier for the new actor.
+    /// - `state`: The initial state of the actor.
+    /// - `parent_context`: An optional parent context for the new actor.
+    ///
+    /// # Returns
+    /// A new `Actor` instance.
     #[instrument(skip(state, id, parent_context))]
     pub(crate) fn new(id: &str, state: State, parent_context: Option<Context>) -> Self {
+        // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-        let (parent_return_envelope, key, task_tracker, context) =
-            if let Some(parent_context) = parent_context {
-                let mut key = parent_context.key().clone();
-                key.append_part(id);
 
-                //                let context = parent_context.clone();
-                let context = Context {
-                    key: key.clone(),
-                    outbox: Some(outbox.clone()),
-                    supervisor_task_tracker: TaskTracker::new(),
-                    supervisor_outbox: parent_context.return_address().reply_to,
-                    task_tracker: TaskTracker::new(),
-                };
+        // Initialize context and task tracker based on whether a parent context is provided
+        let (parent_return_envelope, key, task_tracker, context) = if let Some(parent_context) = parent_context {
+            let mut key = parent_context.key().clone();
+            key.append_part(id);
 
-                debug_assert!(
-                    parent_context
-                        .outbox
-                        .as_ref()
-                        .map_or(true, |outbox| !outbox.is_closed()),
-                    "Parent context outbox is closed in new"
-                );
-                debug_assert!(
-                    parent_context
-                        .supervisor_outbox
-                        .as_ref()
-                        .map_or(true, |outbox| !outbox.is_closed()),
-                    "Parent context supervisor outbox is closed in new"
-                );
-
-                (
-                    parent_context.return_address().clone(),
-                    key,
-                    parent_context.task_tracker.clone(),
-                    context,
-                )
-            } else {
-                let key = Arn::default();
-                let context = Context {
-                    key: key.clone(),
-                    outbox: Some(outbox.clone()),
-                    supervisor_task_tracker: TaskTracker::new(),
-                    supervisor_outbox: None,
-                    task_tracker: TaskTracker::new(),
-                };
-
-                (
-                    context.return_address().clone(),
-                    key,
-                    TaskTracker::new(),
-                    context,
-                )
+            let context = Context {
+                key: key.clone(),
+                outbox: Some(outbox.clone()),
+                supervisor_task_tracker: TaskTracker::new(),
+                supervisor_outbox: parent_context.return_address().reply_to,
+                task_tracker: TaskTracker::new(),
             };
 
+            // Ensure the parent context's outbox and supervisor outbox are not closed
+            debug_assert!(
+                parent_context
+                    .outbox
+                    .as_ref()
+                    .map_or(true, |outbox| !outbox.is_closed()),
+                "Parent context outbox is closed in new"
+            );
+            debug_assert!(
+                parent_context
+                    .supervisor_outbox
+                    .as_ref()
+                    .map_or(true, |outbox| !outbox.is_closed()),
+                "Parent context supervisor outbox is closed in new"
+            );
+
+            (
+                parent_context.return_address().clone(),
+                key,
+                parent_context.task_tracker.clone(),
+                context,
+            )
+        } else {
+            // If no parent context is provided, initialize a new context
+            let key = Arn::default();
+            let context = Context {
+                key: key.clone(),
+                outbox: Some(outbox.clone()),
+                supervisor_task_tracker: TaskTracker::new(),
+                supervisor_outbox: None,
+                task_tracker: TaskTracker::new(),
+            };
+
+            (
+                context.return_address().clone(),
+                key,
+                TaskTracker::new(),
+                context,
+            )
+        };
+
+        // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
-
-        //        if let Some(ref outbox) = context.outbox {
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
-        //       }
 
+        // Ensure the supervisor outbox is not closed if it exists
         if let Some(ref supervisor_outbox) = context.supervisor_outbox {
             debug_assert!(
                 !supervisor_outbox.is_closed(),
@@ -210,10 +273,9 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> 
             );
         }
 
-        //        tracing::trace!("Returning new Actor with ID: {}", id);
-
+        // Create and return the new actor instance
         let actor = Actor {
-            ctx: Idle::default(),
+            setup: Idle::default(),
             context,
             parent_return_envelope,
             halt_signal: Default::default(),
@@ -225,68 +287,86 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> 
         tracing::warn!("{:?}", &actor);
         actor
     }
+
+    /// Activates the actor, optionally with a pool builder.
+    ///
+    /// # Parameters
+    /// - `builder`: An optional `PoolBuilder` to initialize supervised children.
+    ///
+    /// # Returns
+    /// The actor's context after activation.
     #[instrument(skip(self))]
-    pub async fn spawn(self) -> Context {
+    pub async fn activate(self, builder: Option<PoolBuilder>) -> Context {
+        // Store and activate all supervised children if a builder is provided
         let mut actor = self;
-        let reactors = mem::take(&mut actor.ctx.reactors);
-        let context = actor.context.clone();
-        let active_actor: Actor<Awake<State>, State> = actor.into();
-        let mut actor = active_actor;
+        let reactors = mem::take(&mut actor.setup.reactors);
+        let mut context = actor.context.clone();
 
-        let actor_tracker = &context.task_tracker.clone();
-        debug_assert!(
-            !actor.mailbox.is_closed(),
-            "Actor mailbox is closed in spawn"
-        );
+        if let Some(builder) = builder {
+            // If a pool builder is provided, spawn the supervisor
+            let mut supervisor = builder.spawn(&context).await;
+            context.supervisor_outbox = Some(supervisor.outbox.clone());
+            context.supervisor_task_tracker = supervisor.task_tracker.clone();
+            let active_actor: Actor<Awake<State>, State> = actor.into();
+            let mut actor = active_actor;
 
-        actor_tracker.spawn(async move { actor.wake(reactors).await });
-        //close the trackers
-        let _ = &context.supervisor_task_tracker().close();
-        //let _ = &actor_tracker.close();
+            let actor_tracker = &context.task_tracker.clone();
+            debug_assert!(
+                !actor.mailbox.is_closed(),
+                "Actor mailbox is closed in spawn_with_pools"
+            );
+
+            // Spawn the actor's wake task
+            actor_tracker.spawn(async move { actor.wake(reactors).await });
+            debug_assert!(
+                !supervisor.mailbox.is_closed(),
+                "Supervisor mailbox is closed in spawn_with_pools"
+            );
+
+            let supervisor_tracker = supervisor.task_tracker.clone();
+
+            // Spawn the supervisor's wake task
+            supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
+            // Close the supervisor task tracker
+            supervisor_tracker.close();
+
+        } else {
+            // If no builder is provided, activate the actor directly
+            let active_actor: Actor<Awake<State>, State> = actor.into();
+            let mut actor = active_actor;
+
+            let actor_tracker = &context.task_tracker.clone();
+            debug_assert!(
+                !actor.mailbox.is_closed(),
+                "Actor mailbox is closed in spawn"
+            );
+
+            // Spawn the actor's wake task
+            actor_tracker.spawn(async move { actor.wake(reactors).await });
+            // Close the supervisor task tracker
+            let _ = &context.supervisor_task_tracker().close();
+        }
+        // Close the actor's task tracker
         context.task_tracker.close();
 
         context.clone()
     }
-
-    #[instrument(skip(self, builder))]
-    pub async fn spawn_with_pools(self, builder: PoolBuilder) -> Context {
-        let mut actor = self;
-        let reactors = mem::take(&mut actor.ctx.reactors);
-        let mut context = actor.context.clone();
-
-        let mut supervisor = builder.spawn(&context).await;
-        context.supervisor_outbox = Some(supervisor.outbox.clone());
-        context.supervisor_task_tracker = supervisor.task_tracker.clone();
-        let active_actor: Actor<Awake<State>, State> = actor.into();
-        let mut actor = active_actor;
-
-        let actor_tracker = &context.task_tracker.clone();
-        debug_assert!(
-            !actor.mailbox.is_closed(),
-            "Actor mailbox is closed in spawn_with_pools"
-        );
-
-        actor_tracker.spawn(async move { actor.wake(reactors).await });
-        debug_assert!(
-            !supervisor.mailbox.is_closed(),
-            "Supervisor mailbox is closed in spawn_with_pools"
-        );
-
-        let supervisor_tracker = supervisor.task_tracker.clone();
-
-        supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
-        //close the trackers
-        supervisor_tracker.close();
-        context.task_tracker.close();
-
-        context
-    }
 }
 
+/// Represents an actor in the awake state.
+///
+/// # Type Parameters
+/// - `State`: The type representing the state of the actor.
 impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
+    /// Terminates the actor by setting the halt signal.
+    ///
+    /// This method sets the halt signal to true, indicating that the actor should stop processing.
     #[instrument(skip(self))]
     pub(crate) fn terminate(&self) {
+        // Load the current value of the halt signal with sequential consistency ordering
         self.halt_signal.load(Ordering::SeqCst);
+
+        // Store `true` in the halt signal to indicate termination
         self.halt_signal.store(true, Ordering::SeqCst);
     }
 }

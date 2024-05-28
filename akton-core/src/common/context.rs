@@ -30,29 +30,42 @@
  *
  *
  */
-
 use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
 use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
 use akton_arn::Arn;
 use std::fmt::Debug;
+use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
 use super::signal::SupervisorSignal;
 
+/// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
 pub struct Context {
+    /// The unique identifier (ARN) for the context.
     pub key: Arn,
+    /// The outbound channel for sending messages.
     pub(crate) outbox: Option<OutboundChannel>,
+    /// The task tracker for the supervisor.
     pub(crate) supervisor_task_tracker: TaskTracker,
+    /// The task tracker for the actor.
     pub(crate) task_tracker: TaskTracker,
+    /// The supervisor's outbound channel for sending messages.
     pub(crate) supervisor_outbox: Option<OutboundChannel>,
 }
 
 impl Context {
+    /// Creates and supervises a new actor with the given ID and state.
+    ///
+    /// # Parameters
+    /// - `id`: The identifier for the new actor.
+    ///
+    /// # Returns
+    /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
-    pub fn new_actor<State: Clone + Default + Send + Debug>(
+    pub fn supervise<State: Clone + Default + Send + Debug>(
         &self,
         id: &str,
     ) -> Actor<Idle<State>, State> {
@@ -71,28 +84,39 @@ impl Context {
 
         actor
     }
+
+    /// Emits a message to a pool.
+    ///
+    /// # Parameters
+    /// - `name`: The name of the pool.
+    /// - `message`: The message to be emitted.
     #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.pool_emit(name, message).await.expect("");
+        self.pool_emit(name, message).await.expect("Failed to emit message to pool");
     }
 
+    /// Terminates the actor and its subordinates.
+    ///
+    /// # Returns
+    /// An `anyhow::Result` indicating success or failure.
     #[instrument(skip(self))]
-    pub async fn terminate<State: Default + Send + Debug + Clone + 'static>(
-        &self,
-    ) -> anyhow::Result<State> {
+    pub async fn terminate(&self) -> anyhow::Result<()> {
         let supervisor_tracker = self.supervisor_task_tracker().clone();
         let tracker = self.get_task_tracker().clone();
         self.terminate_subordinates().await?;
         supervisor_tracker.wait().await;
-        let result = self.peek_state().await?;
         self.terminate_actor().await?;
         tracker.wait().await;
-        Ok(result)
+        Ok(())
     }
 
+    /// Terminates all subordinate actors.
+    ///
+    /// # Returns
+    /// An `anyhow::Result` indicating success or failure.
     #[instrument]
     pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
-        tracing::trace!("entering terminate_all");
+        tracing::trace!("Terminating all subordinates");
         let supervisor = self.supervisor_return_address().clone();
         if let Some(supervisor) = supervisor {
             supervisor.reply_all(SystemSignal::Terminate).await?;
@@ -100,29 +124,46 @@ impl Context {
         Ok(())
     }
 
+    /// Terminates the actor.
+    ///
+    /// # Returns
+    /// An `anyhow::Result` indicating success or failure.
     #[instrument]
     pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
-        tracing::trace!("entering terminate_actor");
+        tracing::trace!("Terminating actor");
         let actor = self.return_address().clone();
         actor.reply(SystemSignal::Terminate, None)?;
         Ok(())
     }
 
+    /// Peeks at the state of the actor.
+    ///
+    /// # Returns
+    /// An `Option` containing the state of the actor if successful, otherwise `None`.
     #[instrument(skip(self), target = "peek_space_span")]
-    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(
-        &self,
-    ) -> anyhow::Result<State> {
-        let (sender, receiver) = tokio::sync::oneshot::channel();
+    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(&self) -> Option<State> {
+        let (sender, receiver) = oneshot::channel();
         let actor = self.return_address().clone();
-        actor.reply(SupervisorSignal::Inspect(Some(sender)), None)?;
-        let result = receiver.await?;
 
-        Ok(result)
+        if actor.reply(SupervisorSignal::Inspect(Some(sender)), None).is_err() {
+            return None;
+        }
+
+        match receiver.await {
+            Ok(result) => Some(result),
+            Err(_) => None,
+        }
     }
 }
 
 #[async_trait]
 impl SupervisorContext for Context {
+    /// Returns the task tracker for the supervisor.
+    fn supervisor_task_tracker(&self) -> TaskTracker {
+        self.supervisor_task_tracker.clone()
+    }
+
+    /// Returns the return address for the supervisor, if available.
     #[instrument(skip(self))]
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
         if let Some(outbox) = &self.supervisor_outbox {
@@ -136,65 +177,64 @@ impl SupervisorContext for Context {
             None
         }
     }
-    fn supervisor_task_tracker(&self) -> TaskTracker {
-        self.supervisor_task_tracker.clone()
-    }
 }
 
 #[async_trait]
 impl ActorContext for Context {
+    /// Returns the return address for the actor.
     #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        //    tracing::trace!("");
         OutboundEnvelope::new(outbox, self.key.clone())
     }
 
+    /// Returns the task tracker for the actor.
     fn get_task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
     }
 
+    /// Returns the unique identifier (ARN) for the context.
     fn key(&self) -> &Arn {
         &self.key
     }
 
+    /// Wakes the actor.
     async fn wake(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Wake)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Recreates the actor.
     async fn recreate(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Recreate)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Suspends the actor.
     async fn suspend(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Suspend)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Resumes the actor.
     async fn resume(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Resume)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Supervises the actor.
     async fn supervise(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Supervise)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Watches the actor.
     async fn watch(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Watch)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Stops watching the actor.
     async fn unwatch(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Unwatch)).await?;
-        Ok(())
+        unimplemented!()
     }
 
+    /// Marks the actor as failed.
     async fn failed(&mut self) -> anyhow::Result<()> {
-        // self.signal_outbox.send(Box::new(SystemSignal::Failed)).await?;
-        Ok(())
+        unimplemented!()
     }
 }
