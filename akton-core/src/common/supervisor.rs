@@ -33,100 +33,54 @@
 
 use crate::common::StopSignal;
 use crate::common::*;
-use crate::prelude::{ActorContext, ConfigurableActor, LoadBalancerStrategy, SupervisorContext};
+use crate::prelude::{ActorContext, SupervisorContext};
 use dashmap::DashMap;
 use akton_arn::Arn;
-use std::collections::HashMap;
+
 use std::fmt::Debug;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
-#[derive(Debug)]
-pub(crate) struct PoolDef {
-    pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn ConfigurableActor>,
-    pub(crate) strategy: LBStrategy,
-}
-
-#[derive(Debug, Default)]
-pub struct PoolBuilder {
-    pools: HashMap<String, PoolDef>,
-}
-impl PoolBuilder {
-    pub fn add_pool<T: ConfigurableActor + Default + Debug + Send + 'static>(
-        mut self,
-        name: &str,
-        size: usize,
-        strategy: LBStrategy,
-    ) -> Self {
-        let pool = T::default();
-        let def = PoolDef {
-            size,
-            actor_type: Box::new(pool),
-            strategy,
-        };
-        self.pools.insert(name.to_string(), def);
-        self
-    }
-
-    #[instrument(skip(self, parent), fields(id=parent.key.value))]
-    pub(crate) async fn spawn(mut self, parent: &Context) -> Supervisor {
-        let subordinates = DashMap::new();
-        for (pool_name, pool_def) in &mut self.pools {
-            let pool_name = pool_name.to_string();
-            let mut context_items = Vec::with_capacity(pool_def.size);
-            for i in 0..pool_def.size {
-                let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name.clone(), parent).await;
-                tracing::info!("item_name: {}, context: {:?}", &item_name, &context);
-                context_items.push(context);
-            }
-            let strategy: Box<dyn LoadBalancerStrategy> = match &pool_def.strategy {
-                LBStrategy::RoundRobin => Box::<RoundRobinStrategy>::default(),
-                LBStrategy::Random => Box::<RandomStrategy>::default(),
-            };
-            let item = PoolItem {
-                pool: context_items,
-                strategy,
-            };
-            subordinates.insert(pool_name, item);
-        }
-        let (outbox, mailbox) = channel(255);
-        let task_tracker = TaskTracker::new();
-        Supervisor {
-            key: parent.key.clone(),
-            halt_signal: StopSignal::new(false),
-            subordinates,
-            outbox,
-            mailbox,
-            task_tracker,
-        }
-    }
-}
+/// Represents a supervisor in the actor system, responsible for managing subordinates and handling messages.
 pub(crate) struct Supervisor {
+    /// The unique identifier (ARN) for the supervisor.
     pub(crate) key: Arn,
+    /// The signal used to halt the supervisor.
     pub(crate) halt_signal: StopSignal,
+    /// A map of subordinates managed by the supervisor.
     pub(crate) subordinates: DashMap<String, PoolItem>,
+    /// The task tracker for managing the supervisor's tasks.
     pub(crate) task_tracker: TaskTracker,
+    /// The outbound channel for sending messages.
     pub(crate) outbox: Sender<Envelope>,
+    /// The mailbox for receiving messages.
     pub(crate) mailbox: Receiver<Envelope>,
 }
+
+/// Custom implementation of the `Debug` trait for the `Supervisor` struct.
+///
+/// This implementation provides a formatted output for the `Supervisor` struct.
 impl Debug for Supervisor {
+    /// Formats the `Supervisor` struct using the given formatter.
+    ///
+    /// # Parameters
+    /// - `f`: The formatter used for writing formatted output.
+    ///
+    /// # Returns
+    /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.key.value)
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct PoolItem {
-    pub(crate) pool: Vec<Context>,
-    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
-}
-
 impl Supervisor {
+    /// Wakes the supervisor and processes incoming messages.
+    ///
+    /// # Returns
+    /// An `anyhow::Result` indicating success or failure.
     #[instrument(skip(self))]
     pub(crate) async fn wake_supervisor(&mut self) -> anyhow::Result<()> {
         loop {
@@ -138,7 +92,7 @@ impl Supervisor {
                         // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
                         let pool_clone = pool_def.pool.clone();
 
-                        // Now perform the selection outside of the mutable borrow's scope.
+                        // Now perform the selection outside the mutable borrowed variable's scope.
                         if let Some(index) = pool_def.strategy.select_item(&pool_clone) {
                             // Access the original data using the index now that we're outside the conflicting borrow.
                             let context = &pool_def.pool[index];
@@ -161,8 +115,9 @@ impl Supervisor {
                         SystemSignal::Unwatch => {}
                         SystemSignal::Failed => {}
                     }
-                } // Checking stop condition .
+                }
             }
+            // Check stop condition.
             let should_stop =
                 { self.halt_signal.load(Ordering::SeqCst) && self.mailbox.is_empty() };
 
@@ -174,6 +129,11 @@ impl Supervisor {
         }
         Ok(())
     }
+
+    /// Terminates the supervisor and its subordinates.
+    ///
+    /// # Returns
+    /// An `anyhow::Result` indicating success or failure.
     #[instrument(skip(self))]
     pub(crate) async fn terminate(&self) -> anyhow::Result<()> {
         let subordinates = &self.subordinates;
@@ -183,12 +143,8 @@ impl Supervisor {
             for item in subordinates {
                 for context in &item.value().pool {
                     let envelope = &context.return_address();
-                    //                    tracing::warn!("Terminating {}", &context.key.value);
                     tracing::trace!("Terminating done {:?}", &context);
-                    //                        if let Some(envelope) = supervisor {
                     envelope.reply(SystemSignal::Terminate, None)?;
-                    //                       }
-                    //context.terminate_subordinates().await;
                     context.terminate_actor().await?;
                 }
             }

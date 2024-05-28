@@ -31,32 +31,9 @@
  *
  */
 
-use tracing::instrument;
+use akton_core::prelude::OutboundEnvelope;
 
-use crate::common::{Actor, Idle};
-use std::fmt::Debug;
-
-#[derive(Debug)]
-pub struct System<State: Clone + Default + Send + Debug> {
-    pub root_actor: State,
-}
-
-impl<State: Clone + Default + Send + Debug> System<State> {
-    #[instrument]
-    pub fn new_actor() -> Actor<Idle<State>, State>
-    where
-        State: Default,
-    {
-        //append to the arn
-
-        Actor::new("root", State::default(), None)
-    }
-}
-
-impl<State: Clone + Default + Send + Debug> Default for System<State> {
-    fn default() -> Self {
-        System {
-            root_actor: State::default(),
-        }
-    }
+#[derive(Default, Debug, Clone)]
+pub struct Messenger {
+    pub sender: Option<OutboundEnvelope>,
 }

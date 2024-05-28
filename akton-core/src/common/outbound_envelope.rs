@@ -37,18 +37,37 @@ use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::prelude::AktonMessage;
-
+/// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
+    /// The sender's ARN (Amazon Resource Name).
     pub sender: Arn,
+    /// The optional channel for sending replies.
     pub(crate) reply_to: Option<OutboundChannel>,
 }
 
 impl OutboundEnvelope {
+    /// Creates a new outbound envelope.
+    ///
+    /// # Parameters
+    /// - `reply_to`: The optional channel for sending replies.
+    /// - `sender`: The sender's ARN.
+    ///
+    /// # Returns
+    /// A new `OutboundEnvelope` instance.
     #[instrument(skip(reply_to))]
     pub fn new(reply_to: Option<OutboundChannel>, sender: Arn) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
+
+    /// Sends a reply message synchronously.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be sent.
+    /// - `pool_id`: An optional pool ID.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
     #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
     pub fn reply(
         &self,
@@ -60,22 +79,36 @@ impl OutboundEnvelope {
             tokio::runtime::Handle::current().block_on(future)
         })
     }
+
+    /// Sends a reply message asynchronously.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be sent.
+    /// - `pool_id`: An optional pool ID.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
     #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
-        //        tracing::trace!("{}", self.sender.value);
-
         if let Some(reply_to) = &self.reply_to {
-            debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply");
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             reply_to.send(envelope).await?;
         }
         Ok(())
     }
-    #[instrument(skip(self, message),fields(sender=self.sender.value))]
+
+    /// Sends a reply message to all recipients asynchronously.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be sent.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
+    #[instrument(skip(self, message), fields(sender=self.sender.value))]
     pub(crate) async fn reply_all(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,

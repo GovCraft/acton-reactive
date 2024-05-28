@@ -30,8 +30,19 @@
  *
  *
  */
+#![forbid(unsafe_code)]
+// #![warn(unused)]
 
+//! Akton Main Library
+//!
+//! This library provides the main entry point for the Akton actor framework.
+//! It includes the prelude module for convenient imports.
+
+/// Prelude module for convenient imports.
+///
+/// This module re-exports commonly used and required items from the `akton_macro` and `akton_core` crates.
 pub mod prelude {
     pub use akton_macro::akton_message;
     pub use akton_core::prelude::*;
 }
+

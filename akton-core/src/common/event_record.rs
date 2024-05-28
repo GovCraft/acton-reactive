@@ -35,10 +35,19 @@ use crate::common::OutboundEnvelope;
 use static_assertions::assert_impl_all;
 use std::time::SystemTime;
 
+/// Represents a record of an event within the actor system.
+///
+/// # Type Parameters
+/// - `S`: The type of the message contained in the event.
 #[derive(Clone, Debug)]
 pub struct EventRecord<S> {
+    /// The message contained in the event.
     pub message: S,
+    /// The time when the message was sent.
     pub sent_time: SystemTime,
+    /// The return address for the message response.
     pub return_address: OutboundEnvelope,
 }
+
+// Ensures that EventRecord<u32> implements the Send trait.
 assert_impl_all!(EventRecord<u32>: Send);

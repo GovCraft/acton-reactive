@@ -38,60 +38,53 @@ use akton_arn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
-use std::usize;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
+/// Trait defining the strategy for load balancing.
 pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
+    /// Select an item from a list of contexts.
     fn select_item(&mut self, items: &[Context]) -> Option<usize>;
 }
 
-#[async_trait]
-pub trait Handler {
-    async fn handle(&mut self) -> Result<(), MessageError>;
-}
-
+/// Trait for Akton messages, providing methods for type erasure.
 pub trait AktonMessage: Any + Send + Debug {
+    /// Returns a reference to the message as `Any`.
     fn as_any(&self) -> &dyn Any;
+
+    /// Returns the `TypeId` of the message.
     fn type_id(&self) -> TypeId {
         TypeId::of::<Self>()
     }
+
+    /// Returns a mutable reference to the message as `Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-pub trait SystemMessage: Any + Send + Sync + Debug {
-    fn as_any(&self) -> &dyn Any;
-}
-
-#[async_trait]
-pub trait ReturnAddress: Send {
-    async fn reply(&self, message: Box<dyn AktonMessage>) -> Result<(), MessageError>;
-}
-
+/// Trait for configurable actors, allowing initialization.
 #[async_trait]
 pub trait ConfigurableActor: Send + Debug {
+    /// Initializes the actor with a given name and root context.
     async fn init(&self, name: String, root: &Context) -> Context;
 }
 
-pub enum DistributionStrategy {
-    RoundRobin,
-    Random,
-    LeastBusy,
-    HashBased,
-}
-
+/// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
 #[async_trait]
 pub(crate) trait SupervisorContext: ActorContext {
+    /// Returns the supervisor's task tracker.
     fn supervisor_task_tracker(&self) -> TaskTracker;
+
+    /// Returns the supervisor's return address, if available.
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
 
+    /// Emit an envelope to the supervisor.
     #[instrument(skip(self))]
     fn emit_envelope(
         &self,
         envelope: Envelope,
     ) -> impl Future<Output = Result<(), MessageError>> + Sync
-    where
-        Self: Sync,
+        where
+            Self: Sync,
     {
         async {
             let forward_address = self.return_address();
@@ -102,50 +95,73 @@ pub(crate) trait SupervisorContext: ActorContext {
         }
     }
 
+    /// Emit a message to a pool using the supervisor's return address.
     fn pool_emit(
         &self,
         name: &str,
         message: impl AktonMessage + Sync + Send + 'static,
     ) -> impl Future<Output = Result<(), MessageError>> + Sync
-    where
-        Self: Sync,
+        where
+            Self: Sync,
     {
         async {
             if let Some(envelope) = self.supervisor_return_address() {
-                envelope.reply(message, Some(name.to_string()))?; // Directly boxing the owned message
+                envelope.reply(message, Some(name.to_string()))?;
             }
             Ok(())
         }
     }
 }
+
+/// Trait for actor context, defining common methods for actor management.
 #[async_trait]
 pub trait ActorContext {
+    /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
+
+    /// Returns the actor's task tracker.
     fn get_task_tracker(&self) -> TaskTracker;
 
+    /// Returns the actor's key.
     fn key(&self) -> &Arn;
 
+    /// Emit a message from the actor.
     #[instrument(skip(self))]
     fn emit(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
     ) -> impl Future<Output = Result<(), MessageError>> + Sync
-    where
-        Self: Sync,
+        where
+            Self: Sync,
     {
         async {
             let envelope = self.return_address();
-            envelope.reply(message, None)?; // Directly boxing the owned message
+            envelope.reply(message, None)?;
             Ok(())
         }
     }
 
+    /// Wakes the actor.
     async fn wake(&mut self) -> anyhow::Result<()>;
+
+    /// Recreates the actor.
     async fn recreate(&mut self) -> anyhow::Result<()>;
+
+    /// Suspends the actor.
     async fn suspend(&mut self) -> anyhow::Result<()>;
+
+    /// Resumes the actor.
     async fn resume(&mut self) -> anyhow::Result<()>;
+
+    /// Supervises the actor.
     async fn supervise(&mut self) -> anyhow::Result<()>;
+
+    /// Watches the actor.
     async fn watch(&mut self) -> anyhow::Result<()>;
+
+    /// Stops watching the actor.
     async fn unwatch(&mut self) -> anyhow::Result<()>;
+
+    /// Marks the actor as failed.
     async fn failed(&mut self) -> anyhow::Result<()>;
 }
