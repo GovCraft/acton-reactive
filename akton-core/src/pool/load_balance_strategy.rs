@@ -32,7 +32,7 @@
  */
 
 use crate::common::Context;
-use crate::traits::load_balancer_strategy::LoadBalancerStrategy;
+use crate::traits::LoadBalancerStrategy;
 use rand::{thread_rng, Rng};
 /// Implements a round-robin load balancing strategy.
 #[derive(Debug, Default)]
@@ -41,15 +41,15 @@ pub struct RoundRobinStrategy {
     current_index: usize,
 }
 
-impl RoundRobinStrategy {
-    /// Creates a new `RoundRobinStrategy` instance.
-    ///
-    /// # Returns
-    /// A new `RoundRobinStrategy` instance.
-    pub fn new() -> Self {
-        RoundRobinStrategy { current_index: 0 }
-    }
-}
+// impl RoundRobinStrategy {
+//     /// Creates a new `RoundRobinStrategy` instance.
+//     ///
+//     /// # Returns
+//     /// A new `RoundRobinStrategy` instance.
+//     pub fn new() -> Self {
+//         RoundRobinStrategy { current_index: 0 }
+//     }
+// }
 
 impl LoadBalancerStrategy for RoundRobinStrategy {
     /// Selects an item index from the given list using round-robin strategy.
@@ -59,7 +59,7 @@ impl LoadBalancerStrategy for RoundRobinStrategy {
     ///
     /// # Returns
     /// An `Option` containing the selected index, or `None` if the list is empty.
-    fn select_item(&mut self, items: &[Context]) -> Option<usize> {
+    fn select_context(&mut self, items: &[Context]) -> Option<usize> {
         if items.is_empty() {
             None
         } else {
@@ -81,7 +81,7 @@ impl LoadBalancerStrategy for RandomStrategy {
     ///
     /// # Returns
     /// An `Option` containing the selected index, or `None` if the list is empty.
-    fn select_item(&mut self, items: &[Context]) -> Option<usize> {
+    fn select_context(&mut self, items: &[Context]) -> Option<usize> {
         if items.is_empty() {
             None
         } else {

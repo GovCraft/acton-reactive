@@ -33,11 +33,12 @@
 
 use std::fmt::Debug;
 
-use crate::common::*;
-use crate::common::{Idle, LifecycleReactor};
+use crate::common::{LifecycleReactor, LifecycleReactorAsync};
+use crate::actors::Idle;
 use std::fmt;
 use std::fmt::Formatter;
 use tracing::{instrument, warn};
+use crate::actors::actor::Actor;
 
 /// Represents the lifecycle state of an actor when it is awake.
 ///

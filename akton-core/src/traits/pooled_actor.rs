@@ -38,7 +38,14 @@ use crate::common::Context;
 
 /// Trait for configurable actors, allowing initialization.
 #[async_trait]
-pub trait PoolableActor: Send + Debug {
-    /// Initializes the actor with a given name and root context.
-    async fn init(&self, name: String, root: &Context) -> Context;
+pub trait PooledActor: Send + Debug {
+    /// Initializes the actor with a given name and parent context.
+    ///
+    /// # Parameters
+    /// - `name`: The name to assign to the actor.
+    /// - `parent`: The parent context within which the actor is initialized.
+    ///
+    /// # Returns
+    /// A new `Context` for the initialized actor.
+    async fn initialize(&self, name: String, parent: &Context) -> Context;
 }

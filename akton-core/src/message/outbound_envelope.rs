@@ -36,7 +36,7 @@ use tokio::task::block_in_place;
 use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
-use crate::traits::akton_message::AktonMessage;
+use crate::traits::AktonMessage;
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {

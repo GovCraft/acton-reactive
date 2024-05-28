@@ -67,7 +67,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     }
 
     /// Emit a message to a pool using the supervisor's return address.
-    fn pool_emit(
+    fn emit_to_pool(
         &self,
         name: &str,
         message: impl AktonMessage + Sync + Send + 'static,

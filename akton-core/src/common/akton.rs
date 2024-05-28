@@ -33,8 +33,10 @@
 
 use tracing::instrument;
 
-use crate::common::{Actor, Idle};
+use crate::actors::{Idle,Actor};
 use std::fmt::Debug;
+use std::marker::PhantomData;
+
 /// Represents an actor with a root state.
 ///
 /// # Type Parameters
@@ -42,7 +44,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct Akton<State: Clone + Default + Send + Debug> {
     /// The root state of the actor.
-    pub root_actor: State,
+    root_actor: PhantomData<State>,
 }
 
 impl<State: Clone + Default + Send + Debug> Akton<State> {
@@ -70,7 +72,7 @@ impl<State: Clone + Default + Send + Debug> Default for Akton<State> {
     /// A new `Akton` instance.
     fn default() -> Self {
         Akton {
-            root_actor: State::default(),
+            root_actor: PhantomData,
         }
     }
 }

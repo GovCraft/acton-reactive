@@ -36,6 +36,12 @@ use crate::common::Context;
 
 /// Trait defining the strategy for load balancing.
 pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
-    /// Select an item from a list of contexts.
-    fn select_item(&mut self, items: &[Context]) -> Option<usize>;
+    /// Selects a context from a list of contexts based on the load balancing strategy.
+    ///
+    /// # Parameters
+    /// - `items`: A slice of contexts to select from.
+    ///
+    /// # Returns
+    /// An `Option<usize>` representing the index of the selected context in the list, or `None` if no selection is made.
+    fn select_context(&mut self, items: &[Context]) -> Option<usize>;
 }

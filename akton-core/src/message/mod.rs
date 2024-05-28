@@ -31,14 +31,13 @@
  *
  */
 
-mod actor_context;
-mod akton_message;
-mod load_balancer_strategy;
-mod pooled_actor;
-mod supervisor_context;
+mod envelope;
+mod outbound_envelope;
+mod message_error;
+pub mod signal;
+mod event_record;
 
-pub use actor_context::ActorContext;
-pub use akton_message::AktonMessage;
-pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
-pub use pooled_actor::PooledActor;
-pub(crate) use supervisor_context::SupervisorContext;
+pub(crate) use outbound_envelope::OutboundEnvelope;
+pub(crate) use envelope::Envelope;
+pub use message_error::MessageError;
+pub use event_record::EventRecord;

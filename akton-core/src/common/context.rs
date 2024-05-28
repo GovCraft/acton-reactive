@@ -30,10 +30,9 @@
  *
  *
  */
-use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::traits::actor_context::ActorContext;
-use crate::traits::akton_message::AktonMessage;
-use crate::traits::supervisor_context::SupervisorContext;
+use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
+use crate::actors::{Actor, Idle};
+use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
 use akton_arn::Arn;
 use std::fmt::Debug;
@@ -41,7 +40,7 @@ use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
-use super::signal::SupervisorSignal;
+use crate::message::signal::SupervisorSignal;
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -94,7 +93,7 @@ impl Context {
     /// - `message`: The message to be emitted.
     #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.pool_emit(name, message).await.expect("Failed to emit message to pool");
+        self.emit_to_pool(name, message).await.expect("Failed to emit message to pool");
     }
 
     /// Terminates the actor and its subordinates.
@@ -104,7 +103,7 @@ impl Context {
     #[instrument(skip(self))]
     pub async fn terminate(&self) -> anyhow::Result<()> {
         let supervisor_tracker = self.supervisor_task_tracker().clone();
-        let tracker = self.get_task_tracker().clone();
+        let tracker = self.task_tracker().clone();
         self.terminate_subordinates().await?;
         supervisor_tracker.wait().await;
         self.terminate_actor().await?;
@@ -191,13 +190,8 @@ impl ActorContext for Context {
     }
 
     /// Returns the task tracker for the actor.
-    fn get_task_tracker(&self) -> TaskTracker {
+    fn task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
-    }
-
-    /// Returns the unique identifier (ARN) for the context.
-    fn key(&self) -> &Arn {
-        &self.key
     }
 
     /// Wakes the actor.
@@ -236,7 +230,7 @@ impl ActorContext for Context {
     }
 
     /// Marks the actor as failed.
-    async fn failed(&mut self) -> anyhow::Result<()> {
+    async fn fail(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 }

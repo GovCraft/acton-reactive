@@ -32,10 +32,10 @@
  */
 
 use crate::common::{
-    Awake, Context, Idle, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
+    Context, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
 };
-use crate::traits::actor_context::ActorContext;
-use crate::traits::supervisor_context::SupervisorContext;
+use crate::actors::{Awake, Idle};
+use crate::traits::{ActorContext, SupervisorContext};
 use akton_arn::Arn;
 use std::fmt::Debug;
 use std::mem;
@@ -44,9 +44,9 @@ use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
-use super::signal::SupervisorSignal;
-use super::Envelope;
-use super::PoolBuilder;
+use crate::message::signal::SupervisorSignal;
+use crate::common::Envelope;
+use crate::pool::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
 
@@ -149,7 +149,6 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
                     ReactorItem::Future(fut) => {
                         fut(self, &envelope).await;
                     }
-                    _ => {}
                 }
             }
 
@@ -210,7 +209,7 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> 
 
         // Initialize context and task tracker based on whether a parent context is provided
         let (parent_return_envelope, key, task_tracker, context) = if let Some(parent_context) = parent_context {
-            let mut key = parent_context.key().clone();
+            let mut key = parent_context.return_address().sender.clone();
             key.append_part(id);
 
             let context = Context {

@@ -34,16 +34,15 @@
 use std::any::TypeId;
 use std::fmt::Debug;
 
-use crate::common::event_record::EventRecord;
+use crate::message::EventRecord;
 use crate::common::*;
-use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::akton_message::AktonMessage;
+use crate::common::{LifecycleReactor};
+use crate::traits::AktonMessage;
 use dashmap::DashMap;
-use futures::future;
 use std::fmt;
 use std::fmt::Formatter;
-use tracing::{debug, error, instrument};
-
+use tracing::{error, instrument};
+use crate::actors::{Actor, Awake};
 /// Represents the lifecycle state of an actor when it is idle.
 ///
 /// # Type Parameters
@@ -175,45 +174,6 @@ impl<State: Clone + Default + Send + Debug> Idle<State> {
         let _ = &self
             .reactors
             .insert(type_id, ReactorItem::Future(handler_box));
-        self
-    }
-
-    /// Adds an internal signal handler for a specific signal type.
-    ///
-    /// # Parameters
-    /// - `signal_reactor`: The function to handle the signal.
-    #[instrument(skip(self, signal_reactor))]
-    pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
-        &mut self,
-        signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
-        + Send
-        + Sync
-        + 'static,
-    ) -> &mut Self {
-        let type_id = TypeId::of::<M>();
-
-        // Create a boxed handler for the signal type.
-        let handler_box: Box<SignalReactor<State>> = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, message: &dyn AktonMessage| -> Fut {
-                if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                    let fut = signal_reactor(actor, concrete_msg);
-                    Box::pin(fut)
-                } else {
-                    error!(
-                        "Message type mismatch: expected {:?}",
-                        std::any::type_name::<M>()
-                    );
-                    Box::pin(future::ready(()))
-                }
-            },
-        );
-
-        debug!("adding signal reactor to reactors");
-        // Insert the handler into the reactors map.
-        let _ = &self
-            .reactors
-            .insert(type_id, ReactorItem::Signal(handler_box));
-
         self
     }
 

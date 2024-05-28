@@ -48,10 +48,10 @@ pub struct AudienceMember {
 }
 
 #[async_trait]
-impl PoolableActor for AudienceMember {
+impl PooledActor for AudienceMember {
     // this trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn init(&self, name: String, root: &Context) -> Context {
+    async fn initialize(&self, name: String, root: &Context) -> Context {
         let mut parent = root.supervise::<AudienceMember>(&name);
         parent.setup.act_on::<Joke>(|actor, _event| {
             let sender = &actor.new_parent_envelope();

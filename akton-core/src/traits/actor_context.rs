@@ -32,7 +32,6 @@
  */
 
 use std::future::Future;
-use akton_arn::Arn;
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
@@ -46,10 +45,7 @@ pub trait ActorContext {
     fn return_address(&self) -> OutboundEnvelope;
 
     /// Returns the actor's task tracker.
-    fn get_task_tracker(&self) -> TaskTracker;
-
-    /// Returns the actor's key.
-    fn key(&self) -> &Arn;
+    fn task_tracker(&self) -> TaskTracker;
 
     /// Emit a message from the actor.
     #[instrument(skip(self))]
@@ -89,5 +85,5 @@ pub trait ActorContext {
     async fn unwatch(&mut self) -> anyhow::Result<()>;
 
     /// Marks the actor as failed.
-    async fn failed(&mut self) -> anyhow::Result<()>;
+    async fn fail(&mut self) -> anyhow::Result<()>;
 }
