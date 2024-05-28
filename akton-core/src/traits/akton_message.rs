@@ -31,12 +31,19 @@
  *
  */
 
-use crate::common::LoadBalanceStrategy;
-use crate::traits::poolable_actor::PoolableActor;
+use std::any::{Any, TypeId};
+use std::fmt::Debug;
 
-#[derive(Debug)]
-pub(crate) struct PoolConfig {
-    pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn PoolableActor>,
-    pub(crate) strategy: LoadBalanceStrategy,
+/// Trait for Akton messages, providing methods for type erasure.
+pub trait AktonMessage: Any + Send + Debug {
+    /// Returns a reference to the message as `Any`.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns the `TypeId` of the message.
+    fn type_id(&self) -> TypeId {
+        TypeId::of::<Self>()
+    }
+
+    /// Returns a mutable reference to the message as `Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }

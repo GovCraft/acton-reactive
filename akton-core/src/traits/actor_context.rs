@@ -31,41 +31,63 @@
  *
  */
 
-// We'll create pool of audience member actors who will hear a joke told by the comedian
-// They will randomly react to the jokes after which the Comedian will report on how many
-// jokes landed and didn't land
-
-use rand::Rng;
+use std::future::Future;
+use akton_arn::Arn;
 use async_trait::async_trait;
-use akton_core::prelude::*;
-use crate::setup::*;
+use tokio_util::task::TaskTracker;
+use tracing::instrument;
+use crate::common::*;
+use crate::traits::akton_message::AktonMessage;
 
-#[derive(Default, Debug, Clone)]
-pub struct AudienceMember {
-    pub jokes_told: usize,
-    pub funny: usize,
-    pub bombers: usize,
-}
-
+/// Trait for actor context, defining common methods for actor management.
 #[async_trait]
-impl PoolableActor for AudienceMember {
-    // this trait function details what should happen for each member of the pool we are about to
-    // create, it gets created when the parent actor calls spawn_with_pool
-    async fn init(&self, name: String, root: &Context) -> Context {
-        let mut parent = root.supervise::<AudienceMember>(&name);
-        parent.setup.act_on::<Joke>(|actor, _event| {
-            let sender = &actor.new_parent_envelope();
-            let mut random_choice = rand::thread_rng();
-            let random_reaction = random_choice.gen_bool(0.5);
-            if random_reaction {
-                tracing::trace!("Send chuckle");
-                let _ = sender.reply(AudienceReactionMsg::Chuckle, Some("audience".to_string()));
-            } else {
-                tracing::trace!("Send groan");
-                let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
-            }
-        });
-        let context = parent.activate(None).await;
-        context
+pub trait ActorContext {
+    /// Returns the actor's return address.
+    fn return_address(&self) -> OutboundEnvelope;
+
+    /// Returns the actor's task tracker.
+    fn get_task_tracker(&self) -> TaskTracker;
+
+    /// Returns the actor's key.
+    fn key(&self) -> &Arn;
+
+    /// Emit a message from the actor.
+    #[instrument(skip(self))]
+    fn emit(
+        &self,
+        message: impl AktonMessage + Sync + Send + 'static,
+    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+        where
+            Self: Sync,
+    {
+        async {
+            let envelope = self.return_address();
+            envelope.reply(message, None)?;
+            Ok(())
+        }
     }
+
+    /// Wakes the actor.
+    async fn wake(&mut self) -> anyhow::Result<()>;
+
+    /// Recreates the actor.
+    async fn recreate(&mut self) -> anyhow::Result<()>;
+
+    /// Suspends the actor.
+    async fn suspend(&mut self) -> anyhow::Result<()>;
+
+    /// Resumes the actor.
+    async fn resume(&mut self) -> anyhow::Result<()>;
+
+    /// Supervises the actor.
+    async fn supervise(&mut self) -> anyhow::Result<()>;
+
+    /// Watches the actor.
+    async fn watch(&mut self) -> anyhow::Result<()>;
+
+    /// Stops watching the actor.
+    async fn unwatch(&mut self) -> anyhow::Result<()>;
+
+    /// Marks the actor as failed.
+    async fn failed(&mut self) -> anyhow::Result<()>;
 }

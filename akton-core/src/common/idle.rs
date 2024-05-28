@@ -37,7 +37,7 @@ use std::fmt::Debug;
 use crate::common::event_record::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::AktonMessage;
+use crate::traits::akton_message::AktonMessage;
 use dashmap::DashMap;
 use futures::future;
 use std::fmt;

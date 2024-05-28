@@ -30,7 +30,7 @@
  *
  *
  */
-use crate::traits::AktonMessage;
+use crate::traits::akton_message::AktonMessage;
 use std::{any::Any, fmt::Debug};
 use tokio::sync::oneshot::Sender;
 

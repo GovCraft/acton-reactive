@@ -31,7 +31,9 @@
  *
  */
 use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
+use crate::traits::actor_context::ActorContext;
+use crate::traits::akton_message::AktonMessage;
+use crate::traits::supervisor_context::SupervisorContext;
 use async_trait::async_trait;
 use akton_arn::Arn;
 use std::fmt::Debug;

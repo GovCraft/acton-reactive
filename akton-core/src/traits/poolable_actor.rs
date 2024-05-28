@@ -31,12 +31,14 @@
  *
  */
 
-use crate::common::LoadBalanceStrategy;
-use crate::traits::poolable_actor::PoolableActor;
 
-#[derive(Debug)]
-pub(crate) struct PoolConfig {
-    pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn PoolableActor>,
-    pub(crate) strategy: LoadBalanceStrategy,
+use std::fmt::Debug;
+use async_trait::async_trait;
+use crate::common::Context;
+
+/// Trait for configurable actors, allowing initialization.
+#[async_trait]
+pub trait PoolableActor: Send + Debug {
+    /// Initializes the actor with a given name and root context.
+    async fn init(&self, name: String, root: &Context) -> Context;
 }

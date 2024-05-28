@@ -51,6 +51,8 @@ mod traits;
 /// as well as the `async_trait` crate.
 pub mod prelude {
     pub use crate::common::*;
-    pub use crate::traits::*;
+    pub use crate::traits::akton_message::AktonMessage;
+    pub use crate::traits::poolable_actor::PoolableActor;
+    pub use crate::traits::actor_context::ActorContext;
     pub use async_trait;
 }

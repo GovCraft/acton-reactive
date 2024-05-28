@@ -32,7 +32,7 @@
  */
 
 use crate::common::OutboundChannel;
-use crate::traits::AktonMessage;
+use crate::traits::akton_message::AktonMessage;
 use static_assertions::assert_impl_all;
 use std::time::SystemTime;
 /// Represents an envelope that carries a message within the actor system.

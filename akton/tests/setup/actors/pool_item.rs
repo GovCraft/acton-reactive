@@ -40,7 +40,7 @@ pub struct PoolItem {
 }
 
 #[async_trait]
-impl ConfigurableActor for PoolItem {
+impl PoolableActor for PoolItem {
     // Initialize the actor with a given name and parent context
     async fn init(&self, actor_name: String, parent_context: &Context) -> Context {
         // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);

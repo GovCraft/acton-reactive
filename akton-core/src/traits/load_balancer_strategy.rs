@@ -31,12 +31,11 @@
  *
  */
 
-use crate::common::LoadBalanceStrategy;
-use crate::traits::poolable_actor::PoolableActor;
+use std::fmt::Debug;
+use crate::common::Context;
 
-#[derive(Debug)]
-pub(crate) struct PoolConfig {
-    pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn PoolableActor>,
-    pub(crate) strategy: LoadBalanceStrategy,
+/// Trait defining the strategy for load balancing.
+pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
+    /// Select an item from a list of contexts.
+    fn select_item(&mut self, items: &[Context]) -> Option<usize>;
 }

@@ -33,7 +33,8 @@
 
 use crate::common::StopSignal;
 use crate::common::*;
-use crate::prelude::{ActorContext, SupervisorContext};
+use crate::traits::actor_context::ActorContext;
+use crate::traits::supervisor_context::SupervisorContext;
 use dashmap::DashMap;
 use akton_arn::Arn;
 

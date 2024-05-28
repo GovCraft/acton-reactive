@@ -32,7 +32,7 @@
  */
 
 use crate::common::Context;
-use crate::prelude::LoadBalancerStrategy;
+use crate::traits::load_balancer_strategy::LoadBalancerStrategy;
 
 #[derive(Debug)]
 pub(crate) struct PoolItem {

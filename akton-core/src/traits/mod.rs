@@ -31,12 +31,9 @@
  *
  */
 
-use crate::common::LoadBalanceStrategy;
-use crate::traits::poolable_actor::PoolableActor;
+pub mod actor_context;
+pub mod akton_message;
+pub(crate) mod load_balancer_strategy;
+pub mod poolable_actor;
+pub(crate) mod supervisor_context;
 
-#[derive(Debug)]
-pub(crate) struct PoolConfig {
-    pub(crate) size: usize,
-    pub(crate) actor_type: Box<dyn PoolableActor>,
-    pub(crate) strategy: LoadBalanceStrategy,
-}

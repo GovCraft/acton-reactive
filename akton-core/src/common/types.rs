@@ -38,7 +38,7 @@ use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 
 use crate::common::{Actor, Awake, Context, Envelope};
-use crate::traits::AktonMessage;
+use crate::traits::akton_message::AktonMessage;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 

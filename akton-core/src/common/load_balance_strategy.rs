@@ -31,8 +31,8 @@
  *
  */
 
-use crate::{common::Context, prelude::LoadBalancerStrategy};
-
+use crate::common::Context;
+use crate::traits::load_balancer_strategy::LoadBalancerStrategy;
 use rand::{thread_rng, Rng};
 /// Implements a round-robin load balancing strategy.
 #[derive(Debug, Default)]

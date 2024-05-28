@@ -39,7 +39,8 @@ use tokio::sync::mpsc::channel;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 use crate::common::{Context, LoadBalanceStrategy, PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy, StopSignal, Supervisor};
-use crate::prelude::{ConfigurableActor, LoadBalancerStrategy};
+use crate::traits::load_balancer_strategy::LoadBalancerStrategy;
+use crate::traits::poolable_actor::PoolableActor;
 /// Builder for creating and configuring actor pools.
 #[derive(Debug, Default)]
 pub struct PoolBuilder {
@@ -57,7 +58,7 @@ impl PoolBuilder {
     ///
     /// # Returns
     /// The updated `PoolBuilder` instance.
-    pub fn add_pool<T: ConfigurableActor + Default + Debug + Send + 'static>(
+    pub fn add_pool<T: PoolableActor + Default + Debug + Send + 'static>(
         mut self,
         name: &str,
         size: usize,

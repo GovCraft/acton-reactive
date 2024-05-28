@@ -34,7 +34,8 @@
 use crate::common::{
     Awake, Context, Idle, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
 };
-use crate::traits::{ActorContext, SupervisorContext};
+use crate::traits::actor_context::ActorContext;
+use crate::traits::supervisor_context::SupervisorContext;
 use akton_arn::Arn;
 use std::fmt::Debug;
 use std::mem;
