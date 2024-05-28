@@ -35,24 +35,34 @@ use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
 use static_assertions::assert_impl_all;
 use std::time::SystemTime;
-
+/// Represents an envelope that carries a message within the actor system.
 #[derive(Debug)]
 pub struct Envelope {
+    /// The message contained in the envelope.
     pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
+    /// The identifier of the pool, if any, to which this envelope belongs.
     pub pool_id: Option<String>,
+    /// The time when the message was sent.
     pub sent_time: SystemTime,
+    /// The return address for the message response.
     pub return_address: Option<OutboundChannel>,
 }
 
 impl Envelope {
+    /// Creates a new envelope with the specified message, return address, and pool identifier.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be carried in the envelope.
+    /// - `return_address`: The return address for the message response.
+    /// - `pool_id`: The identifier of the pool to which this envelope belongs, if any.
+    ///
+    /// # Returns
+    /// A new `Envelope` instance.
     pub fn new(
         message: Box<dyn AktonMessage + Sync + Send + 'static>,
         return_address: Option<OutboundChannel>,
         pool_id: Option<String>,
     ) -> Self {
-        if let Some(chan) = &return_address {
-            debug_assert!(!chan.is_closed(), "Envelope outbound channel is closed");
-        }
         Envelope {
             message,
             sent_time: SystemTime::now(),
@@ -61,4 +71,6 @@ impl Envelope {
         }
     }
 }
+
+// Ensures that Envelope implements the Send trait.
 assert_impl_all!(Envelope: Send);

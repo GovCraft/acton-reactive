@@ -30,41 +30,69 @@
  *
  *
  */
+#![forbid(unsafe_code)]
 
-extern crate proc_macro;
+// extern crate proc_macro;
+//! Akton Macro Library
+//!
+//! This library provides procedural macros for the Akton actor framework.
+//! It includes macros to derive common traits and boilerplate code for Akton messages.
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
+/// A procedural macro to derive the necessary traits for an Akton message.
+///
+/// This macro will automatically implement `Clone`, `Debug`, `AktonMessage`, and `Sync`
+/// for the annotated type.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// #[akton_message]
+/// struct MyMessage {
+///     // fields...
+/// }
+/// ```
+
 #[proc_macro_attribute]
 pub fn akton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree.
     let input = parse_macro_input!(item as DeriveInput);
 
+    // Get the name of the struct.
     let name = &input.ident;
 
+    // Generate the expanded code.
     let expanded = quote! {
 
+        // Derive the Clone trait.
         #[derive(Clone)]
         #input
 
+        // Implement the Debug trait.
         impl std::fmt::Debug for #name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, stringify!(#name))
             }
         }
 
+        // Implement the AktonMessage trait.
         impl AktonMessage for #name {
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        // Implement the new method
-        self
-    }
-             fn as_any(&self) -> &dyn std::any::Any {
+            fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+                self
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
         }
+
+        // Implement the Sync trait.
         unsafe impl Sync for #name {}
     };
 
+    // Return the generated tokens.
     TokenStream::from(expanded)
 }

@@ -30,14 +30,23 @@
  *
  *
  */
-
+/// Represents errors that can occur when sending messages in the actor system.
 #[derive(Debug)]
 pub enum MessageError {
+    /// Indicates that sending a message failed.
     SendFailed(String),
-    OtherError(String),  // Include other types of errors as needed
+    /// Represents other types of errors.
+    OtherError(String),
 }
 
 impl std::fmt::Display for MessageError {
+    /// Formats the `MessageError` for display.
+    ///
+    /// # Parameters
+    /// - `f`: The formatter used for writing formatted output.
+    ///
+    /// # Returns
+    /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             MessageError::SendFailed(msg) => write!(f, "Failed to send message: {}", msg),
@@ -47,6 +56,8 @@ impl std::fmt::Display for MessageError {
 }
 
 impl std::error::Error for MessageError {}
+
+/// Converts a `SendError` from Tokio's MPSC channel to a `MessageError`.
 impl<T> From<tokio::sync::mpsc::error::SendError<T>> for MessageError {
     fn from(_: tokio::sync::mpsc::error::SendError<T>) -> Self {
         MessageError::SendFailed("Channel closed".into())

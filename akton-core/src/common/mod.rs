@@ -34,17 +34,16 @@ mod load_balance_strategy;
 pub use load_balance_strategy::*;
 mod message_error;
 pub use message_error::MessageError;
-// pub use pool_proxy::PoolProxy;
 mod event_record;
 pub use event_record::EventRecord;
 mod outbound_envelope;
 pub use outbound_envelope::OutboundEnvelope;
 mod supervisor;
-pub use supervisor::*;
+pub(crate) use supervisor::*;
 mod envelope;
 pub use envelope::Envelope;
-mod system;
-pub use system::System;
+mod akton;
+pub use akton::Akton;
 
 mod types;
 pub use types::*;
@@ -62,5 +61,12 @@ mod context;
 pub use context::Context;
 
 mod actor;
+mod pool_builder;
+pub use pool_builder::PoolBuilder;
+mod pool_item;
+mod pool_config;
+pub(crate) use pool_config::PoolConfig;
+
+pub(crate) use pool_item::PoolItem;
 
 pub use actor::Actor;

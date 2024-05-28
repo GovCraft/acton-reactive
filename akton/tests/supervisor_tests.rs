@@ -30,62 +30,44 @@
  *
  *
  */
-use crate::traits::AktonMessage;
-use std::{any::Any, fmt::Debug};
-use tokio::sync::oneshot::Sender;
 
-/// Signals used by the supervisor to interact with actors.
-#[derive(Debug)]
-#[non_exhaustive]
-pub enum SupervisorSignal<T: Any + Send + Debug> {
-    /// Signal to inspect the actor's state.
-    Inspect(Option<Sender<T>>),
+mod setup;
+use akton::prelude::*;
+use crate::setup::*;
+
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_audience_pool() -> anyhow::Result<()> {
+    init_tracing();
+    let mut audience = Akton::<AudienceMember>::create();
+
+    audience
+        .setup
+        .act_on::<AudienceReactionMsg>(|actor, event| {
+            match event.message {
+                AudienceReactionMsg::Groan => actor.state.funny += 1,
+                AudienceReactionMsg::Chuckle => actor.state.bombers += 1,
+            }
+            actor.state.jokes_told += 1;
+        })
+        .on_before_stop(|actor| {
+            tracing::info!(
+                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                actor.state.jokes_told,
+                actor.state.funny,
+                actor.state.bombers
+            );
+        });
+    let pool =
+        PoolBuilder::default().add_pool::<AudienceMember>("audience", 1000, LoadBalanceStrategy::Random);
+
+    //here we call the init method on the 1000 pool members we created
+    let context = audience.activate(Some(pool)).await;
+
+    for _ in 0..1000 {
+        context.emit_pool("audience", Joke).await;
+    }
+    context.terminate().await?;
+    Ok(())
 }
 
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-/// System-wide signals used to control actor lifecycle events.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
-    /// Signal to terminate the actor.
-    Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
-}
-
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}

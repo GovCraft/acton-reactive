@@ -30,62 +30,12 @@
  *
  *
  */
-use crate::traits::AktonMessage;
-use std::{any::Any, fmt::Debug};
-use tokio::sync::oneshot::Sender;
 
-/// Signals used by the supervisor to interact with actors.
+use crate::common::Context;
+use crate::prelude::LoadBalancerStrategy;
+
 #[derive(Debug)]
-#[non_exhaustive]
-pub enum SupervisorSignal<T: Any + Send + Debug> {
-    /// Signal to inspect the actor's state.
-    Inspect(Option<Sender<T>>),
-}
-
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-/// System-wide signals used to control actor lifecycle events.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
-    /// Signal to terminate the actor.
-    Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
-}
-
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
+pub(crate) struct PoolItem {
+    pub(crate) pool: Vec<Context>,
+    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }

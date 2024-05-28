@@ -30,62 +30,47 @@
  *
  *
  */
-use crate::traits::AktonMessage;
-use std::{any::Any, fmt::Debug};
-use tokio::sync::oneshot::Sender;
 
-/// Signals used by the supervisor to interact with actors.
+use tracing::instrument;
+
+use crate::common::{Actor, Idle};
+use std::fmt::Debug;
+/// Represents an actor with a root state.
+///
+/// # Type Parameters
+/// - `State`: The type representing the state of the actor.
 #[derive(Debug)]
-#[non_exhaustive]
-pub enum SupervisorSignal<T: Any + Send + Debug> {
-    /// Signal to inspect the actor's state.
-    Inspect(Option<Sender<T>>),
+pub struct Akton<State: Clone + Default + Send + Debug> {
+    /// The root state of the actor.
+    pub root_actor: State,
 }
 
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+impl<State: Clone + Default + Send + Debug> Akton<State> {
+    /// Creates a new root actor in the idle state.
+    ///
+    /// # Returns
+    /// A new `Actor` instance in the idle state with the root state.
+    #[instrument]
+    pub fn create() -> Actor<Idle<State>, State>
+        where
+            State: Default,
+    {
+        // Creates a new actor with "root" as its identifier and a default state.
+        Actor::new("root", State::default(), None)
     }
 }
 
-/// System-wide signals used to control actor lifecycle events.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
-    /// Signal to terminate the actor.
-    Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
-}
-
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+/// Provides a default implementation for the `Akton` struct.
+///
+/// This implementation creates a new `Akton` instance with the default root state.
+impl<State: Clone + Default + Send + Debug> Default for Akton<State> {
+    /// Creates a new `Akton` instance with the default root state.
+    ///
+    /// # Returns
+    /// A new `Akton` instance.
+    fn default() -> Self {
+        Akton {
+            root_actor: State::default(),
+        }
     }
 }
