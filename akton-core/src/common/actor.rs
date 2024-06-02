@@ -54,7 +54,7 @@ use std::fmt::Formatter;
 /// # Type Parameters
 /// - `RefType`: The type used for the actor's setup reference.
 /// - `State`: The type representing the state of the actor.
-pub struct Actor<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> {
+pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     /// The setup reference for the actor.
     pub setup: RefType,
 
@@ -83,7 +83,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Clone + Send + Debug 
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
-impl<RefType: Send + 'static, State: Default + Clone + Send + Debug + 'static> Debug
+impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
 for Actor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
@@ -104,7 +104,7 @@ for Actor<RefType, State>
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
@@ -152,18 +152,18 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
                 }
             }
 
-            // Match on a mutable reference to the message for SupervisorSignal::Inspect
-            if let Some(SupervisorSignal::Inspect(response_channel)) = envelope
-                .message
-                .as_any_mut()
-                .downcast_mut::<SupervisorSignal<State>>()
-            {
-                let actor_state = self.state.clone();
-                // Send the actor's state through the response channel if available
-                if let Some(response_channel) = response_channel.take() {
-                    let _ = response_channel.send(actor_state);
-                }
-            }
+            // // Match on a mutable reference to the message for SupervisorSignal::Inspect
+            // if let Some(SupervisorSignal::Inspect(response_channel)) = envelope
+            //     .message
+            //     .as_any_mut()
+            //     .downcast_mut::<SupervisorSignal<State>>()
+            // {
+            //     let actor_state = self.state;
+            //     // Send the actor's state through the response channel if available
+            //     if let Some(response_channel) = response_channel.take() {
+            //         let _ = response_channel.send(actor_state);
+            //     }
+            // }
 
             // Handle SystemSignal::Terminate to stop the actor
             if let Some(SystemSignal::Terminate) =
@@ -192,7 +192,7 @@ impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State>
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Clone + Send + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
     /// Creates a new actor with the given ID, state, and optional parent context.
     ///
     /// # Parameters

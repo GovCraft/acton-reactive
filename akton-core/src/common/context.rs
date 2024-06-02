@@ -65,7 +65,7 @@ impl Context {
     /// # Returns
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
-    pub fn supervise<State: Clone + Default + Send + Debug>(
+    pub fn supervise<State: Default + Send + Debug>(
         &self,
         id: &str,
     ) -> Actor<Idle<State>, State> {

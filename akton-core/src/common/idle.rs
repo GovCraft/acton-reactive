@@ -48,7 +48,7 @@ use tracing::{debug, error, instrument};
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-pub struct Idle<State: Clone + Default + Send + Debug + 'static> {
+pub struct Idle<State: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     /// Reactor called when the actor wakes up.
@@ -66,7 +66,7 @@ pub struct Idle<State: Clone + Default + Send + Debug + 'static> {
 /// Custom implementation of the `Debug` trait for the `Idle` struct.
 ///
 /// This implementation provides a formatted output for the `Idle` struct.
-impl<State: Clone + Default + Send + Debug + 'static> Debug for Idle<State> {
+impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
     /// Formats the `Idle` struct using the given formatter.
     ///
     /// # Parameters
@@ -85,7 +85,7 @@ impl<State: Clone + Default + Send + Debug + 'static> Debug for Idle<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Clone + Default + Send + Debug> Idle<State> {
+impl<State: Default + Send + Debug> Idle<State> {
     /// Adds a synchronous message handler for a specific message type.
     ///
     /// # Parameters
@@ -302,7 +302,7 @@ impl<State: Clone + Default + Send + Debug> Idle<State> {
 /// Provides a default implementation for the `Idle` struct.
 ///
 /// This implementation creates a new `Idle` instance with default settings.
-impl<State: Clone + Default + Send + Debug + 'static> Default for Idle<State> {
+impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     /// Creates a new `Idle` instance with default settings.
     ///
     /// # Returns

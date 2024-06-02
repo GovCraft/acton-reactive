@@ -46,7 +46,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 pub type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
-pub enum ReactorItem<T: Clone + Default + Send + Debug + 'static> {
+pub enum ReactorItem<T: Default + Send + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
     Signal(Box<SignalReactor<T>>),
     /// A message reactor, which reacts to messages.

@@ -40,12 +40,12 @@ use std::fmt::Debug;
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
 #[derive(Debug)]
-pub struct Akton<State: Clone + Default + Send + Debug> {
+pub struct Akton<State: Default + Send + Debug> {
     /// The root state of the actor.
     pub root_actor: State,
 }
 
-impl<State: Clone + Default + Send + Debug> Akton<State> {
+impl<State: Default + Send + Debug> Akton<State> {
     /// Creates a new root actor in the idle state.
     ///
     /// # Returns
@@ -63,7 +63,7 @@ impl<State: Clone + Default + Send + Debug> Akton<State> {
 /// Provides a default implementation for the `Akton` struct.
 ///
 /// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Clone + Default + Send + Debug> Default for Akton<State> {
+impl<State: Default + Send + Debug> Default for Akton<State> {
     /// Creates a new `Akton` instance with the default root state.
     ///
     /// # Returns

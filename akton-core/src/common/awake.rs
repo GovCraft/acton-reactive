@@ -43,7 +43,7 @@ use tracing::{instrument, warn};
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-pub struct Awake<State: Clone + Default + Send + Debug + 'static> {
+pub struct Awake<State: Default + Send + Debug + 'static> {
     /// Reactor called when the actor wakes up.
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     /// Reactor called just before the actor stops.
@@ -57,7 +57,7 @@ pub struct Awake<State: Clone + Default + Send + Debug + 'static> {
 /// Custom implementation of the `Debug` trait for the `Awake` struct.
 ///
 /// This implementation provides a formatted output for the `Awake` struct.
-impl<State: Clone + Default + Send + Debug + 'static> Debug for Awake<State> {
+impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
     /// Formats the `Awake` struct using the given formatter.
     ///
     /// # Parameters
@@ -77,7 +77,7 @@ impl<State: Clone + Default + Send + Debug + 'static> Debug for Awake<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Clone + Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
+impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
 for Actor<Awake<State>, State>
 {
     /// Converts an `Actor` from the idle state to the awake state.
