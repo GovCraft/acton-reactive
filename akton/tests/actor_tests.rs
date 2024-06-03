@@ -32,6 +32,7 @@
  */
 
 mod setup;
+
 use akton::prelude::*;
 use crate::setup::*;
 
@@ -99,7 +100,8 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Create the parent actor
     let parent_actor = Akton::<PoolItem>::create();
     let mut child_actor = parent_actor.context.supervise::<PoolItem>("child");
-
+    assert_eq!(parent_actor.context.children().len(), 1, "Parent actor missing it's child");
+    let child_id = "child";
     // Set up the child actor with handlers
     child_actor
         .setup
@@ -121,6 +123,10 @@ async fn test_child_actor() -> anyhow::Result<()> {
 
     // Activate the parent actor
     let parent_context = parent_actor.activate(None).await;
+    assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
+    tracing::info!("Searching all children {:?}", parent_context.children());
+    let found_child = parent_context.find_child(&child_id);
+    assert!(found_child.is_some(), "Couldn't find child with id {}", child_id);
 
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
@@ -129,6 +135,36 @@ async fn test_child_actor() -> anyhow::Result<()> {
     }
 
     tracing::trace!("Terminating parent actor");
+    parent_context.terminate().await?;
+
+    Ok(())
+}
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_find_child_actor() -> anyhow::Result<()> {
+    // Initialize tracing for logging purposes
+    init_tracing();
+
+    // Create the parent actor
+    let mut parent_actor = Akton::<PoolItem>::create();
+    parent_actor.setup.on_before_wake(|actor| {
+       assert_eq!(actor.context.children().len(), 1);
+    });
+    // Activate the parent actor
+    let parent_context = parent_actor.activate(None).await;
+
+    let mut child_actor = parent_context.supervise::<PoolItem>("child");
+    assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
+    let child_id = "child";
+    // Set up the child actor with handlers
+
+    // Activate the child actor
+    let child_context = child_actor.activate(None).await;
+    assert_eq!(parent_context.children().len(), 1, "Parent actor missing it's child");
+
+    tracing::info!("Searching all children {:?}", parent_context.children());
+    let found_child = parent_context.find_child(&child_id);
+    assert!(found_child.is_some(), "Couldn't find child with id {}", child_id);
+
     parent_context.terminate().await?;
 
     Ok(())

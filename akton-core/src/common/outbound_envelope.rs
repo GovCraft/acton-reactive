@@ -37,6 +37,7 @@ use tracing::instrument;
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::prelude::AktonMessage;
+
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
@@ -68,7 +69,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
+    #[instrument(skip(self, message, pool_id), fields(sender = self.sender.value))]
     pub fn reply(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
@@ -88,7 +89,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message, pool_id), fields(sender=self.sender.value))]
+    #[instrument(skip(self, message, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
@@ -96,7 +97,9 @@ impl OutboundEnvelope {
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
-            reply_to.send(envelope).await?;
+            if !reply_to.is_closed() {
+                reply_to.send(envelope).await?;
+            }
         }
         Ok(())
     }
@@ -108,16 +111,18 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message), fields(sender=self.sender.value))]
+    #[instrument(skip(self, message), fields(sender = self.sender.value))]
     pub(crate) async fn reply_all(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
-            debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");
-            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
-            reply_to.send(envelope).await?;
-            tracing::trace!("reply_all completed");
+            // debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");
+            if !reply_to.is_closed() {
+                let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
+                reply_to.send(envelope).await?;
+                tracing::trace!("reply_all completed");
+            }
         }
         Ok(())
     }

@@ -31,6 +31,8 @@
  *
  */
 use std::fmt::Debug;
+use std::future::Future;
+use std::pin::Pin;
 
 use akton_arn::Arn;
 use async_trait::async_trait;
@@ -104,16 +106,21 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-    #[instrument(skip(self))]
-    pub async fn terminate(&self) -> anyhow::Result<()> {
-        let supervisor_tracker = self.supervisor_task_tracker().clone();
-        let tracker = self.get_task_tracker().clone();
-        self.terminate_subordinates().await?;
-        supervisor_tracker.wait().await;
-        self.terminate_actor().await?;
-        tracker.wait().await;
-        Ok(())
+    // #[instrument(skip(self))]
+    pub fn terminate(&self) -> Pin<Box<dyn Future<Output=anyhow::Result<()>> + '_>> {
+        Box::pin(async move {
+            self.terminate_subordinates().await?;
+            let supervisor_tracker = self.supervisor_task_tracker().clone();
+            let tracker = self.get_task_tracker().clone();
+
+            supervisor_tracker.wait().await;
+            self.terminate_actor().await?;
+            tracker.wait().await;
+
+            Ok(())
+        })
     }
+
 
     /// Terminates all subordinate actors.
     ///
@@ -123,6 +130,10 @@ impl Context {
     pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
         tracing::trace!("Terminating all subordinates");
         let supervisor = self.supervisor_return_address().clone();
+        for item in &self.children {
+            let context = item.value();
+            context.terminate().await?;
+        }
         if let Some(supervisor) = supervisor {
             supervisor.reply_all(SystemSignal::Terminate).await?;
         }
@@ -174,11 +185,15 @@ impl SupervisorContext for Context {
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
         if let Some(outbox) = &self.supervisor_outbox {
             let outbox = outbox.clone();
-            debug_assert!(
-                !outbox.is_closed(),
-                "Outbox was closed in supervisor_return_address"
-            );
-            Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
+            // debug_assert!(
+            //     !outbox.is_closed(),
+            //     "Outbox was closed in supervisor_return_address"
+            // );
+            if !outbox.is_closed() {
+                Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -197,8 +212,8 @@ impl ActorContext for Context {
         self.children.clone()
     }
 
-    fn find_child(&self, arn: String) -> Option<Context> {
-        if let Some(item) = self.children.get(&arn) {
+    fn find_child(&self, arn: &str) -> Option<Context> {
+        if let Some(item) = self.children.get(arn) {
             Some(item.value().clone())
         } else {
             None
