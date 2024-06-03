@@ -74,7 +74,6 @@ pub trait ConfigurableActor: Send + Debug {
 pub(crate) trait SupervisorContext: ActorContext {
     /// Returns the supervisor's task tracker.
     fn supervisor_task_tracker(&self) -> TaskTracker;
-    fn children(&self) -> DashMap<String, Context>;
 
     /// Returns the supervisor's return address, if available.
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
@@ -120,6 +119,7 @@ pub(crate) trait SupervisorContext: ActorContext {
 pub trait ActorContext {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
+    fn children(&self) -> DashMap<String, Context>;
 
     /// Returns the actor's task tracker.
     fn get_task_tracker(&self) -> TaskTracker;

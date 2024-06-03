@@ -30,15 +30,17 @@
  *
  *
  */
-use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
-use async_trait::async_trait;
-use akton_arn::Arn;
 use std::fmt::Debug;
+
+use akton_arn::Arn;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
+
+use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
+use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 
 use super::signal::SupervisorSignal;
 
@@ -166,9 +168,6 @@ impl SupervisorContext for Context {
         self.supervisor_task_tracker.clone()
     }
 
-    fn children(&self) -> DashMap<String, Context> {
-        self.children.clone()
-    }
 
     /// Returns the return address for the supervisor, if available.
     #[instrument(skip(self))]
@@ -194,7 +193,9 @@ impl ActorContext for Context {
         let outbox = self.outbox.clone();
         OutboundEnvelope::new(outbox, self.key.clone())
     }
-
+    fn children(&self) -> DashMap<String, Context> {
+        self.children.clone()
+    }
     /// Returns the task tracker for the actor.
     fn get_task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
