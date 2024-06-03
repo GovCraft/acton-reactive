@@ -196,6 +196,15 @@ impl ActorContext for Context {
     fn children(&self) -> DashMap<String, Context> {
         self.children.clone()
     }
+
+    fn find_child(&self, arn: String) -> Option<Context> {
+        if let Some(item) = self.children.get(&arn) {
+            Some(item.value().clone())
+        } else {
+            None
+        }
+    }
+
     /// Returns the task tracker for the actor.
     fn get_task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()

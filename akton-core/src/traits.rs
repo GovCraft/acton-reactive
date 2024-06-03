@@ -120,6 +120,7 @@ pub trait ActorContext {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
     fn children(&self) -> DashMap<String, Context>;
+    fn find_child(&self, arn: String) -> Option<Context>;
 
     /// Returns the actor's task tracker.
     fn get_task_tracker(&self) -> TaskTracker;
