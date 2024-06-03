@@ -166,6 +166,10 @@ impl SupervisorContext for Context {
         self.supervisor_task_tracker.clone()
     }
 
+    fn children(&self) -> DashMap<String, Context> {
+        self.children.clone()
+    }
+
     /// Returns the return address for the supervisor, if available.
     #[instrument(skip(self))]
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {

@@ -38,6 +38,7 @@ use akton_arn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
+use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
@@ -73,6 +74,7 @@ pub trait ConfigurableActor: Send + Debug {
 pub(crate) trait SupervisorContext: ActorContext {
     /// Returns the supervisor's task tracker.
     fn supervisor_task_tracker(&self) -> TaskTracker;
+    fn children(&self) -> DashMap<String, Context>;
 
     /// Returns the supervisor's return address, if available.
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
