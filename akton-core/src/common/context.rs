@@ -35,6 +35,7 @@ use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
 use akton_arn::Arn;
 use std::fmt::Debug;
+use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
@@ -54,6 +55,7 @@ pub struct Context {
     pub(crate) task_tracker: TaskTracker,
     /// The supervisor's outbound channel for sending messages.
     pub(crate) supervisor_outbox: Option<OutboundChannel>,
+    pub(crate) children: DashMap<String, Context>,
 }
 
 impl Context {
@@ -73,7 +75,8 @@ impl Context {
         let parent_context = self.clone();
 
         let actor = Actor::new(id, State::default(), Some(parent_context));
-
+        let child_context = actor.context.clone();
+        self.children.insert(id.parse().unwrap(), child_context);
         // Check if the mailbox is closed
         debug_assert!(
             !actor.mailbox.is_closed(),

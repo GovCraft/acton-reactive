@@ -208,6 +208,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
                 supervisor_task_tracker: TaskTracker::new(),
                 supervisor_outbox: parent_context.return_address().reply_to,
                 task_tracker: TaskTracker::new(),
+                ..Default::default()
             };
 
             // Ensure the parent context's outbox and supervisor outbox are not closed
@@ -241,6 +242,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
                 supervisor_task_tracker: TaskTracker::new(),
                 supervisor_outbox: None,
                 task_tracker: TaskTracker::new(),
+                ..Default::default()
             };
 
             (
