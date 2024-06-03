@@ -67,8 +67,8 @@ pub fn akton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the expanded code.
     let expanded = quote! {
 
-        // Derive the Clone trait.
-        #[derive(Clone)]
+        // // Derive the Clone trait.
+        // #[derive(Clone)]
         #input
 
         // Implement the Debug trait.
