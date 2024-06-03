@@ -138,44 +138,34 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
 
         let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
-            let type_id = envelope.message.as_any().type_id();
+            let type_id = envelope.message.as_any().type_id().clone();
 
             if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
                     ReactorItem::Message(reactor) => {
-                        (*reactor)(self, &envelope);
+                        (*reactor)(self, envelope);
                     }
                     ReactorItem::Future(fut) => {
                         fut(self, &envelope).await;
                     }
                     _ => {}
                 }
-            }
-
-            // // Match on a mutable reference to the message for SupervisorSignal::Inspect
-            // if let Some(SupervisorSignal::Inspect(response_channel)) = envelope
-            //     .message
-            //     .as_any_mut()
-            //     .downcast_mut::<SupervisorSignal<State>>()
-            // {
-            //     let actor_state = self.state;
-            //     // Send the actor's state through the response channel if available
-            //     if let Some(response_channel) = response_channel.take() {
-            //         let _ = response_channel.send(actor_state);
-            //     }
-            // }
-
-            // Handle SystemSignal::Terminate to stop the actor
-            if let Some(SystemSignal::Terminate) =
-                envelope.message.as_any().downcast_ref::<SystemSignal>()
-            {
-                // Call the on_before_stop setup function
-                (self.setup.on_before_stop)(self);
-                if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
-                    on_before_stop_async(self).await;
+            } else {
+                // Handle SystemSignal::Terminate to stop the actor
+                // let envelope = envelope.clone();
+                if let Some(SystemSignal::Terminate) =
+                    envelope.message.as_any().downcast_ref::<SystemSignal>()
+                {
+                    // Call the on_before_stop setup function
+                    (self.setup.on_before_stop)(self);
+                    if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
+                        on_before_stop_async(self).await;
+                    }
+                    break;
                 }
-                break;
+
             }
+
 
             // Yield less frequently to reduce context switching
             yield_counter += 1;

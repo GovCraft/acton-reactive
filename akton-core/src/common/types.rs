@@ -57,7 +57,7 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 
 /// A type alias for a message reactor function.
 pub type MessageReactor<State> =
-dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
+dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, Envelope) + Send + Sync + 'static;
 
 /// A type alias for a signal reactor function.
 pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
