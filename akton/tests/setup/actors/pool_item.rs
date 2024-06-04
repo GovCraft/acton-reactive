@@ -49,7 +49,7 @@ impl ConfigurableActor for PoolItem {
         // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);
 
         // Create a supervised actor
-        let mut actor = Idle::<PoolItem>::create_child(&name, &root);
+        let mut actor = Akton::<PoolItem>::create_with_id(&name);
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
@@ -67,6 +67,8 @@ impl ConfigurableActor for PoolItem {
                     actor.key.value
                 );
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
+                Ok(())
+
             })
             .on_before_stop(|actor| {
                 let final_count = actor.state.receive_count;

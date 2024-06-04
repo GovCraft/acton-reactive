@@ -58,6 +58,15 @@ impl<State: Default + Send + Debug> Akton<State> {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new("root", State::default(), None)
     }
+    #[instrument]
+    pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
+        where
+            State: Default + Send + Sync + Debug,
+    {
+        // Creates a new actor with "root" as its identifier and a default state.
+        Actor::new(id, State::default(), None)
+    }
+
 }
 
 /// Provides a default implementation for the `Akton` struct.

@@ -36,6 +36,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
+use anyhow::anyhow;
 
 use crate::common::{Actor, Awake, Context, Envelope};
 use crate::traits::AktonMessage;
@@ -55,9 +56,10 @@ pub enum ReactorItem<T: Default + Send + Sync + Debug + 'static> {
     Future(Box<FutReactor<T>>),
 }
 
+use anyhow::Result;
 /// A type alias for a message reactor function.
 pub type MessageReactor<State> =
-dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, Envelope) + Send + Sync + 'static;
+dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &Envelope)-> Result<()> + Send + Sync + 'static ;
 
 /// A type alias for a signal reactor function.
 pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut

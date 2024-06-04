@@ -51,8 +51,11 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
                 StatusReport::Complete(total) => {
                     tracing::info!("{} reported {}", sender.value, total);
                     actor.state.receive_count += total;  // Increment receive_count based on StatusReport
+
                 }
-            }
+            };
+            Ok(())
+
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);
@@ -92,7 +95,9 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
                     tracing::debug!("{} reported {}", sender.value, total);
                     actor.state.receive_count += total;  // Increment receive_count based on StatusReport
                 }
-            }
+            };
+            Ok(())
+
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);

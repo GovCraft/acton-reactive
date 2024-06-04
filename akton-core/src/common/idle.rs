@@ -99,6 +99,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
     /// A new `Actor` instance in the idle state.
     #[instrument(fields(child_key = id))]
     pub fn create_child(
+        &self,
         id: &str,
         parent_context: &Context,
         // parent: Arc<Mutex<Actor<Idle<State>, State>>>,
@@ -125,7 +126,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: AktonMessage + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, EventRecord<&M>)
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>) -> anyhow::Result<()>
         + Send
         + Sync
         + 'static,
@@ -134,11 +135,11 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
 
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, envelope: Envelope| {
+            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> anyhow::Result<()> {
                 if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                     // let cloned_message = concrete_msg.clone(); // Clone the message.
                     let msg = concrete_msg;
-                    let mut event_record = EventRecord {
+                    let mut event_record = &EventRecord {
                         message: msg,
                         sent_time: envelope.sent_time,
                         return_address: OutboundEnvelope::new(
@@ -146,7 +147,10 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
                             actor.key.clone(),
                         ),
                     };
-                    message_reactor(actor, event_record);
+                    match message_reactor(actor, event_record) {
+                        Ok(_) => {tracing::trace!("MessageReactor succeeded")}
+                        Err(_) => {tracing::error!("MessageReactor failed")}
+                    }
                     Box::pin(())
                 } else {
                     error!(
@@ -155,6 +159,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
                     );
                     unreachable!("Shouldn't get here");
                 };
+                Ok(())
             },
         );
 

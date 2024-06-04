@@ -44,6 +44,11 @@ pub enum FunnyJoke {
     ChickenCrossesRoad,
     Pun,
 }
+#[akton_message]
+pub enum FunnyJokeFor {
+    ChickenCrossesRoad(String),
+    Pun(String),
+}
 
 #[akton_message]
 pub enum AudienceReactionMsg {

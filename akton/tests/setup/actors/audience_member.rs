@@ -56,7 +56,7 @@ impl ConfigurableActor for AudienceMember {
     fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + '_>> {
         Box::pin(async move {
 
-            let mut parent = Idle::<AudienceMember>::create_child(&name, &root);
+            let mut parent = Akton::<AudienceMember>::create_with_id(&name);
         parent.setup.act_on::<Joke>(|actor, _event| {
             let sender = &actor.new_parent_envelope();
             let mut random_choice = rand::thread_rng();
@@ -68,6 +68,7 @@ impl ConfigurableActor for AudienceMember {
                 tracing::trace!("Send groan");
                 let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
             }
+            Ok(())
         });
         let context = parent.activate(None).await?;
         Ok(context)

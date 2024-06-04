@@ -70,13 +70,12 @@ impl Context {
     pub async fn supervise<State: Default + Send + Sync + Debug>(
         &self,
         child: Actor<Idle<State>, State>,
-    ) -> anyhow::Result<Context> {
+    ) -> anyhow::Result<()> {
         let context = child.activate(None).await?;
-        let child_context = context.clone();
-        let return_context = context.clone();
-        self.children.insert(context.key.value, child_context);
+        let id = context.key.value.clone();
+        self.children.insert(id, context);
 
-        Ok(return_context)
+        Ok(())
     }
 
 
@@ -94,16 +93,14 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-    // #[instrument(skip(self))]
-    pub fn terminate(&self) -> Pin<Box<dyn Future<Output=anyhow::Result<()>> + Send +  '_>> {
-        Box::pin(async move {
+    #[instrument(skip(self), fields(children=self.children().len()))]
+    pub async fn terminate(&self) -> anyhow::Result<()> {
+            event!(Level::TRACE, target_actor=self.key.value);
             let supervisor_tracker = self.supervisor_task_tracker().clone();
             self.terminate_subordinates().await?;
             supervisor_tracker.wait().await;
             self.terminate_actor().await?;
-
             Ok(())
-        })
     }
 
 
@@ -111,10 +108,11 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-#[instrument(skip(self))]
+    #[instrument(skip(self), fields(children=self.children().len()))]
     pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
         let supervisor = self.supervisor_return_address().clone();
         if let Some(supervisor) = supervisor {
+            event!(Level::TRACE, "Terminating supervisor");
             supervisor.reply_all(SystemSignal::Terminate).await?;
         }
         Ok(())
@@ -124,8 +122,10 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
+    #[instrument(skip(self), fields(target_actor=self.key.value, children=self.children().len()))]
     pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
         let actor = self.return_address().clone();
+        event!(Level::TRACE, "Sending Terminate to actor");
         actor.reply(SystemSignal::Terminate, None)?;
         let tracker = self.get_task_tracker().clone();
         tracker.wait().await;

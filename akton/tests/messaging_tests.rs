@@ -44,6 +44,8 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
         .act_on::<Ping>(|actor, _event| {
             tracing::info!("Received Ping");
             actor.state.receive_count += 1;
+            Ok(())
+
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} Pings", actor.state.receive_count);

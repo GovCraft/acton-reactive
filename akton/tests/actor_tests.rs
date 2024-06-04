@@ -34,6 +34,7 @@
 mod setup;
 
 use std::pin::Pin;
+use std::time::Duration;
 use akton::prelude::*;
 use crate::setup::*;
 
@@ -49,6 +50,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         .act_on::<Tally>(|actor, _event| {
             tracing::info!("on tally");
             actor.state.count += 1;  // Increment count on tally event
+            Ok(())
         })
         .on_stop(|actor| {
             assert_eq!(4, actor.state.count);  // Ensure count is 4 when stopping
@@ -100,7 +102,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
 
     // Create the parent actor
     let parent_actor = Akton::<PoolItem>::create();
-    let mut child_actor = Idle::<PoolItem>::create_child("child", &parent_actor.context);
+    let mut child_actor = Akton::<PoolItem>::create_with_id("child");
     assert_eq!(parent_actor.context.children().len(), 1, "Parent actor missing it's child");
     let child_id = "child";
     // Set up the child actor with handlers
@@ -111,7 +113,8 @@ async fn test_child_actor() -> anyhow::Result<()> {
                 Ping => {
                     actor.state.receive_count += 1;  // Increment receive_count on Ping
                 }
-            }
+            };
+            Ok(())
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);
@@ -154,7 +157,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     // Activate the parent actor
     let parent_context = parent_actor.activate(None).await?;
 
-    let mut child_actor = Idle::<PoolItem>::create_child("child", &parent_context);
+    let mut child_actor = Akton::<PoolItem>::create_with_id("child");
     assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
     let child_id = "child";
     // Set up the child actor with handlers
@@ -196,9 +199,12 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 Box::pin(async {})
             }
         })
-        .act_on::<AudienceReactionMsg>(|actor, event| match event.message {
-            AudienceReactionMsg::Chuckle => actor.state.funny += 1,
-            AudienceReactionMsg::Groan => actor.state.bombers += 1,
+        .act_on::<AudienceReactionMsg>(|actor, event| {
+            match event.message {
+                AudienceReactionMsg::Chuckle => actor.state.funny += 1,
+                AudienceReactionMsg::Groan => actor.state.bombers += 1,
+            };
+            Ok(())
         })
         .on_stop(|actor| {
             tracing::info!(
@@ -209,6 +215,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             );
             assert_eq!(actor.state.jokes_told, 2);
         });
+
 
     let comedian = comedy_show.activate(None).await?;
 
@@ -226,27 +233,39 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     let mut comedy_show = Akton::<Comedian>::create();
     comedy_show
         .setup
-        .act_on::<FunnyJoke>(|actor, record| {
-            assert_eq!(actor.context.children().len(), 1);
-            let context = actor.context.find_child("child").clone();
-                if let Some(context) = context {
-                    tracing::trace!("pinging child");
-                    context.emit(Ping).expect("Couldn't Ping child");
-                } else {
-                    tracing::error!("no child");
-                }
-        });
-    let mut child = Idle::<Counter>::create_child("child", &comedy_show.context);
-    child.setup.act_on::<Ping>(|actor, event| {
-        tracing::warn!("Received from parent actor");
-    });
+        .act_on::<FunnyJokeFor>(|actor: &mut Actor<Awake<Comedian>, Comedian>, event_record| -> anyhow::Result<()> {
+            // assert_eq!(actor.context.children().len(), 1);
+            match &event_record.message {
+                FunnyJokeFor::ChickenCrossesRoad(child_id) => {
+                    tracing::info!("got a funny joke for {}", &child_id);
 
+                    let context = actor.context.find_child(&child_id).clone();
+                    if let Some(context) = context {
+                        tracing::trace!("pinging child");
+                        context.emit(Ping).expect("Couldn't Ping child");
+                    } else {
+                        tracing::error!("no child");
+                    }
+                }
+                FunnyJokeFor::Pun(_) => {}
+            }
+            Ok(())
+        });
+    let mut child = Akton::<Counter>::create_with_id("child");
+    child.setup.act_on::<Ping>(|actor, event| {
+        tracing::info!("Received Ping from parent actor");
+        Ok(())
+    });
+    let child_id = child.key.value.clone();
+    comedy_show.context.supervise(child).await?;
     let comedian = comedy_show.activate(None).await?;
-    let child_context = comedian.supervise(child).await?;
     assert_eq!(comedian.children().len(), 1);
+    comedian.emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id)).await?;
+    comedian.emit_async(FunnyJoke::Pun).await?;
     comedian.emit(FunnyJoke::ChickenCrossesRoad)?;
     comedian.emit(FunnyJoke::Pun)?;
-    let _ = comedian.terminate().await?;
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    comedian.terminate().await?;
 
     Ok(())
 }

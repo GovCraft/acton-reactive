@@ -48,10 +48,10 @@ pub fn init_tracing() {
         // Define an environment filter to suppress logs from the specific function
         let filter = tracing_subscriber::EnvFilter::new("")
             .add_directive("akton_core::common::context::peek_state_span=off".parse().unwrap())
-            .add_directive("akton_core::common::context=trace".parse().unwrap())
+            .add_directive("akton_core::common::context=off".parse().unwrap())
             .add_directive("tests=off".parse().unwrap())
             .add_directive("actor_tests=trace".parse().unwrap())
-            .add_directive("akton_core::traits=trace".parse().unwrap())
+            .add_directive("akton_core::traits=off".parse().unwrap())
             .add_directive("akton_core::common::awake=off".parse().unwrap())
             .add_directive("akton_core::common::akton=off".parse().unwrap())
             .add_directive("akton_core::common::pool_builder=off".parse().unwrap())
@@ -64,7 +64,7 @@ pub fn init_tracing() {
 
         let subscriber = FmtSubscriber::builder()
             // .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
-            // .with_span_events(FmtSpan::EXIT)
+            .with_span_events(FmtSpan::NONE)
             .with_max_level(Level::TRACE)
             .compact()
             .with_line_number(true)

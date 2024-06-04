@@ -35,13 +35,13 @@ use crate::common::{
     Awake, Context, Idle, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
 };
 use crate::traits::{ActorContext, SupervisorContext};
-use akton_arn::Arn;
+use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
 use std::fmt::Debug;
 use std::mem;
 use std::sync::atomic::Ordering;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level};
+use tracing::{error, event, instrument, Level, trace};
 use tracing::field::Empty;
 
 use super::signal::SupervisorSignal;
@@ -51,6 +51,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::future::Future;
 use std::pin::Pin;
+use futures::SinkExt;
 
 /// Represents an actor in the Akton framework.
 ///
@@ -148,51 +149,61 @@ impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> 
             let current_child_count = self.context.children().len();
             // tracing::error!("woke actor child count within loop: {}", current_child_count);
 
-            let type_id = envelope.message.as_any().type_id().clone();
+            let type_id = &envelope.message.as_any().type_id().clone();
+            event!(Level::TRACE, "Mailbox received {:?}", &envelope.message);
 
             if let Some(reactor) = reactors.get(&type_id) {
-                // assert_eq!(self.context.children.len(), 1);
+                event!(Level::TRACE, "Message reactor found");
                 match reactor.value() {
                     ReactorItem::Message(reactor) => {
                         let child_count_before_reactor = self.context.children().len();
                         // tracing::error!("woke actor child count before non-fut reactor send: {}", child_count_before_reactor);
-                        (*reactor)(self, envelope);
-                        let child_count_after_reactor = self.context.children().len();
-                        // tracing::error!("woke actor child count after non-fut reactor send: {}", child_count_after_reactor);
+                        event!(Level::TRACE, "Executing non-future reactor with {} children", &self.context.children().len());
+                        match (*reactor)(self, &envelope) {
+                            Ok(_) => {
+                                trace!("Reactor completion success");
+                            }
+                            Err(_) => {
+                                error!("Reactor completion failure");
+                            }
+                        }
                     }
                     ReactorItem::Future(fut) => {
                         let child_count_before_fut = self.context.children().len();
-                        // tracing::error!("woke actor child count before fut reactor send: {}", child_count_before_fut);
+                        event!(Level::TRACE, "Awaiting future-based reactor");
                         fut(self, &envelope).await;
-                        let child_count_after_fut = self.context.children().len();
-                        // tracing::error!("woke actor child count after fut reactor send: {}", child_count_after_fut);
                     }
 
-                    _ => {}
+                    _ => { tracing::warn!("Unknown ReactorItem type for: {:?}", &envelope.message) }
                 }
+                trace!("Message handled by reactor")
             } else {
-                // Handle SystemSignal::Terminate to stop the actor
-                if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                    //make sure we've processed all our messages
-                    while !self.mailbox.is_empty() {
-                        //
-                    }
-                    //stop our children first
-                    event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
-                    for item in &self.context.children {
-                        let context = item.value();
-                        let tracker = item.get_task_tracker().clone();
-                        let _ = context.terminate().await;
-                        tracker.wait().await;
-                    }
-                    // Call the on_before_stop setup function
-                    (self.setup.on_before_stop)(self);
-                    if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
-                        on_before_stop_async(self).await;
-                    }
-                    break;
-                }
+                tracing::warn!("No reactor found for: {:?} ",&envelope.message);
             }
+            // Handle SystemSignal::Terminate to stop the actor
+            trace!("Checking for SystemSignal::Terminate");
+            if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                //make sure we've processed all our messages
+                event!(Level::TRACE, "Received SystemSignal::Terminate");
+                while !self.mailbox.is_empty() {
+                    tracing::warn!("Terminate request received but mailbox not empty")
+                }
+                //stop our children first
+                event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
+                for item in &self.context.children {
+                    let context = item.value();
+                    let tracker = item.get_task_tracker().clone();
+                    let _ = context.terminate().await;
+                    tracker.wait().await;
+                }
+                // Call the on_before_stop setup function
+                (self.setup.on_before_stop)(self);
+                if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
+                    on_before_stop_async(self).await;
+                }
+                break;
+            }
+
 
             // Yield less frequently to reduce context switching
             yield_counter += 1;
@@ -220,7 +231,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// A new `Actor` instance.
-    #[instrument(skip(state, id, parent_context))]
+    #[instrument(skip(state, parent_context))]
     pub(crate) fn new(id: &str, state: State, parent_context: Option<Context>) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
@@ -263,15 +274,22 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             )
         } else {
             // If no parent context is provided, initialize a new context
-            let key = Arn::default();
+            let key = ArnBuilder::new()
+                .add::<Domain>("akton")
+                .add::<Category>("system")
+                .add::<Company>("framework")
+                .add::<Part>(id)
+                .build();
+
             let context = Context {
-                key: key.clone(),
+                key,
                 outbox: Some(outbox.clone()),
                 supervisor_task_tracker: TaskTracker::new(),
                 supervisor_outbox: None,
                 task_tracker: TaskTracker::new(),
                 ..Default::default()
             };
+            let key = context.key().clone();
 
             (
                 context.return_address().clone(),
@@ -304,7 +322,6 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             task_tracker,
             mailbox,
         };
-        tracing::warn!("{:?}", &actor);
         actor
     }
 
@@ -315,8 +332,8 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// The actor's context after activation.
-    #[instrument(skip(self),fields(key=self.key.value))]
-    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  'static>> {
+    #[instrument(skip(self), fields(key = self.key.value))]
+    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + 'static>> {
         Box::pin(async move {
             // Store and activate all supervised children if a builder is provided
             let mut actor = self;
@@ -325,6 +342,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
             event!(Level::TRACE, idle_child_count=context.children().len());
             //activate all children first
             if let Some(builder) = builder {
+                event!(Level::TRACE, "PoolBuilder provided.");
                 // If a pool builder is provided, spawn the supervisor
                 let actor_context = actor.context.clone();
                 let moved_context = actor.context.clone();
@@ -358,11 +376,10 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
                 // Close the supervisor task tracker
                 supervisor_tracker.close();
             } else {
+                event!(Level::TRACE, "Activating with no PoolBuilder.");
                 // If no builder is provided, activate the actor directly
                 let active_actor: Actor<Awake<State>, State> = actor.into();
-                if active_actor.context.children().len() > 0 {
-                    tracing::trace!("Child count after awake actor creation {}", active_actor.context.children().len());
-                }
+                tracing::trace!("Child count after awake actor creation {}", active_actor.context.children().len());
                 let mut actor = active_actor;
 
                 let actor_tracker = &context.task_tracker.clone();
