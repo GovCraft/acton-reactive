@@ -40,7 +40,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
 
 /// Trait defining the strategy for load balancing.
 pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {

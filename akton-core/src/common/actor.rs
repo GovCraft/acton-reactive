@@ -49,6 +49,8 @@ use super::Envelope;
 use super::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Represents an actor in the Akton framework.
 ///
@@ -299,60 +301,74 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
     /// # Returns
     /// The actor's context after activation.
     #[instrument(skip(self),fields(key=self.key.value))]
-    pub async fn activate(self, builder: Option<PoolBuilder>) -> Context {
-        // Store and activate all supervised children if a builder is provided
-        let mut actor = self;
-        let reactors = mem::take(&mut actor.setup.reactors);
-        let mut context = actor.context.clone();
+    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  'static>> {
+        Box::pin(async move {
+            // Store and activate all supervised children if a builder is provided
+            let mut actor = self;
+            let reactors = mem::take(&mut actor.setup.reactors);
+            let mut context = actor.context.clone();
+            event!(Level::TRACE, idle_child_count=context.children().len());
+            //activate all children first
+            if let Some(builder) = builder {
+                // If a pool builder is provided, spawn the supervisor
+                let actor_context = actor.context.clone();
+                let moved_context = actor.context.clone();
+                let mut supervisor = builder.spawn(&moved_context).await;
+                context.supervisor_outbox = Some(supervisor.outbox.clone());
+                context.supervisor_task_tracker = supervisor.task_tracker.clone();
+                let active_actor: Actor<Awake<State>, State> = actor.into();
+                if active_actor.context.children().len() > 0 {
+                    tracing::trace!("Child pool count after awake actor creation {}", active_actor.context.children().len());
+                }
 
-        if let Some(builder) = builder {
-            // If a pool builder is provided, spawn the supervisor
-            let mut supervisor = builder.spawn(&context).await;
-            context.supervisor_outbox = Some(supervisor.outbox.clone());
-            context.supervisor_task_tracker = supervisor.task_tracker.clone();
-            let active_actor: Actor<Awake<State>, State> = actor.into();
-            let mut actor = active_actor;
+                let mut actor = active_actor;
 
-            let actor_tracker = &context.task_tracker.clone();
-            debug_assert!(
-                !actor.mailbox.is_closed(),
-                "Actor mailbox is closed in spawn_with_pools"
-            );
+                let actor_tracker = &context.task_tracker.clone();
+                debug_assert!(
+                    !actor.mailbox.is_closed(),
+                    "Actor mailbox is closed in spawn_with_pools"
+                );
 
-            // Spawn the actor's wake task
-            actor_tracker.spawn(async move { actor.wake(reactors).await });
-            debug_assert!(
-                !supervisor.mailbox.is_closed(),
-                "Supervisor mailbox is closed in spawn_with_pools"
-            );
+                // Spawn the actor's wake task
+                actor_tracker.spawn(async move { actor.wake(reactors).await });
+                debug_assert!(
+                    !supervisor.mailbox.is_closed(),
+                    "Supervisor mailbox is closed in spawn_with_pools"
+                );
 
-            let supervisor_tracker = supervisor.task_tracker.clone();
+                let supervisor_tracker = supervisor.task_tracker.clone();
 
-            // Spawn the supervisor's wake task
-            supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
-            // Close the supervisor task tracker
-            supervisor_tracker.close();
+                // Spawn the supervisor's wake task
+                supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
+                // Close the supervisor task tracker
+                supervisor_tracker.close();
+            } else {
+                // If no builder is provided, activate the actor directly
+                let active_actor: Actor<Awake<State>, State> = actor.into();
+                if active_actor.context.children().len() > 0 {
+                    tracing::trace!("Child count after awake actor creation {}", active_actor.context.children().len());
+                }
+                let mut actor = active_actor;
 
-        } else {
-            // If no builder is provided, activate the actor directly
-            let active_actor: Actor<Awake<State>, State> = actor.into();
-            let mut actor = active_actor;
+                let actor_tracker = &context.task_tracker.clone();
+                debug_assert!(
+                    !actor.mailbox.is_closed(),
+                    "Actor mailbox is closed in spawn"
+                );
 
-            let actor_tracker = &context.task_tracker.clone();
-            debug_assert!(
-                !actor.mailbox.is_closed(),
-                "Actor mailbox is closed in spawn"
-            );
+                // Spawn the actor's wake task
+                actor_tracker.spawn(async move { actor.wake(reactors).await });
+                // Close the supervisor task tracker
+                let _ = &context.supervisor_task_tracker().close();
+            }
+            // Close the actor's task tracker
+            context.task_tracker.close();
+            if context.children().len() > 0 {
+                tracing::trace!("Child count before returning context {}", context.children().len());
+            }
 
-            // Spawn the actor's wake task
-            actor_tracker.spawn(async move { actor.wake(reactors).await });
-            // Close the supervisor task tracker
-            let _ = &context.supervisor_task_tracker().close();
-        }
-        // Close the actor's task tracker
-        context.task_tracker.close();
-
-        context.clone()
+            Ok(context.clone())
+        })
     }
 }
 
