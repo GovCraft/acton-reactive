@@ -130,18 +130,32 @@ pub trait ActorContext {
 
     /// Emit a message from the actor.
     #[instrument(skip(self))]
-    fn emit(
+    fn emit_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    ) -> impl Future<Output=Result<(), MessageError>> + Sync
         where
             Self: Sync,
     {
         async {
             let envelope = self.return_address();
+            event!(Level::TRACE, addressed_to=envelope.sender.value);
             envelope.reply(message, None)?;
             Ok(())
         }
+    }
+    #[instrument(skip(self))]
+    fn emit(
+        &self,
+        message: impl AktonMessage + Sync + Send + 'static,
+    ) -> Result<(), MessageError>
+        where
+            Self: Sync,
+    {
+        let envelope = self.return_address();
+        event!(Level::TRACE, addressed_to=envelope.sender.value);
+        envelope.reply(message, None)?;
+        Ok(())
     }
 
     /// Wakes the actor.

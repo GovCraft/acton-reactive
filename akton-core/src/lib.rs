@@ -33,7 +33,7 @@
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
-//#![warn(unused)]
+#![allow(unused)]
 //! Akton Core Library
 //!
 //! This library provides the core functionality for the Akton actor framework.

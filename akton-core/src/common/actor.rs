@@ -41,7 +41,8 @@ use std::mem;
 use std::sync::atomic::Ordering;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{event, instrument, Level};
+use tracing::field::Empty;
 
 use super::signal::SupervisorSignal;
 use super::Envelope;
@@ -132,6 +133,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
     ///
     /// # Parameters
     /// - `reactors`: A map of reactors to handle different message types.
+    #[instrument(skip(reactors, self), fields(key = self.key.value))]
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
         // Call the on_wake setup function
         (self.setup.on_wake)(self);
@@ -152,10 +154,19 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
                 }
             } else {
                 // Handle SystemSignal::Terminate to stop the actor
-                // let envelope = envelope.clone();
-                if let Some(SystemSignal::Terminate) =
-                    envelope.message.as_any().downcast_ref::<SystemSignal>()
-                {
+                if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                    //make sure we've processed all our messages
+                    while !self.mailbox.is_empty() {
+                        //
+                    }
+                    //stop our children first
+                    event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
+                    for item in &self.context.children {
+                        let context = item.value();
+                        let tracker = item.get_task_tracker().clone();
+                        let _ = context.terminate().await;
+                        tracker.wait().await;
+                    }
                     // Call the on_before_stop setup function
                     (self.setup.on_before_stop)(self);
                     if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
@@ -287,7 +298,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// The actor's context after activation.
-    #[instrument(skip(self))]
+    #[instrument(skip(self),fields(key=self.key.value))]
     pub async fn activate(self, builder: Option<PoolBuilder>) -> Context {
         // Store and activate all supervised children if a builder is provided
         let mut actor = self;
