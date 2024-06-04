@@ -313,7 +313,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
                 // If a pool builder is provided, spawn the supervisor
                 let actor_context = actor.context.clone();
                 let moved_context = actor.context.clone();
-                let mut supervisor = builder.spawn(&moved_context).await;
+                let mut supervisor = builder.spawn(&moved_context).await?;
                 context.supervisor_outbox = Some(supervisor.outbox.clone());
                 context.supervisor_task_tracker = supervisor.task_tracker.clone();
                 let active_actor: Actor<Awake<State>, State> = actor.into();

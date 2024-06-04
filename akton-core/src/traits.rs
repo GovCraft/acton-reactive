@@ -38,6 +38,7 @@ use akton_arn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
+use std::pin::Pin;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level};
@@ -64,9 +65,9 @@ pub trait AktonMessage: Any + Send + Debug {
 
 /// Trait for configurable actors, allowing initialization.
 #[async_trait]
-pub trait ConfigurableActor: Send + Debug {
+pub trait ConfigurableActor: Send + Sync + Debug {
     /// Initializes the actor with a given name and root context.
-    async fn init(&self, name: String, root: &Context) -> Context;
+    fn init(&self, name: String, root: &Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>;
 }
 
 /// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.

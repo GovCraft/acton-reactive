@@ -30,6 +30,8 @@
  *
  *
  */
+use std::future::Future;
+use std::pin::Pin;
 use async_trait::async_trait;
 use akton_core::prelude::*;
 use crate::setup::*;
@@ -42,11 +44,11 @@ pub struct PoolItem {
 #[async_trait]
 impl ConfigurableActor for PoolItem {
     // Initialize the actor with a given name and parent context
-    async fn init(&self, actor_name: String, parent_context: &Context) -> Context {
+    fn init(&self, name: String, root: &Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + '_>> {
         // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);
 
         // Create a supervised actor
-        let mut actor = parent_context.supervise::<PoolItem>(&actor_name);
+        let mut actor = root.supervise::<PoolItem>(&name);
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(

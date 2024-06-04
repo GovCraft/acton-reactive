@@ -81,14 +81,14 @@ impl PoolBuilder {
     /// # Returns
     /// A new `Supervisor` instance.
     #[instrument(skip(self, parent), fields(id=parent.key.value))]
-    pub(crate) async fn spawn(mut self, parent: &Context) -> Supervisor {
+    pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<Supervisor> {
         let subordinates = DashMap::new();
         for (pool_name, pool_def) in &mut self.pools {
             let pool_name = pool_name.to_string();
             let mut context_items = Vec::with_capacity(pool_def.size);
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name.clone(), parent).await;
+                let context = pool_def.actor_type.init(item_name.clone(), &parent).await?;
                 tracing::trace!("item_name: {}, context: {:?}", &item_name, &context);
                 context_items.push(context);
             }
@@ -114,13 +114,13 @@ impl PoolBuilder {
         let task_tracker = TaskTracker::new();
 
         // Return the new supervisor instance.
-        Supervisor {
+        Ok(Supervisor {
             key: parent.key.clone(),
             halt_signal: StopSignal::new(false),
             subordinates,
             outbox,
             mailbox,
             task_tracker,
-        }
+        })
     }
 }
