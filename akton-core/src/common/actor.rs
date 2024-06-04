@@ -57,7 +57,7 @@ use std::pin::Pin;
 /// # Type Parameters
 /// - `RefType`: The type used for the actor's setup reference.
 /// - `State`: The type representing the state of the actor.
-pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
+pub struct Actor<RefType: Send + Sync + Sync + 'static, State: Default + Send + Sync + Debug + 'static> {
     /// The setup reference for the actor.
     pub setup: RefType,
 
@@ -86,7 +86,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
-impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
+impl<RefType: Send + Sync + 'static, State: Default + Send + Sync + Debug + 'static> Debug
 for Actor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
@@ -107,7 +107,7 @@ for Actor<RefType, State>
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
@@ -140,18 +140,34 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
         // Call the on_wake setup function
         (self.setup.on_wake)(self);
 
+        // tracing::error!("woke actor initial child count: {}", self.context.children().len());
+        // debug_assert_eq!(self.context.children.len() == 1);
         let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
+            // debug_assert!(self.context.children.len() == 1);
+            let current_child_count = self.context.children().len();
+            // tracing::error!("woke actor child count within loop: {}", current_child_count);
+
             let type_id = envelope.message.as_any().type_id().clone();
 
             if let Some(reactor) = reactors.get(&type_id) {
+                // assert_eq!(self.context.children.len(), 1);
                 match reactor.value() {
                     ReactorItem::Message(reactor) => {
+                        let child_count_before_reactor = self.context.children().len();
+                        // tracing::error!("woke actor child count before non-fut reactor send: {}", child_count_before_reactor);
                         (*reactor)(self, envelope);
+                        let child_count_after_reactor = self.context.children().len();
+                        // tracing::error!("woke actor child count after non-fut reactor send: {}", child_count_after_reactor);
                     }
                     ReactorItem::Future(fut) => {
+                        let child_count_before_fut = self.context.children().len();
+                        // tracing::error!("woke actor child count before fut reactor send: {}", child_count_before_fut);
                         fut(self, &envelope).await;
+                        let child_count_after_fut = self.context.children().len();
+                        // tracing::error!("woke actor child count after fut reactor send: {}", child_count_after_fut);
                     }
+
                     _ => {}
                 }
             } else {
@@ -176,9 +192,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
                     }
                     break;
                 }
-
             }
-
 
             // Yield less frequently to reduce context switching
             yield_counter += 1;
@@ -186,6 +200,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
                 tokio::task::yield_now().await;
             }
         }
+
         // Call the on_stop setup function
         (self.setup.on_stop)(self);
     }
@@ -195,7 +210,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Awake<State>, State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     /// Creates a new actor with the given ID, state, and optional parent context.
     ///
     /// # Parameters
@@ -376,7 +391,7 @@ impl<State: Default +  Send + Debug + 'static> Actor<Idle<State>, State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Clone + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
     /// Terminates the actor by setting the halt signal.
     ///
     /// This method sets the halt signal to true, indicating that the actor should stop processing.

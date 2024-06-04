@@ -51,9 +51,9 @@ impl<State: Default + Send + Debug> Akton<State> {
     /// # Returns
     /// A new `Actor` instance in the idle state with the root state.
     #[instrument]
-    pub fn create() -> Actor<Idle<State>, State>
+    pub fn create<'a>() -> Actor<Idle<State>, State>
         where
-            State: Default,
+            State: Default + Send + Sync + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new("root", State::default(), None)
@@ -63,7 +63,7 @@ impl<State: Default + Send + Debug> Akton<State> {
 /// Provides a default implementation for the `Akton` struct.
 ///
 /// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Default + Send + Debug> Default for Akton<State> {
+impl<State: Default + Send + Sync + Debug> Default for Akton<State> {
     /// Creates a new `Akton` instance with the default root state.
     ///
     /// # Returns

@@ -62,7 +62,7 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     let pool_builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::RoundRobin);
 
     // Activate the main actor with the pool builder
-    let main_context = main_actor.activate(Some(pool_builder)).await;
+    let main_context = main_actor.activate(Some(pool_builder)).await?;
 
     // Emit PING events to the pool 22 times
     for _ in 0..22 {
@@ -102,7 +102,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
     let pool_builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::Random);
 
     // Activate the main actor with the pool builder
-    let main_context = main_actor.activate(Some(pool_builder)).await;
+    let main_context = main_actor.activate(Some(pool_builder)).await?;
 
     // Emit PING events to the pool 22 times
     for _ in 0..22 {

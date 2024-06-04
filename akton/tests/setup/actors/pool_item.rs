@@ -44,11 +44,12 @@ pub struct PoolItem {
 #[async_trait]
 impl ConfigurableActor for PoolItem {
     // Initialize the actor with a given name and parent context
-    fn init(&self, name: String, root: &Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + '_>> {
+    fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>  {
+        Box::pin(async move {
         // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);
 
         // Create a supervised actor
-        let mut actor = root.supervise::<PoolItem>(&name);
+        let mut actor = Idle::<PoolItem>::create_child(&name, &root);
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
@@ -84,9 +85,10 @@ impl ConfigurableActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        let actor_context = actor.activate(None).await;
+        let actor_context = actor.activate(None).await?;
 
-        actor_context
+        Ok(actor_context)
+        })
     }
 }
 

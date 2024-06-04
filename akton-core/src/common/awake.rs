@@ -43,7 +43,7 @@ use tracing::{instrument, warn};
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-pub struct Awake<State: Default + Send + Debug + 'static> {
+pub struct Awake<State: Default + Sync + Send + Debug + 'static> {
     /// Reactor called when the actor wakes up.
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     /// Reactor called just before the actor stops.
@@ -57,7 +57,7 @@ pub struct Awake<State: Default + Send + Debug + 'static> {
 /// Custom implementation of the `Debug` trait for the `Awake` struct.
 ///
 /// This implementation provides a formatted output for the `Awake` struct.
-impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
+impl<State: Default + Sync + Send + Debug + 'static> Debug for Awake<State> {
     /// Formats the `Awake` struct using the given formatter.
     ///
     /// # Parameters
@@ -77,7 +77,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
+impl<State: Default + Send + Sync + Debug + 'static> From<Actor<Idle<State>, State>>
 for Actor<Awake<State>, State>
 {
     /// Converts an `Actor` from the idle state to the awake state.
@@ -87,11 +87,12 @@ for Actor<Awake<State>, State>
     ///
     /// # Returns
     /// A new `Actor` instance in the awake state.
-    #[instrument("from idle to awake", skip(value))]
+    #[instrument("from idle to awake", skip(value), fields(key=value.key.value,children_in=value.context.children.len()))]
     fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State>
         where
-            State: Send + 'static,
+            State: Send + Sync + 'static,
     {
+        tracing::trace!("*");
         // Extract lifecycle reactors and other properties from the idle actor
         let on_wake = value.setup.on_wake;
         let on_stop = value.setup.on_stop;
@@ -114,11 +115,11 @@ for Actor<Awake<State>, State>
         let state = value.state;
 
         // Trace the conversion process
-        tracing::trace!(
-            "Converting Actor from Idle to Awake with key: {}",
-            key.value
-        );
-        tracing::trace!("Checking if mailbox is closed before conversion");
+        // tracing::trace!(
+        //     "Converting Actor from Idle to Awake with key: {}",
+        //     key.value
+        // );
+        // tracing::trace!("Checking if mailbox is closed before conversion");
         debug_assert!(
             !mailbox.is_closed(),
             "Actor mailbox is closed in From<Actor<Idle<State>, State>>"
@@ -131,8 +132,10 @@ for Actor<Awake<State>, State>
             "Supervisor outbox is closed in From<Actor<Idle<State>, State>>"
         );
 
-        tracing::trace!("Mailbox is not closed, proceeding with conversion");
-
+        // tracing::trace!("Mailbox is not closed, proceeding with conversion");
+        if context.children.len() > 0 {
+            tracing::trace!("child count before Actor creation {}", context.children.len());
+        }
         // Create and return the new actor in the awake state
         Actor {
             setup: Awake {

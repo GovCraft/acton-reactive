@@ -32,6 +32,7 @@
  */
 
 use std::any::TypeId;
+use std::cell::RefCell;
 use std::fmt::Debug;
 
 use crate::common::event_record::EventRecord;
@@ -42,13 +43,15 @@ use dashmap::DashMap;
 use futures::future;
 use std::fmt;
 use std::fmt::Formatter;
-use tracing::{debug, error, instrument};
+use std::rc::Weak;
+use std::sync::{Arc, Mutex};
+use tracing::{debug, error, event, instrument, Level};
 
 /// Represents the lifecycle state of an actor when it is idle.
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-pub struct Idle<State: Default + Send + Debug + 'static> {
+pub struct Idle<State: Default + Sync + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     /// Reactor called when the actor wakes up.
@@ -61,12 +64,13 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<State>,
+    pub(crate) children: Vec<Actor<Idle<State>, State>>,
 }
 
 /// Custom implementation of the `Debug` trait for the `Idle` struct.
 ///
 /// This implementation provides a formatted output for the `Idle` struct.
-impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
+impl<State: Default + Sync + Send + Debug + 'static> Debug for Idle<State> {
     /// Formats the `Idle` struct using the given formatter.
     ///
     /// # Parameters
@@ -85,7 +89,35 @@ impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug> Idle<State> {
+impl<State: Default + Sync + Send + Debug> Idle<State> {
+    /// Creates and supervises a new actor with the given ID and state.
+    ///
+    /// # Parameters
+    /// - `id`: The identifier for the new actor.
+    ///
+    /// # Returns
+    /// A new `Actor` instance in the idle state.
+    #[instrument(fields(child_key = id))]
+    pub fn create_child(
+        id: &str,
+        parent_context: &Context,
+        // parent: Arc<Mutex<Actor<Idle<State>, State>>>,
+    ) -> Actor<Idle<State>, State> {
+        let parent_context = parent_context.clone();
+        let mut actor = Actor::new(id, State::default(), Some(parent_context));
+
+        // Set the parent reference using Weak
+        // actor.setup.parent = Some(parent);
+
+        // Check if the mailbox is closed
+        debug_assert!(
+            !actor.mailbox.is_closed(),
+            "Actor mailbox is closed in new_actor"
+        );
+        event!(Level::TRACE, new_actor_key = &actor.key.value);
+        actor
+    }
+
     /// Adds a synchronous message handler for a specific message type.
     ///
     /// # Parameters
@@ -141,7 +173,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut
+        message_processor: impl for<'b> Fn(&'b mut Actor<Awake<State>, State>, &'b EventRecord<&'b M>) -> Fut
         + 'static
         + Sync
         + Send,
@@ -224,7 +256,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_before_wake(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&Actor<Idle<State>, State>) + Send + 'static,
+        life_cycle_event_reactor: impl Fn(&Actor<Idle<State>, State>) + Send + Sync + 'static,
     ) -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
@@ -236,7 +268,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_wake(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static,
+        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_wake = Box::new(life_cycle_event_reactor);
@@ -249,7 +281,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static,
+        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
@@ -262,7 +294,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_before_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + 'static,
+        life_cycle_event_reactor: impl Fn(&Actor<Awake<State>, State>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_before_stop = Box::new(life_cycle_event_reactor);
@@ -275,7 +307,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
         where
-            F: for<'a> Fn(&'a Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+            F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -296,6 +328,7 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
+            children: vec![],
         }
     }
 }
@@ -303,7 +336,7 @@ impl<State: Default + Send + Debug> Idle<State> {
 /// Provides a default implementation for the `Idle` struct.
 ///
 /// This implementation creates a new `Idle` instance with default settings.
-impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
+impl<State: Default + Send + Sync + Debug + 'static> Default for Idle<State> {
     /// Creates a new `Idle` instance with default settings.
     ///
     /// # Returns

@@ -31,17 +31,19 @@
  *
  */
 
-use crate::common::{Context, MessageError, OutboundEnvelope};
-use crate::prelude::Envelope;
-use async_trait::async_trait;
-use akton_arn::prelude::*;
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
+
+use akton_arn::prelude::*;
+use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level};
+
+use crate::common::{Context, MessageError, OutboundEnvelope, Supervisor};
+use crate::prelude::Envelope;
 
 /// Trait defining the strategy for load balancing.
 pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
@@ -67,7 +69,7 @@ pub trait AktonMessage: Any + Send + Debug {
 #[async_trait]
 pub trait ConfigurableActor: Send + Sync + Debug {
     /// Initializes the actor with a given name and root context.
-    fn init(&self, name: String, root: &Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>;
+    fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>;
 }
 
 /// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
@@ -84,7 +86,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     fn emit_envelope(
         &self,
         envelope: Envelope,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    ) -> impl Future<Output=Result<(), MessageError>> + Sync
         where
             Self: Sync,
     {
@@ -102,7 +104,7 @@ pub(crate) trait SupervisorContext: ActorContext {
         &self,
         name: &str,
         message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync
+    ) -> impl Future<Output=Result<(), MessageError>> + Sync
         where
             Self: Sync,
     {

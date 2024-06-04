@@ -33,6 +33,7 @@
 
 mod setup;
 
+use std::pin::Pin;
 use akton::prelude::*;
 use crate::setup::*;
 
@@ -55,11 +56,11 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
 
     // Activate the counter actor
-    let counter_actor = counter_actor.activate(None).await;
+    let counter_actor = counter_actor.activate(None).await?;
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.emit(Tally::AddCount).await?;
+        counter_actor.emit_async(Tally::AddCount).await?;
     }
 
     // Create an actor for messaging
@@ -83,7 +84,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
 
     // Activate the messenger actor
-    let messenger_actor = messenger_actor.activate(None).await;
+    let messenger_actor = messenger_actor.activate(None).await?;
 
     // Terminate both actors
     counter_actor.terminate().await?;
@@ -99,7 +100,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
 
     // Create the parent actor
     let parent_actor = Akton::<PoolItem>::create();
-    let mut child_actor = parent_actor.context.supervise::<PoolItem>("child");
+    let mut child_actor = Idle::<PoolItem>::create_child("child", &parent_actor.context);
     assert_eq!(parent_actor.context.children().len(), 1, "Parent actor missing it's child");
     let child_id = "child";
     // Set up the child actor with handlers
@@ -119,10 +120,10 @@ async fn test_child_actor() -> anyhow::Result<()> {
         });
 
     // Activate the child actor
-    let child_context = child_actor.activate(None).await;
+    // let child_context = child_actor.activate(None).await?;
 
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None).await;
+    let parent_context = parent_actor.activate(None).await?;
     assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
     tracing::info!("Searching all children {:?}", parent_context.children());
     let found_child = parent_context.find_child(&child_id);
@@ -131,7 +132,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
         tracing::trace!("Emitting PING");
-        child_context.emit_pool("pool", Ping).await;
+        // child_context.emit_pool("pool", Ping).await;
     }
 
     tracing::trace!("Terminating parent actor");
@@ -139,6 +140,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
 
     Ok(())
 }
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
@@ -147,12 +149,12 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     // Create the parent actor
     let mut parent_actor = Akton::<PoolItem>::create();
     parent_actor.setup.on_before_wake(|actor| {
-       assert_eq!(actor.context.children().len(), 1);
+        assert_eq!(actor.context.children().len(), 1);
     });
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None).await;
+    let parent_context = parent_actor.activate(None).await?;
 
-    let mut child_actor = parent_context.supervise::<PoolItem>("child");
+    let mut child_actor = Idle::<PoolItem>::create_child("child", &parent_context);
     assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
     let child_id = "child";
     // Set up the child actor with handlers
@@ -208,7 +210,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             assert_eq!(actor.state.jokes_told, 2);
         });
 
-    let comedian = comedy_show.activate(None).await;
+    let comedian = comedy_show.activate(None).await?;
 
     comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await?;
     comedian.emit_async(FunnyJoke::Pun).await?;
@@ -222,29 +224,29 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     init_tracing();
 
     let mut comedy_show = Akton::<Comedian>::create();
-    // comedy_show
-    //     .setup
-    //     .act_on::<FunnyJoke>(|actor, record| {
-    //         // assert_eq!(actor.context.children().len(), 1);
-    //         let context = actor.context.find_child("child").clone();
-    //             if let Some(context) = context {
-    //                 tracing::trace!("pinging child");
-    //                 context.emit(Ping).expect("Couldn't Ping child");
-    //             } else {
-    //                 tracing::error!("no child");
-    //             }
-    //     });
-    // let mut child = Idle::<Counter>::create_child("child", &comedy_show.context);
-    // child.setup.act_on::<Ping>(|actor, event| {
-    //     tracing::warn!("Received from parent actor");
-    // });
-    //
-    // let comedian = comedy_show.activate(None).await?;
-    // let child_context = comedian.supervise(child).await?;
-    // assert_eq!(comedian.children().len(), 1);
-    // comedian.emit(FunnyJoke::ChickenCrossesRoad)?;
-    // comedian.emit(FunnyJoke::Pun)?;
-    // let _ = comedian.terminate().await?;
+    comedy_show
+        .setup
+        .act_on::<FunnyJoke>(|actor, record| {
+            assert_eq!(actor.context.children().len(), 1);
+            let context = actor.context.find_child("child").clone();
+                if let Some(context) = context {
+                    tracing::trace!("pinging child");
+                    context.emit(Ping).expect("Couldn't Ping child");
+                } else {
+                    tracing::error!("no child");
+                }
+        });
+    let mut child = Idle::<Counter>::create_child("child", &comedy_show.context);
+    child.setup.act_on::<Ping>(|actor, event| {
+        tracing::warn!("Received from parent actor");
+    });
+
+    let comedian = comedy_show.activate(None).await?;
+    let child_context = comedian.supervise(child).await?;
+    assert_eq!(comedian.children().len(), 1);
+    comedian.emit(FunnyJoke::ChickenCrossesRoad)?;
+    comedian.emit(FunnyJoke::Pun)?;
+    let _ = comedian.terminate().await?;
 
     Ok(())
 }

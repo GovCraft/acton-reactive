@@ -69,7 +69,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub fn reply(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
@@ -89,7 +89,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,
@@ -111,7 +111,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, message), fields(sender = self.sender.value))]
+    #[instrument(skip(self), fields(sender = self.sender.value, message = ?message))]
     pub(crate) async fn reply_all(
         &self,
         message: impl AktonMessage + Send + Sync + 'static,

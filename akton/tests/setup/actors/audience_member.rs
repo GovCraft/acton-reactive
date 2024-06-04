@@ -53,8 +53,10 @@ pub struct AudienceMember {
 impl ConfigurableActor for AudienceMember {
     // this trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    fn init(&self, name: String, root: &Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + '_>> {
-        let mut parent = root.supervise::<AudienceMember>(&name);
+    fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + '_>> {
+        Box::pin(async move {
+
+            let mut parent = Idle::<AudienceMember>::create_child(&name, &root);
         parent.setup.act_on::<Joke>(|actor, _event| {
             let sender = &actor.new_parent_envelope();
             let mut random_choice = rand::thread_rng();
@@ -67,7 +69,8 @@ impl ConfigurableActor for AudienceMember {
                 let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
             }
         });
-        let context = parent.activate(None).await;
-        context
+        let context = parent.activate(None).await?;
+        Ok(context)
+        })
     }
 }

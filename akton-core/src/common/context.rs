@@ -65,34 +65,20 @@ pub struct Context {
 }
 
 impl Context {
-    /// Creates and supervises a new actor with the given ID and state.
-    ///
-    /// # Parameters
-    /// - `id`: The identifier for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state.
+
     #[instrument(skip(self))]
-    pub fn supervise<State: Default + Send + Debug>(
+    pub async fn supervise<State: Default + Send + Sync + Debug>(
         &self,
-        id: &str,
-    ) -> Actor<Idle<State>, State> {
-        tracing::trace!("Creating new actor with id: {}", id);
-        let parent_context = self.clone();
+        child: Actor<Idle<State>, State>,
+    ) -> anyhow::Result<Context> {
+        let context = child.activate(None).await?;
+        let child_context = context.clone();
+        let return_context = context.clone();
+        self.children.insert(context.key.value, child_context);
 
-        let actor = Actor::new(id, State::default(), Some(parent_context));
-        let child_context = actor.context.clone();
-        self.children.insert(id.parse().unwrap(), child_context);
-        // Check if the mailbox is closed
-        debug_assert!(
-            !actor.mailbox.is_closed(),
-            "Actor mailbox is closed in new_actor"
-        );
-
-        tracing::trace!("New actor created with key: {}", actor.key.value);
-
-        actor
+        Ok(return_context)
     }
+
 
     /// Emits a message to a pool.
     ///
@@ -109,15 +95,12 @@ impl Context {
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
     // #[instrument(skip(self))]
-    pub fn terminate(&self) -> Pin<Box<dyn Future<Output=anyhow::Result<()>> + '_>> {
+    pub fn terminate(&self) -> Pin<Box<dyn Future<Output=anyhow::Result<()>> + Send +  '_>> {
         Box::pin(async move {
-            self.terminate_subordinates().await?;
             let supervisor_tracker = self.supervisor_task_tracker().clone();
-            let tracker = self.get_task_tracker().clone();
-
+            self.terminate_subordinates().await?;
             supervisor_tracker.wait().await;
             self.terminate_actor().await?;
-            tracker.wait().await;
 
             Ok(())
         })
@@ -128,14 +111,9 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-    #[instrument]
+#[instrument(skip(self))]
     pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
-        tracing::trace!("Terminating all subordinates");
         let supervisor = self.supervisor_return_address().clone();
-        for item in &self.children {
-            let context = item.value();
-            context.terminate().await?;
-        }
         if let Some(supervisor) = supervisor {
             supervisor.reply_all(SystemSignal::Terminate).await?;
         }
@@ -146,11 +124,11 @@ impl Context {
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-    #[instrument]
     pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
-        tracing::trace!("Terminating actor");
         let actor = self.return_address().clone();
         actor.reply(SystemSignal::Terminate, None)?;
+        let tracker = self.get_task_tracker().clone();
+        tracker.wait().await;
         Ok(())
     }
 
@@ -187,10 +165,6 @@ impl SupervisorContext for Context {
     fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
         if let Some(outbox) = &self.supervisor_outbox {
             let outbox = outbox.clone();
-            // debug_assert!(
-            //     !outbox.is_closed(),
-            //     "Outbox was closed in supervisor_return_address"
-            // );
             if !outbox.is_closed() {
                 Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
             } else {
@@ -210,7 +184,9 @@ impl ActorContext for Context {
         let outbox = self.outbox.clone();
         OutboundEnvelope::new(outbox, self.key.clone())
     }
+    // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
     fn children(&self) -> DashMap<String, Context> {
+        // event!(Level::TRACE,child_count= self.children.len());
         self.children.clone()
     }
 

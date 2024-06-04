@@ -46,7 +46,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 pub type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
-pub enum ReactorItem<T: Default + Send + Debug + 'static> {
+pub enum ReactorItem<T: Default + Send + Sync + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
     Signal(Box<SignalReactor<T>>),
     /// A message reactor, which reacts to messages.
@@ -90,11 +90,11 @@ pub type ContextPool = DashMap<String, Context>;
 pub type ActorPool = DashMap<String, ContextPool>;
 
 /// A type alias for a lifecycle reactor function.
-pub type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send + Sync + 'static;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub type LifecycleReactorAsync<State> =
 Box<dyn for<'a, 'b> Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
-pub type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send + Sync + 'static;
