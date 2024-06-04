@@ -67,7 +67,7 @@ pub struct Context {
 impl Context {
 
     #[instrument(skip(self))]
-    pub async fn supervise<State: Default + Send + Sync + Debug>(
+    pub async fn supervise<State: Default + Send + Debug>(
         &self,
         child: Actor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
@@ -85,8 +85,8 @@ impl Context {
     /// - `name`: The name of the pool.
     /// - `message`: The message to be emitted.
     #[instrument]
-    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.pool_emit(name, message).await.expect("Failed to emit message to pool");
+    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Send + 'static) {
+        self.pool_emit(name, message).await;
     }
 
     /// Terminates the actor and its subordinates.

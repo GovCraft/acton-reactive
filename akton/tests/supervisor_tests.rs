@@ -49,7 +49,6 @@ async fn test_audience_pool() -> anyhow::Result<()> {
                 AudienceReactionMsg::Chuckle => actor.state.bombers += 1,
             }
             actor.state.jokes_told += 1;
-            Ok(())
 
         })
         .on_before_stop(|actor| {

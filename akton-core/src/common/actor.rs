@@ -58,7 +58,7 @@ use futures::SinkExt;
 /// # Type Parameters
 /// - `RefType`: The type used for the actor's setup reference.
 /// - `State`: The type representing the state of the actor.
-pub struct Actor<RefType: Send + Sync + Sync + 'static, State: Default + Send + Sync + Debug + 'static> {
+pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     /// The setup reference for the actor.
     pub setup: RefType,
 
@@ -87,7 +87,7 @@ pub struct Actor<RefType: Send + Sync + Sync + 'static, State: Default + Send + 
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
-impl<RefType: Send + Sync + 'static, State: Default + Send + Sync + Debug + 'static> Debug
+impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
 for Actor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
@@ -108,7 +108,7 @@ for Actor<RefType, State>
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
@@ -159,14 +159,7 @@ impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> 
                         let child_count_before_reactor = self.context.children().len();
                         // tracing::error!("woke actor child count before non-fut reactor send: {}", child_count_before_reactor);
                         event!(Level::TRACE, "Executing non-future reactor with {} children", &self.context.children().len());
-                        match (*reactor)(self, &envelope) {
-                            Ok(_) => {
-                                trace!("Reactor completion success");
-                            }
-                            Err(_) => {
-                                error!("Reactor completion failure");
-                            }
-                        }
+                        (*reactor)(self, &envelope);
                     }
                     ReactorItem::Future(fut) => {
                         let child_count_before_fut = self.context.children().len();
@@ -185,9 +178,9 @@ impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> 
             if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
                 //make sure we've processed all our messages
                 event!(Level::TRACE, "Received SystemSignal::Terminate");
-                while !self.mailbox.is_empty() {
-                    tracing::warn!("Terminate request received but mailbox not empty")
-                }
+                // while !self.mailbox.is_empty() {
+                //     tracing::warn!("Terminate request received but mailbox not empty")
+                // }
                 //stop our children first
                 event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
                 for item in &self.context.children {
@@ -221,7 +214,7 @@ impl<State: Default + Sync + Send + Debug + 'static> Actor<Awake<State>, State> 
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     /// Creates a new actor with the given ID, state, and optional parent context.
     ///
     /// # Parameters
@@ -333,7 +326,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
     /// # Returns
     /// The actor's context after activation.
     #[instrument(skip(self), fields(key = self.key.value))]
-    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send + 'static>> {
+    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Send + 'static>> {
         Box::pin(async move {
             // Store and activate all supervised children if a builder is provided
             let mut actor = self;
@@ -408,7 +401,7 @@ impl<State: Default + Send + Sync + Debug + 'static> Actor<Idle<State>, State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Clone + Send + Sync + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
     /// Terminates the actor by setting the halt signal.
     ///
     /// This method sets the halt signal to true, indicating that the actor should stop processing.

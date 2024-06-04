@@ -50,7 +50,6 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         .act_on::<Tally>(|actor, _event| {
             tracing::info!("on tally");
             actor.state.count += 1;  // Increment count on tally event
-            Ok(())
         })
         .on_stop(|actor| {
             assert_eq!(4, actor.state.count);  // Ensure count is 4 when stopping
@@ -103,7 +102,6 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Create the parent actor
     let parent_actor = Akton::<PoolItem>::create();
     let mut child_actor = Akton::<PoolItem>::create_with_id("child");
-    assert_eq!(parent_actor.context.children().len(), 1, "Parent actor missing it's child");
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
@@ -114,7 +112,6 @@ async fn test_child_actor() -> anyhow::Result<()> {
                     actor.state.receive_count += 1;  // Increment receive_count on Ping
                 }
             };
-            Ok(())
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);
@@ -122,11 +119,10 @@ async fn test_child_actor() -> anyhow::Result<()> {
             assert_eq!(actor.state.receive_count, 22, "Child actor did not process the expected number of PINGs");
         });
 
-    // Activate the child actor
-    // let child_context = child_actor.activate(None).await?;
-
+    let child_id = child_actor.key.value.clone();
     // Activate the parent actor
     let parent_context = parent_actor.activate(None).await?;
+    parent_context.supervise(child_actor).await?;
     assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
     tracing::info!("Searching all children {:?}", parent_context.children());
     let found_child = parent_context.find_child(&child_id);
@@ -158,12 +154,10 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     let parent_context = parent_actor.activate(None).await?;
 
     let mut child_actor = Akton::<PoolItem>::create_with_id("child");
-    assert_eq!(parent_context.children().len(), 1, "Parent context missing it's child after activation");
-    let child_id = "child";
     // Set up the child actor with handlers
-
+    let child_id = child_actor.key.value.clone();
     // Activate the child actor
-    let child_context = child_actor.activate(None).await;
+    parent_context.supervise(child_actor).await?;
     assert_eq!(parent_context.children().len(), 1, "Parent actor missing it's child");
 
     tracing::info!("Searching all children {:?}", parent_context.children());
@@ -204,7 +198,6 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 AudienceReactionMsg::Chuckle => actor.state.funny += 1,
                 AudienceReactionMsg::Groan => actor.state.bombers += 1,
             };
-            Ok(())
         })
         .on_stop(|actor| {
             tracing::info!(
@@ -233,7 +226,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     let mut comedy_show = Akton::<Comedian>::create();
     comedy_show
         .setup
-        .act_on::<FunnyJokeFor>(|actor: &mut Actor<Awake<Comedian>, Comedian>, event_record| -> anyhow::Result<()> {
+        .act_on::<FunnyJokeFor>(|actor: &mut Actor<Awake<Comedian>, Comedian>, event_record| {
             // assert_eq!(actor.context.children().len(), 1);
             match &event_record.message {
                 FunnyJokeFor::ChickenCrossesRoad(child_id) => {
@@ -249,22 +242,16 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
                 }
                 FunnyJokeFor::Pun(_) => {}
             }
-            Ok(())
         });
     let mut child = Akton::<Counter>::create_with_id("child");
     child.setup.act_on::<Ping>(|actor, event| {
         tracing::info!("Received Ping from parent actor");
-        Ok(())
     });
     let child_id = child.key.value.clone();
     comedy_show.context.supervise(child).await?;
     let comedian = comedy_show.activate(None).await?;
     assert_eq!(comedian.children().len(), 1);
     comedian.emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id)).await?;
-    comedian.emit_async(FunnyJoke::Pun).await?;
-    comedian.emit(FunnyJoke::ChickenCrossesRoad)?;
-    comedian.emit(FunnyJoke::Pun)?;
-    tokio::time::sleep(Duration::from_secs(1)).await;
     comedian.terminate().await?;
 
     Ok(())

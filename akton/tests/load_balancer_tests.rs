@@ -54,7 +54,6 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 
                 }
             };
-            Ok(())
 
         })
         .on_before_stop(|actor| {
@@ -96,7 +95,6 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
                     actor.state.receive_count += total;  // Increment receive_count based on StatusReport
                 }
             };
-            Ok(())
 
         })
         .on_before_stop(|actor| {

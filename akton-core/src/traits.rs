@@ -46,7 +46,7 @@ use crate::common::{Context, MessageError, OutboundEnvelope, Supervisor};
 use crate::prelude::Envelope;
 
 /// Trait defining the strategy for load balancing.
-pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
+pub(crate) trait LoadBalancerStrategy: Send + Sync+ Debug {
     /// Select an item from a list of contexts.
     fn select_item(&mut self, items: &[Context]) -> Option<usize>;
 }
@@ -67,9 +67,9 @@ pub trait AktonMessage: Any + Send + Debug {
 
 /// Trait for configurable actors, allowing initialization.
 #[async_trait]
-pub trait ConfigurableActor: Send + Sync + Debug {
+pub trait ConfigurableActor: Send + Debug {
     /// Initializes the actor with a given name and root context.
-    fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>;
+    async fn init<'a>(&'a self, name: String) -> anyhow::Result<Context>;
 }
 
 /// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
@@ -86,7 +86,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     fn emit_envelope(
         &self,
         envelope: Envelope,
-    ) -> impl Future<Output=Result<(), MessageError>> + Sync
+    ) -> impl Future<Output=Result<(), MessageError>>
         where
             Self: Sync,
     {
@@ -100,19 +100,14 @@ pub(crate) trait SupervisorContext: ActorContext {
     }
 
     /// Emit a message to a pool using the supervisor's return address.
-    fn pool_emit(
+    async fn pool_emit(
         &self,
         name: &str,
-        message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output=Result<(), MessageError>> + Sync
-        where
-            Self: Sync,
+        message: impl AktonMessage + Send + 'static,
+    )
     {
-        async {
-            if let Some(envelope) = self.supervisor_return_address() {
-                envelope.reply(message, Some(name.to_string()))?;
-            }
-            Ok(())
+        if let Some(envelope) = self.supervisor_return_address() {
+            envelope.reply(message, Some(name.to_string())).expect("couldnt reply message");
         }
     }
 }
@@ -132,25 +127,21 @@ pub trait ActorContext {
     fn key(&self) -> &Arn;
 
     /// Emit a message from the actor.
-    #[instrument(skip(self),fields(children=self.children().len()))]
-    fn emit_async(
+    #[instrument(skip(self), fields(children = self.children().len()))]
+    async fn emit_async(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output=Result<(), MessageError>> + Sync
-        where
-            Self: Sync,
+        message: impl AktonMessage + Send + 'static,
+    ) -> Result<(), MessageError>
     {
-        async {
             let envelope = self.return_address();
             event!(Level::TRACE, addressed_to=envelope.sender.value);
             envelope.reply_async(message, None).await?;
             Ok(())
-        }
     }
     #[instrument(skip(self), fields(self.key.value))]
     fn emit(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Send + 'static,
     ) -> Result<(), MessageError>
         where
             Self: Sync,

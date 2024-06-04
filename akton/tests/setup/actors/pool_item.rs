@@ -44,9 +44,7 @@ pub struct PoolItem {
 #[async_trait]
 impl ConfigurableActor for PoolItem {
     // Initialize the actor with a given name and parent context
-    fn init<'a>(&'a self, name: String, root: &'a Context) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Sync + Send +  '_>>  {
-        Box::pin(async move {
-        // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);
+    async fn init<'a>(&'a self, name: String) -> anyhow::Result<Context> {
 
         // Create a supervised actor
         let mut actor = Akton::<PoolItem>::create_with_id(&name);
@@ -67,7 +65,6 @@ impl ConfigurableActor for PoolItem {
                     actor.key.value
                 );
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
-                Ok(())
 
             })
             .on_before_stop(|actor| {
@@ -90,7 +87,6 @@ impl ConfigurableActor for PoolItem {
         let actor_context = actor.activate(None).await?;
 
         Ok(actor_context)
-        })
     }
 }
 

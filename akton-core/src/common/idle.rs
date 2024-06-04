@@ -51,7 +51,7 @@ use tracing::{debug, error, event, instrument, Level};
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-pub struct Idle<State: Default + Sync + Send + Debug + 'static> {
+pub struct Idle<State: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
     pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
     /// Reactor called when the actor wakes up.
@@ -70,7 +70,7 @@ pub struct Idle<State: Default + Sync + Send + Debug + 'static> {
 /// Custom implementation of the `Debug` trait for the `Idle` struct.
 ///
 /// This implementation provides a formatted output for the `Idle` struct.
-impl<State: Default + Sync + Send + Debug + 'static> Debug for Idle<State> {
+impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
     /// Formats the `Idle` struct using the given formatter.
     ///
     /// # Parameters
@@ -89,7 +89,7 @@ impl<State: Default + Sync + Send + Debug + 'static> Debug for Idle<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Sync + Send + Debug> Idle<State> {
+impl<State: Default + Send + Debug> Idle<State> {
     /// Creates and supervises a new actor with the given ID and state.
     ///
     /// # Parameters
@@ -126,7 +126,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: AktonMessage + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>) -> anyhow::Result<()>
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>)
         + Send
         + Sync
         + 'static,
@@ -135,7 +135,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
 
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> anyhow::Result<()> {
+            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| {
                 if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                     // let cloned_message = concrete_msg.clone(); // Clone the message.
                     let msg = concrete_msg;
@@ -147,11 +147,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
                             actor.key.clone(),
                         ),
                     };
-                    match message_reactor(actor, event_record) {
-                        Ok(_) => {tracing::trace!("MessageReactor succeeded")}
-                        Err(_) => {tracing::error!("MessageReactor failed")}
-                    }
-                    Box::pin(())
+                    message_reactor(actor, event_record);Box::pin(())
                 } else {
                     error!(
                         "Message type mismatch: expected {:?}",
@@ -159,7 +155,6 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
                     );
                     unreachable!("Shouldn't get here");
                 };
-                Ok(())
             },
         );
 
@@ -224,8 +219,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
     pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
         signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
-        + Send
-        + Sync
+        + Send + Sync
         + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
@@ -341,7 +335,7 @@ impl<State: Default + Sync + Send + Debug> Idle<State> {
 /// Provides a default implementation for the `Idle` struct.
 ///
 /// This implementation creates a new `Idle` instance with default settings.
-impl<State: Default + Send + Sync + Debug + 'static> Default for Idle<State> {
+impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     /// Creates a new `Idle` instance with default settings.
     ///
     /// # Returns

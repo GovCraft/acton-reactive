@@ -53,7 +53,7 @@ impl<State: Default + Send + Debug> Akton<State> {
     #[instrument]
     pub fn create<'a>() -> Actor<Idle<State>, State>
         where
-            State: Default + Send + Sync + Debug,
+            State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new("root", State::default(), None)
@@ -61,7 +61,7 @@ impl<State: Default + Send + Debug> Akton<State> {
     #[instrument]
     pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
         where
-            State: Default + Send + Sync + Debug,
+            State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new(id, State::default(), None)
@@ -72,7 +72,7 @@ impl<State: Default + Send + Debug> Akton<State> {
 /// Provides a default implementation for the `Akton` struct.
 ///
 /// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Default + Send + Sync + Debug> Default for Akton<State> {
+impl<State: Default + Send + Debug> Default for Akton<State> {
     /// Creates a new `Akton` instance with the default root state.
     ///
     /// # Returns

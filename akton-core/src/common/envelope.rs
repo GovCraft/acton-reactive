@@ -39,7 +39,7 @@ use std::time::SystemTime;
 #[derive(Debug)]
 pub struct Envelope {
     /// The message contained in the envelope.
-    pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
+    pub message: Box<dyn AktonMessage + Send + 'static>,
     /// The identifier of the pool, if any, to which this envelope belongs.
     pub pool_id: Option<String>,
     /// The time when the message was sent.
@@ -59,7 +59,7 @@ impl Envelope {
     /// # Returns
     /// A new `Envelope` instance.
     pub fn new(
-        message: Box<dyn AktonMessage + Sync + Send + 'static>,
+        message: Box<dyn AktonMessage + Send + 'static>,
         return_address: Option<OutboundChannel>,
         pool_id: Option<String>,
     ) -> Self {

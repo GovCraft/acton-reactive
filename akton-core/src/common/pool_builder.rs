@@ -88,7 +88,7 @@ impl PoolBuilder {
             let mut context_items = Vec::with_capacity(pool_def.size);
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name.clone(), &parent).await?;
+                let context = pool_def.actor_type.init(item_name.clone()).await?;
                 tracing::trace!("item_name: {}, context: {:?}", &item_name, &context);
                 context_items.push(context);
             }
