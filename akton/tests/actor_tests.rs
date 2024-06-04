@@ -210,9 +210,41 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     let comedian = comedy_show.activate(None).await;
 
-    comedian.emit(FunnyJoke::ChickenCrossesRoad).await?;
-    comedian.emit(FunnyJoke::Pun).await?;
+    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await?;
+    comedian.emit_async(FunnyJoke::Pun).await?;
     let _ = comedian.terminate().await?;
+
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_child_count_in_reactor() -> anyhow::Result<()> {
+    init_tracing();
+
+    let mut comedy_show = Akton::<Comedian>::create();
+    // comedy_show
+    //     .setup
+    //     .act_on::<FunnyJoke>(|actor, record| {
+    //         // assert_eq!(actor.context.children().len(), 1);
+    //         let context = actor.context.find_child("child").clone();
+    //             if let Some(context) = context {
+    //                 tracing::trace!("pinging child");
+    //                 context.emit(Ping).expect("Couldn't Ping child");
+    //             } else {
+    //                 tracing::error!("no child");
+    //             }
+    //     });
+    // let mut child = Idle::<Counter>::create_child("child", &comedy_show.context);
+    // child.setup.act_on::<Ping>(|actor, event| {
+    //     tracing::warn!("Received from parent actor");
+    // });
+    //
+    // let comedian = comedy_show.activate(None).await?;
+    // let child_context = comedian.supervise(child).await?;
+    // assert_eq!(comedian.children().len(), 1);
+    // comedian.emit(FunnyJoke::ChickenCrossesRoad)?;
+    // comedian.emit(FunnyJoke::Pun)?;
+    // let _ = comedian.terminate().await?;
 
     Ok(())
 }

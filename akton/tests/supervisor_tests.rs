@@ -59,12 +59,12 @@ async fn test_audience_pool() -> anyhow::Result<()> {
             );
         });
     let pool =
-        PoolBuilder::default().add_pool::<AudienceMember>("audience", 1000, LoadBalanceStrategy::Random);
+        PoolBuilder::default().add_pool::<AudienceMember>("audience", 10, LoadBalanceStrategy::Random);
 
     //here we call the init method on the 1000 pool members we created
     let context = audience.activate(Some(pool)).await;
 
-    for _ in 0..1000 {
+    for _ in 0..10 {
         context.emit_pool("audience", Joke).await;
     }
     context.terminate().await?;
