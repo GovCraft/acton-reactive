@@ -95,3 +95,31 @@ pub fn akton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Return the generated tokens.
     TokenStream::from(expanded)
 }
+
+#[proc_macro_attribute]
+pub fn akton_actor(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse the input tokens into a syntax tree.
+    let input = parse_macro_input!(item as DeriveInput);
+
+    // Get the name and generics of the struct.
+    let name = &input.ident;
+    let generics = &input.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
+    // Generate the expanded code.
+    let expanded = quote! {
+        // Derive the Clone trait.
+        #[derive(Default)]
+        #input
+
+        // Implement the Debug trait.
+        impl #impl_generics std::fmt::Debug for #name #ty_generics #where_clause {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, stringify!(#name))
+            }
+        }
+    };
+
+    // Return the generated tokens.
+    TokenStream::from(expanded)
+}

@@ -40,9 +40,10 @@ use std::pin::Pin;
 use rand::Rng;
 use async_trait::async_trait;
 use akton_core::prelude::*;
+use akton_macro::akton_actor;
 use crate::setup::*;
 
-#[derive(Default, Debug, Clone)]
+#[akton_actor]
 pub struct AudienceMember {
     pub jokes_told: usize,
     pub funny: usize,
