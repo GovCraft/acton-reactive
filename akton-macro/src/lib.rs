@@ -51,46 +51,45 @@ use syn::{parse_macro_input, DeriveInput};
 ///
 /// ```rust,ignore
 /// #[akton_message]
-/// struct MyMessage {
+/// struct MyMessage<'a> {
 ///     // fields...
 /// }
 /// ```
-
 #[proc_macro_attribute]
 pub fn akton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree.
     let input = parse_macro_input!(item as DeriveInput);
 
-    // Get the name of the struct.
+    // Get the name and generics of the struct.
     let name = &input.ident;
+    let generics = &input.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     // Generate the expanded code.
     let expanded = quote! {
-
-        // // Derive the Clone trait.
-        // #[derive(Clone)]
+        // Derive the Clone trait.
+        #[derive(Clone)]
         #input
 
         // Implement the Debug trait.
-        impl std::fmt::Debug for #name {
+        impl #impl_generics std::fmt::Debug for #name #ty_generics #where_clause {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 write!(f, stringify!(#name))
             }
         }
 
         // Implement the AktonMessage trait.
-        impl AktonMessage for #name {
+        impl #impl_generics AktonMessage for #name #ty_generics #where_clause {
             fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
                 self
             }
-
             fn as_any(&self) -> &dyn std::any::Any {
                 self
             }
         }
 
         // Implement the Sync trait.
-        unsafe impl Sync for #name {}
+        unsafe impl #impl_generics Sync for #name #ty_generics #where_clause {}
     };
 
     // Return the generated tokens.
