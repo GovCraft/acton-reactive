@@ -233,6 +233,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (parent_return_envelope, key, task_tracker, context) = if let Some(parent_context) = parent_context {
             let mut key = parent_context.key().clone();
             key.append_part(id);
+            trace!("NEW ACTOR: {}", &key.value);
 
             let context = Context {
                 key: key.clone(),
@@ -273,6 +274,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 .add::<Company>("framework")
                 .add::<Part>(id)
                 .build();
+            trace!("NEW ACTOR: {}", &key.value);
 
             let context = Context {
                 key,
