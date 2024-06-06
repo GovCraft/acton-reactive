@@ -128,15 +128,18 @@ pub trait ActorContext {
 
     /// Emit a message from the actor.
     #[instrument(skip(self), fields(children = self.children().len()))]
-    async fn emit_async(
+    fn emit_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
-    ) -> Result<(), MessageError>
+    ) -> impl Future<Output = Result<(), anyhow::Error>> + Sync + Send + '_
+    where Self: Sync
     {
+        async {
             let envelope = self.return_address();
             event!(Level::TRACE, addressed_to=envelope.sender.value);
             envelope.reply_async(message, None).await?;
             Ok(())
+        }
     }
     #[instrument(skip(self), fields(self.key.value))]
     fn emit(
