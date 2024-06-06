@@ -141,47 +141,38 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         // Call the on_wake setup function
         (self.setup.on_wake)(self);
 
-        // tracing::error!("woke actor initial child count: {}", self.context.children().len());
-        // debug_assert_eq!(self.context.children.len() == 1);
         let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
-            // debug_assert!(self.context.children.len() == 1);
-            let current_child_count = self.context.children().len();
-            // tracing::error!("woke actor child count within loop: {}", current_child_count);
-
             let type_id = &envelope.message.as_any().type_id().clone();
             event!(Level::TRACE, "Mailbox received {:?}", &envelope.message);
 
             if let Some(reactor) = reactors.get(&type_id) {
                 event!(Level::TRACE, "Message reactor found");
+
                 match reactor.value() {
                     ReactorItem::Message(reactor) => {
-                        let child_count_before_reactor = self.context.children().len();
-                        // tracing::error!("woke actor child count before non-fut reactor send: {}", child_count_before_reactor);
                         event!(Level::TRACE, "Executing non-future reactor with {} children", &self.context.children().len());
                         (*reactor)(self, &envelope);
                     }
                     ReactorItem::Future(fut) => {
-                        let child_count_before_fut = self.context.children().len();
                         event!(Level::TRACE, "Awaiting future-based reactor");
                         fut(self, &envelope).await;
                     }
-
-                    _ => { tracing::warn!("Unknown ReactorItem type for: {:?}", &envelope.message) }
+                    _ => {
+                        tracing::warn!("Unknown ReactorItem type for: {:?}", &envelope.message);
+                    }
                 }
-                trace!("Message handled by reactor")
+
+                trace!("Message handled by reactor");
             } else {
-                tracing::warn!("No reactor found for: {:?} ",&envelope.message);
+                tracing::warn!("No reactor found for: {:?} ", &envelope.message);
             }
+
             // Handle SystemSignal::Terminate to stop the actor
             trace!("Checking for SystemSignal::Terminate");
             if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                //make sure we've processed all our messages
                 event!(Level::TRACE, "Received SystemSignal::Terminate");
-                // while !self.mailbox.is_empty() {
-                //     tracing::warn!("Terminate request received but mailbox not empty")
-                // }
-                //stop our children first
+
                 event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
                 for item in &self.context.children {
                     let context = item.value();
@@ -189,6 +180,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     let _ = context.terminate().await;
                     tracker.wait().await;
                 }
+
                 // Call the on_before_stop setup function
                 (self.setup.on_before_stop)(self);
                 if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
@@ -196,7 +188,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 }
                 break;
             }
-
 
             // Yield less frequently to reduce context switching
             yield_counter += 1;
