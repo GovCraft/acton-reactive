@@ -32,6 +32,7 @@
  */
 use std::fmt::Debug;
 use std::future::Future;
+use std::hash::{Hash, Hasher};
 use std::pin::Pin;
 
 use akton_arn::Arn;
@@ -64,6 +65,19 @@ pub struct Context {
     pub(crate) children: DashMap<String, Context>,
 }
 
+impl PartialEq for Context {
+    fn eq(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+
+impl Eq for Context {}
+
+impl Hash for Context {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key.hash(state);
+    }
+}
 impl Context {
 
     #[instrument(skip(self))]
