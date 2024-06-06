@@ -46,7 +46,7 @@ use crate::common::{Context, MessageError, OutboundEnvelope, Supervisor};
 use crate::prelude::Envelope;
 
 /// Trait defining the strategy for load balancing.
-pub(crate) trait LoadBalancerStrategy: Send + Sync+ Debug {
+pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
     /// Select an item from a list of contexts.
     fn select_item(&mut self, items: &[Context]) -> Option<usize>;
 }
@@ -103,7 +103,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     async fn pool_emit(
         &self,
         name: &str,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Send + Sync + 'static,
     )
     {
         if let Some(envelope) = self.supervisor_return_address() {
@@ -128,23 +128,23 @@ pub trait ActorContext {
 
     /// Emit a message from the actor.
     #[instrument(skip(self), fields(children = self.children().len()))]
-    fn emit_async(
-        &self,
-        message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), anyhow::Error>> + Sync + Send + '_
-    where Self: Sync
+    fn emit_async(&self, message: impl AktonMessage + Sync + Send + 'static) -> impl Future<Output=()> + Send + Sync + '_
+        where Self: Sync
     {
-        async {
+        // Box::pin(async move {
+        async move {
             let envelope = self.return_address();
             event!(Level::TRACE, addressed_to=envelope.sender.value);
-            envelope.reply_async(message, None).await?;
-            Ok(())
+            envelope.reply_async(message, None).await.expect("Couldn't emit_async");
+            // Ok(())
         }
+        // )
     }
+
     #[instrument(skip(self), fields(self.key.value))]
     fn emit(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError>
         where
             Self: Sync,

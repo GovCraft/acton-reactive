@@ -50,7 +50,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             tracing::info!("Processed {} Pings", actor.state.receive_count);
         });
     let context = actor.activate(None).await?;
-    context.emit_async(Ping).await?;
+    context.emit_async(Ping).await;
     context.terminate().await?;
     Ok(())
 }

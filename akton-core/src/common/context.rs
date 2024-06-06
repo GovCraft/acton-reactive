@@ -75,7 +75,7 @@ impl Eq for Context {}
 
 impl Hash for Context {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.hash(state);
+        self.key.value.hash(state);
     }
 }
 impl Context {

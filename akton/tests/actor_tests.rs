@@ -30,13 +30,90 @@
  *
  *
  */
+#![allow(unused)]
 
 mod setup;
 
+use std::any::TypeId;
 use std::pin::Pin;
 use std::time::Duration;
+use tracing::{debug, trace};
 use akton::prelude::*;
 use crate::setup::*;
+
+// #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+// async fn test_broker_subscription() -> anyhow::Result<()> {
+//     init_tracing();
+//
+//
+//     let mut tangle = Akton::<BrokerOwner>::create_with_id("broker_manager");
+//     tangle.setup.act_on::<Pong>(|_,_|{
+//        trace!("PONG");
+//     });
+//     let mut counter = Akton::<Counter>::create_with_id("counter");
+//     counter.setup.act_on::<Ping>(|_,_|{
+//        trace!("PING");
+//     });
+//     let counter = counter.activate(None).await?;
+//     tangle.state.broker = counter.clone();
+//
+//     let tangle_context = tangle.activate(None).await?;
+//     let error_msg = Ping;
+//     // let message_type_id = TypeId::of::<ErrorNotification>();
+//     // let broker_emit_msg = BrokerEmit {message: Box::new(error_msg), message_type_id };
+//     debug!("Broadcasting error through broker");
+//     counter.emit_async(error_msg).await?;
+//
+//     tangle_context.terminate().await?;
+//
+//     Ok(())
+// }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_async_reactor() -> anyhow::Result<()> {
+    init_tracing();
+
+    let mut comedy_show = Akton::<Comedian>::create_with_id("improve_show");
+
+    comedy_show
+        .setup
+        .act_on_async::<FunnyJoke>(|actor, record| {
+            actor.state.jokes_told += 1;
+            let context = actor.context.clone();
+            Box::pin(async move {
+                trace!("emitting async");
+                context.emit_async(Ping).await;
+            })
+        })
+        .act_on::<AudienceReactionMsg>(|actor, event| {
+            debug!("Rcvd AudiencReaction");
+            match event.message {
+                AudienceReactionMsg::Chuckle => actor.state.funny += 1,
+                AudienceReactionMsg::Groan => actor.state.bombers += 1,
+            };
+        })
+        .act_on::<Ping>(|actor, event| {
+            debug!("PING");
+        })
+        .on_stop(|actor| {
+            tracing::info!(
+                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                actor.state.jokes_told,
+                actor.state.funny,
+                actor.state.bombers
+            );
+            assert_eq!(actor.state.jokes_told, 2);
+        });
+
+
+    let comedian = comedy_show.activate(None).await?;
+
+    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await;
+    comedian.emit_async(FunnyJoke::Pun).await;
+    let _ = comedian.terminate().await?;
+
+    Ok(())
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
@@ -61,7 +138,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.emit_async(Tally::AddCount).await?;
+        counter_actor.emit_async(Tally::AddCount).await;
     }
 
     // Create an actor for messaging
@@ -177,21 +254,24 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     comedy_show
         .setup
-        .act_on_async::<FunnyJoke>(|actor, record: &EventRecord<&FunnyJoke>| {
+        .act_on_async::<FunnyJoke>(|actor, record| {
             actor.state.jokes_told += 1;
-
-            if let Some(envelope) = actor.new_envelope() {
-                match record.message {
-                    FunnyJoke::ChickenCrossesRoad => Box::pin(async move {
-                        let _ = envelope.reply(AudienceReactionMsg::Chuckle, None);
-                    }),
-                    FunnyJoke::Pun => Box::pin(async move {
-                        let _ = envelope.reply(AudienceReactionMsg::Groan, None);
-                    }),
+            let envelope = actor.new_envelope();
+            let message = record.message.clone();
+            Box::pin(async move {
+                if let Some(envelope) = envelope {
+                    match message {
+                        FunnyJoke::ChickenCrossesRoad => {
+                            let _ = envelope.reply(AudienceReactionMsg::Chuckle, None);
+                        }
+                        FunnyJoke::Pun => {
+                            let _ = envelope.reply(AudienceReactionMsg::Groan, None);
+                        }
+                    }
+                } else {
+                    // Box::pin(async {})
                 }
-            } else {
-                Box::pin(async {})
-            }
+            })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             match event.message {
@@ -212,8 +292,8 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     let comedian = comedy_show.activate(None).await?;
 
-    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await?;
-    comedian.emit_async(FunnyJoke::Pun).await?;
+    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await;
+    comedian.emit_async(FunnyJoke::Pun).await;
     let _ = comedian.terminate().await?;
 
     Ok(())
@@ -235,7 +315,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
                     let context = actor.context.find_child(&child_id).clone();
                     if let Some(context) = context {
                         tracing::trace!("pinging child");
-                        context.emit(Ping).expect("Couldn't Ping child");
+                        context.emit(Ping);
                     } else {
                         tracing::error!("no child");
                     }
@@ -251,7 +331,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     comedy_show.context.supervise(child).await?;
     let comedian = comedy_show.activate(None).await?;
     assert_eq!(comedian.children().len(), 1);
-    comedian.emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id)).await?;
+    comedian.emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id)).await;
     comedian.terminate().await?;
 
     Ok(())

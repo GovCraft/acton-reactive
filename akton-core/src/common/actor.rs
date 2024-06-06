@@ -325,8 +325,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             let mut actor = self;
             let reactors = mem::take(&mut actor.setup.reactors);
             let mut context = actor.context.clone();
-            event!(Level::TRACE, idle_child_count=context.children().len());
-            //activate all children first
+            event!(Level::TRACE, idle_child_count = context.children().len());
+
             if let Some(builder) = builder {
                 event!(Level::TRACE, "PoolBuilder provided.");
                 // If a pool builder is provided, spawn the supervisor
@@ -335,13 +335,13 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 let mut supervisor = builder.spawn(&moved_context).await?;
                 context.supervisor_outbox = Some(supervisor.outbox.clone());
                 context.supervisor_task_tracker = supervisor.task_tracker.clone();
+
                 let active_actor: Actor<Awake<State>, State> = actor.into();
                 if active_actor.context.children().len() > 0 {
                     tracing::trace!("Child pool count after awake actor creation {}", active_actor.context.children().len());
                 }
 
-                let mut actor = active_actor;
-
+                let actor = Box::leak(Box::new(active_actor));
                 let actor_tracker = &context.task_tracker.clone();
                 debug_assert!(
                     !actor.mailbox.is_closed(),
@@ -349,16 +349,16 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 );
 
                 // Spawn the actor's wake task
-                actor_tracker.spawn(async move { actor.wake(reactors).await });
+                actor_tracker.spawn(actor.wake(reactors));
                 debug_assert!(
                     !supervisor.mailbox.is_closed(),
                     "Supervisor mailbox is closed in spawn_with_pools"
                 );
 
+                let supervisor = Box::leak(Box::new(supervisor));
                 let supervisor_tracker = supervisor.task_tracker.clone();
-
                 // Spawn the supervisor's wake task
-                supervisor_tracker.spawn(async move { supervisor.wake_supervisor().await });
+                supervisor_tracker.spawn(supervisor.wake_supervisor());
                 // Close the supervisor task tracker
                 supervisor_tracker.close();
             } else {
@@ -366,8 +366,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 // If no builder is provided, activate the actor directly
                 let active_actor: Actor<Awake<State>, State> = actor.into();
                 tracing::trace!("Child count after awake actor creation {}", active_actor.context.children().len());
-                let mut actor = active_actor;
 
+                let actor = Box::leak(Box::new(active_actor));
                 let actor_tracker = &context.task_tracker.clone();
                 debug_assert!(
                     !actor.mailbox.is_closed(),
@@ -375,10 +375,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 );
 
                 // Spawn the actor's wake task
-                actor_tracker.spawn(async move { actor.wake(reactors).await });
+                actor_tracker.spawn(actor.wake(reactors));
                 // Close the supervisor task tracker
                 let _ = &context.supervisor_task_tracker().close();
             }
+
             // Close the actor's task tracker
             context.task_tracker.close();
             if context.children().len() > 0 {
@@ -389,7 +390,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         })
     }
 }
-
 /// Represents an actor in the awake state.
 ///
 /// # Type Parameters

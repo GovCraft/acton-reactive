@@ -38,11 +38,13 @@ use std::fmt::Debug;
 use crate::common::event_record::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::AktonMessage;
+use crate::traits::{AktonMessage};
 use dashmap::DashMap;
 use futures::future;
 use std::fmt;
 use std::fmt::Formatter;
+use std::future::Future;
+use std::pin::Pin;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, event, instrument, Level};
@@ -147,7 +149,8 @@ impl<State: Default + Send + Debug> Idle<State> {
                             actor.key.clone(),
                         ),
                     };
-                    message_reactor(actor, event_record);Box::pin(())
+                    message_reactor(actor, event_record);
+                    Box::pin(())
                 } else {
                     error!(
                         "Message type mismatch: expected {:?}",
@@ -165,21 +168,22 @@ impl<State: Default + Send + Debug> Idle<State> {
 
         self
     }
-
+    fn box_pin<F>(future: F) -> Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>
+        where
+            F: Future<Output=()> + Send + Sync + 'static,
+    {
+        Box::pin(future)
+    }
     /// Adds an asynchronous message handler for a specific message type.
     ///
     /// # Parameters
     /// - `message_processor`: The function to handle the message.
-    #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'b> Fn(&'b mut Actor<Awake<State>, State>, &'b EventRecord<&'b M>) -> Fut
-        + 'static
-        + Sync
-        + Send,
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut + Send + Sync + 'static,
     ) -> &mut Self
         where
-            M: AktonMessage + 'static,
+            M: AktonMessage + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
 
@@ -187,7 +191,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let handler_box = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
                 if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                    let event_record = EventRecord {
+                    let event_record = &EventRecord {
                         message: concrete_msg,
                         sent_time: envelope.sent_time,
                         return_address: actor.parent_return_envelope.clone(),
@@ -205,9 +209,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         );
 
         // Insert the handler into the reactors map.
-        let _ = &self
-            .reactors
-            .insert(type_id, ReactorItem::Future(handler_box));
+        let _ = &self.reactors.insert(type_id, ReactorItem::Future(handler_box));
         self
     }
 
