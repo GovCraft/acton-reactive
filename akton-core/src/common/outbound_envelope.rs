@@ -31,9 +31,12 @@
  *
  */
 
+use std::any::Any;
 use akton_arn::Arn;
+use tokio::runtime::Runtime;
+use tokio::sync::mpsc::error::SendError;
 use tokio::task::block_in_place;
-use tracing::instrument;
+use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::prelude::AktonMessage;
@@ -46,6 +49,7 @@ pub struct OutboundEnvelope {
     /// The optional channel for sending replies.
     pub(crate) reply_to: Option<OutboundChannel>,
 }
+
 // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {
     fn eq(&self, other: &Self) -> bool {
@@ -63,6 +67,7 @@ impl std::hash::Hash for OutboundEnvelope {
         self.reply_to.is_some().hash(state);
     }
 }
+
 impl OutboundEnvelope {
     /// Creates a new outbound envelope.
     ///
@@ -91,10 +96,14 @@ impl OutboundEnvelope {
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
-        block_in_place(|| {
-            let future = self.reply_async(message, pool_id);
-            tokio::runtime::Handle::current().block_on(future)
-        })
+        let envelope = self.clone();
+        tokio::task::spawn_blocking(move || {
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async move {
+                envelope.reply_async(message, pool_id).await;
+            });
+        });
+        Ok(())
     }
 
     /// Sends a reply message asynchronously.
@@ -110,14 +119,22 @@ impl OutboundEnvelope {
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
-    ) -> Result<(), MessageError> {
+    ) {
         if let Some(reply_to) = &self.reply_to {
+            let type_id = AktonMessage::type_id(&message).clone();
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             if !reply_to.is_closed() {
-                reply_to.send(envelope).await?;
+                match reply_to.send(envelope).await {
+                    Ok(_) => {
+                        trace!("Reply to {} from OutboundEnvelope", &self.sender.value)
+                    }
+                    Err(_) => {
+                        error!("Failed to reply to {} from OutboundEnvelope with message type {:?}", &self.sender.value, &type_id)
+                    }
+                }
             }
         }
-        Ok(())
+        // Ok(())
     }
 
     /// Sends a reply message to all recipients asynchronously.
@@ -127,7 +144,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender.value, message = ?message))]
+    #[instrument(skip(self), fields(sender = self.sender.value, message = ? message))]
     pub(crate) async fn reply_all(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
@@ -143,3 +160,4 @@ impl OutboundEnvelope {
         Ok(())
     }
 }
+

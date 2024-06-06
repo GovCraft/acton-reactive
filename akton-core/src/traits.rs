@@ -40,7 +40,7 @@ use akton_arn::prelude::*;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level};
+use tracing::{debug, event, instrument, Level};
 
 use crate::common::{Context, MessageError, OutboundEnvelope, Supervisor};
 use crate::prelude::Envelope;
@@ -133,9 +133,10 @@ pub trait ActorContext {
     {
         // Box::pin(async move {
         async move {
+            debug!("*");
             let envelope = self.return_address();
             event!(Level::TRACE, addressed_to=envelope.sender.value);
-            envelope.reply_async(message, None).await.expect("Couldn't emit_async");
+            envelope.reply_async(message, None).await;
             // Ok(())
         }
         // )

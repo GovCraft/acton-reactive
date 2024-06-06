@@ -81,7 +81,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
             actor.state.jokes_told += 1;
             let context = actor.context.clone();
             Box::pin(async move {
-                trace!("emitting async");
+                debug!("emitting async");
                 context.emit_async(Ping).await;
             })
         })
