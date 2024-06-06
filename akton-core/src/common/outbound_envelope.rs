@@ -46,7 +46,23 @@ pub struct OutboundEnvelope {
     /// The optional channel for sending replies.
     pub(crate) reply_to: Option<OutboundChannel>,
 }
+// Manually implement PartialEq for OutboundEnvelope
+impl PartialEq for OutboundEnvelope {
+    fn eq(&self, other: &Self) -> bool {
+        self.sender == other.sender && self.reply_to.is_some() == other.reply_to.is_some()
+    }
+}
 
+// Implement Eq for OutboundEnvelope as it is required when implementing PartialEq
+impl Eq for OutboundEnvelope {}
+
+// Implement Hash for OutboundEnvelope as it is required for HashSet
+impl std::hash::Hash for OutboundEnvelope {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.sender.value.hash(state);
+        self.reply_to.is_some().hash(state);
+    }
+}
 impl OutboundEnvelope {
     /// Creates a new outbound envelope.
     ///
