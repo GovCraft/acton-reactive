@@ -85,7 +85,7 @@ impl Context {
     /// - `name`: The name of the pool.
     /// - `message`: The message to be emitted.
     #[instrument]
-    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Send + 'static) {
+    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
         self.pool_emit(name, message).await;
     }
 

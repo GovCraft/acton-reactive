@@ -103,7 +103,7 @@ pub(crate) trait SupervisorContext: ActorContext {
     async fn pool_emit(
         &self,
         name: &str,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     )
     {
         if let Some(envelope) = self.supervisor_return_address() {
@@ -130,7 +130,7 @@ pub trait ActorContext {
     #[instrument(skip(self), fields(children = self.children().len()))]
     async fn emit_async(
         &self,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     ) -> Result<(), MessageError>
     {
             let envelope = self.return_address();
@@ -141,7 +141,7 @@ pub trait ActorContext {
     #[instrument(skip(self), fields(self.key.value))]
     fn emit(
         &self,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     ) -> Result<(), MessageError>
         where
             Self: Sync,

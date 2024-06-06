@@ -72,7 +72,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub fn reply(
         &self,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         block_in_place(|| {
@@ -92,7 +92,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async(
         &self,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
@@ -114,7 +114,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self), fields(sender = self.sender.value, message = ?message))]
     pub(crate) async fn reply_all(
         &self,
-        message: impl AktonMessage + Send + 'static,
+        message: impl AktonMessage + Sync + Send + 'static,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
             // debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");
