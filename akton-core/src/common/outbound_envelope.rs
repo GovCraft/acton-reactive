@@ -117,7 +117,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Any + Sync + Send + 'static,
         pool_id: Option<String>,
     ) {
         if let Some(reply_to) = &self.reply_to {
