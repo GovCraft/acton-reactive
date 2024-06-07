@@ -31,9 +31,5 @@
  *
  */
 
-use akton_core::prelude::OutboundEnvelope;
-
 #[derive(Default, Debug, Clone)]
-pub struct Messenger {
-    pub sender: Option<OutboundEnvelope>,
-}
+pub struct Messenger;

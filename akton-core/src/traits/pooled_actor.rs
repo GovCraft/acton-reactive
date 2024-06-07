@@ -30,28 +30,23 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::fmt::Debug;
 
-mod setup;
+use async_trait::async_trait;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+use crate::common::Context;
+
+/// Trait for configurable actors, allowing initialization.
+#[async_trait]
+pub trait PooledActor: Send + Debug {
+    /// Initializes the actor with a given name and parent context.
+    ///
+    /// # Parameters
+    /// - `name`: The name to assign to the actor.
+    /// - `parent`: The parent context within which the actor is initialized.
+    ///
+    /// # Returns
+    /// A new `Context` for the initialized actor.
+    async fn initialize(&self, name: String, parent: &Context) -> Context;
 }

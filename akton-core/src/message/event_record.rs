@@ -30,28 +30,26 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::time::SystemTime;
 
-mod setup;
+use static_assertions::assert_impl_all;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+use crate::message::OutboundEnvelope;
+
+/// Represents a record of an event within the actor system.
+///
+/// # Type Parameters
+/// - `S`: The type of the message contained in the event.
+#[derive(Clone, Debug)]
+pub struct EventRecord<S> {
+    /// The message contained in the event.
+    pub message: S,
+    /// The time when the message was sent.
+    pub sent_time: SystemTime,
+    /// The return address for the message response.
+    pub return_address: OutboundEnvelope,
 }
+
+// Ensures that EventRecord<u32> implements the Send trait.
+assert_impl_all!(EventRecord<u32>: Send);

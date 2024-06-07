@@ -30,28 +30,19 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::fmt::Debug;
 
-mod setup;
+use crate::common::Context;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+/// Trait defining the strategy for load balancing.
+pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
+    /// Selects a context from a list of contexts based on the load balancing strategy.
+    ///
+    /// # Parameters
+    /// - `items`: A slice of contexts to select from.
+    ///
+    /// # Returns
+    /// An `Option<usize>` representing the index of the selected context in the list, or `None` if no selection is made.
+    fn select_context(&mut self, items: &[Context]) -> Option<usize>;
 }

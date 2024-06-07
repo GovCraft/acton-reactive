@@ -30,28 +30,50 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::time::SystemTime;
 
-mod setup;
+use static_assertions::assert_impl_all;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+use crate::common::OutboundChannel;
+use crate::traits::AktonMessage;
+
+/// Represents an envelope that carries a message within the actor system.
+#[derive(Debug)]
+pub struct Envelope {
+    /// The message contained in the envelope.
+    pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
+    /// The identifier of the pool, if any, to which this envelope belongs.
+    pub pool_id: Option<String>,
+    /// The time when the message was sent.
+    pub sent_time: SystemTime,
+    /// The return address for the message response.
+    pub return_address: Option<OutboundChannel>,
 }
+
+impl Envelope {
+    /// Creates a new envelope with the specified message, return address, and pool identifier.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be carried in the envelope.
+    /// - `return_address`: The return address for the message response.
+    /// - `pool_id`: The identifier of the pool to which this envelope belongs, if any.
+    ///
+    /// # Returns
+    /// A new `Envelope` instance.
+    pub fn new(
+        message: Box<dyn AktonMessage + Send + Sync + 'static>,
+        return_address: Option<OutboundChannel>,
+        pool_id: Option<String>,
+    ) -> Self {
+        Envelope {
+            message,
+            sent_time: SystemTime::now(),
+            return_address,
+            pool_id,
+        }
+    }
+}
+
+// Ensures that Envelope implements the Send trait.
+assert_impl_all!(Envelope: Send);

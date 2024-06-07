@@ -30,28 +30,15 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+pub(crate) use envelope::Envelope;
+pub(crate) use event_record::EventRecord;
+pub(crate) use message_error::MessageError;
+pub(crate) use outbound_envelope::OutboundEnvelope;
 
-mod setup;
+mod envelope;
+mod event_record;
+mod message_error;
+mod outbound_envelope;
+pub mod signal;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
-}

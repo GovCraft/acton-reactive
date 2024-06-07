@@ -30,28 +30,14 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+pub use builder::PoolBuilder;
+pub(crate) use config::PoolConfig;
+pub(crate) use item::PoolItem;
+pub(crate) use load_balance_strategy::{RandomStrategy, RoundRobinStrategy};
+pub use load_balance_strategy::LoadBalanceStrategy;
 
-mod setup;
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
-}
+mod builder;
+mod config;
+mod item;
+mod load_balance_strategy;

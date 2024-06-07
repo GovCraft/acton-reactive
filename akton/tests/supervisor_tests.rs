@@ -32,9 +32,8 @@
  */
 
 mod setup;
-use akton::prelude::*;
 use crate::setup::*;
-
+use akton::prelude::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_audience_pool() -> anyhow::Result<()> {
@@ -49,7 +48,6 @@ async fn test_audience_pool() -> anyhow::Result<()> {
                 AudienceReactionMsg::Chuckle => actor.state.bombers += 1,
             }
             actor.state.jokes_told += 1;
-
         })
         .on_before_stop(|actor| {
             tracing::info!(
@@ -59,8 +57,11 @@ async fn test_audience_pool() -> anyhow::Result<()> {
                 actor.state.bombers
             );
         });
-    let pool =
-        PoolBuilder::default().add_pool::<AudienceMember>("audience", 10, LoadBalanceStrategy::Random);
+    let pool = PoolBuilder::default().add_pool::<AudienceMember>(
+        "audience",
+        10,
+        LoadBalanceStrategy::Random,
+    );
 
     //here we call the init method on the 1000 pool members we created
     let context = audience.activate(Some(pool)).await?;
@@ -71,4 +72,3 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     context.terminate().await?;
     Ok(())
 }
-

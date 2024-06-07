@@ -30,28 +30,12 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use crate::common::Context;
+use crate::traits::LoadBalancerStrategy;
 
-mod setup;
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+#[derive(Debug)]
+pub(crate) struct PoolItem {
+    pub(crate) pool: Vec<Context>,
+    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }

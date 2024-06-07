@@ -30,28 +30,16 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+pub use actor_context::ActorContext;
+pub use akton_message::AktonMessage;
+pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
+pub use pooled_actor::PooledActor;
+pub(crate) use supervisor_context::SupervisorContext;
 
-mod setup;
+mod actor_context;
+mod akton_message;
+mod load_balancer_strategy;
+mod pooled_actor;
+mod supervisor_context;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
-}

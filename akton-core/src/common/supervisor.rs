@@ -31,20 +31,21 @@
  *
  */
 
-use crate::common::StopSignal;
-use crate::common::*;
-use crate::prelude::{ActorContext, SupervisorContext};
-use dashmap::DashMap;
-use akton_arn::Arn;
-
 use std::fmt::Debug;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
+
+use akton_arn::Arn;
+use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
 
-/// Represents a supervisor in the actor system, responsible for managing subordinates and handling messages.
+use crate::common::{Envelope, StopSignal, SystemSignal};
+use crate::pool::PoolItem;
+use crate::traits::{ActorContext, SupervisorContext};
+
+/// Represents a supervisor in the actor system, responsible for managing subordinates and handling their messages.
 pub(crate) struct Supervisor {
     /// The unique identifier (ARN) for the supervisor.
     pub(crate) key: Arn,
@@ -93,7 +94,7 @@ impl Supervisor {
                         let pool_clone = pool_def.pool.clone();
 
                         // Now perform the selection outside the mutable borrowed variable's scope.
-                        if let Some(index) = pool_def.strategy.select_item(&pool_clone) {
+                        if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
                             // Access the original data using the index now that we're outside the conflicting borrow.
                             let context = &pool_def.pool[index];
                             context.emit_envelope(envelope).await?;
@@ -103,17 +104,9 @@ impl Supervisor {
                     envelope.message.as_any().downcast_ref::<SystemSignal>()
                 {
                     match concrete_msg {
-                        SystemSignal::Wake => {}
-                        SystemSignal::Recreate => {}
-                        SystemSignal::Suspend => {}
-                        SystemSignal::Resume => {}
                         SystemSignal::Terminate => {
                             self.terminate().await?;
                         }
-                        SystemSignal::Supervise => {}
-                        SystemSignal::Watch => {}
-                        SystemSignal::Unwatch => {}
-                        SystemSignal::Failed => {}
                     }
                 }
             }

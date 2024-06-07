@@ -30,28 +30,47 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::future::Future;
 
-mod setup;
+use async_trait::async_trait;
+use tokio_util::task::TaskTracker;
+use tracing::instrument;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+use crate::common::{Envelope, MessageError, OutboundEnvelope};
+use crate::traits::actor_context::ActorContext;
+use crate::traits::akton_message::AktonMessage;
+
+/// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
+#[async_trait]
+pub(crate) trait SupervisorContext: ActorContext {
+    /// Returns the supervisor's task tracker.
+    fn supervisor_task_tracker(&self) -> TaskTracker;
+
+    /// Returns the supervisor's return address, if available.
+    fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
+
+    /// Emit an envelope to the supervisor.
+    #[instrument(skip(self))]
+    fn emit_envelope(&self, envelope: Envelope) -> impl Future<Output = Result<(), MessageError>>
+    where
+        Self: Sync,
+    {
+        async {
+            let forward_address = self.return_address();
+            if let Some(reply_to) = forward_address.reply_to {
+                reply_to.send(envelope).await?;
+            }
+            Ok(())
+        }
+    }
+
+    /// Emit a message to a pool using the supervisor's return address.
+    fn emit_to_pool(&self, name: &str, message: impl AktonMessage + Send + Sync + 'static) {
+        if let Some(envelope) = self.supervisor_return_address() {
+            envelope
+                .reply(message, Some(name.to_string()))
+                .expect("couldnt reply message");
+        }
+    }
 }

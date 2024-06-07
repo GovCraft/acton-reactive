@@ -30,28 +30,20 @@
  *
  *
  */
-use akton::prelude::*;
 
-use crate::setup::*;
+use std::any::{Any, TypeId};
+use std::fmt::Debug;
 
-mod setup;
+/// Trait for Akton messages, providing methods for type erasure.
+pub trait AktonMessage: Any + Send + Debug {
+    /// Returns a reference to the message as `Any`.
+    fn as_any(&self) -> &dyn Any;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
-    actor
-        .setup
-        .on_before_wake(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
-        })
-        .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
-        });
-    let context = actor.activate(None).await?;
-    context.terminate().await?;
-    Ok(())
+    /// Returns the `TypeId` of the message.
+    fn type_id(&self) -> TypeId {
+        TypeId::of::<Self>()
+    }
+
+    /// Returns a mutable reference to the message as `Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }

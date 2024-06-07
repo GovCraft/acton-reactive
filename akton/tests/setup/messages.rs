@@ -69,4 +69,3 @@ pub enum Tally {
 pub enum StatusReport {
     Complete(usize),
 }
-

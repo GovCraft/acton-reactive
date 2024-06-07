@@ -31,10 +31,13 @@
  *
  */
 
+use std::fmt::Debug;
+use std::marker::PhantomData;
+
 use tracing::instrument;
 
-use crate::common::{Actor, Idle};
-use std::fmt::Debug;
+use crate::actors::{Actor, Idle};
+
 /// Represents an actor with a root state.
 ///
 /// # Type Parameters
@@ -42,7 +45,7 @@ use std::fmt::Debug;
 #[derive(Debug)]
 pub struct Akton<State: Default + Send + Debug> {
     /// The root state of the actor.
-    pub root_actor: State,
+    root_actor: PhantomData<State>,
 }
 
 impl<State: Default + Send + Debug> Akton<State> {
@@ -52,21 +55,20 @@ impl<State: Default + Send + Debug> Akton<State> {
     /// A new `Actor` instance in the idle state with the root state.
     #[instrument]
     pub fn create<'a>() -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
+    where
+        State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new("root", State::default(), None)
     }
     #[instrument]
     pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
+    where
+        State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new(id, State::default(), None)
     }
-
 }
 
 /// Provides a default implementation for the `Akton` struct.
@@ -79,7 +81,7 @@ impl<State: Default + Send + Debug> Default for Akton<State> {
     /// A new `Akton` instance.
     fn default() -> Self {
         Akton {
-            root_actor: State::default(),
+            root_actor: PhantomData,
         }
     }
 }
