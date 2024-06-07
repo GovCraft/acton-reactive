@@ -31,13 +31,14 @@
  *
  */
 
-mod envelope;
-mod outbound_envelope;
-mod message_error;
-pub mod signal;
-mod event_record;
-
-pub(crate) use outbound_envelope::OutboundEnvelope;
 pub(crate) use envelope::Envelope;
-pub use message_error::MessageError;
-pub use event_record::EventRecord;
+pub(crate) use event_record::EventRecord;
+pub(crate) use message_error::MessageError;
+pub(crate) use outbound_envelope::OutboundEnvelope;
+
+mod envelope;
+mod event_record;
+mod message_error;
+mod outbound_envelope;
+pub mod signal;
+

@@ -31,11 +31,6 @@
  *
  */
 
-use crate::common::{Envelope, StopSignal, SystemSignal};
-use crate::traits::{ActorContext, SupervisorContext};
-use dashmap::DashMap;
-use akton_arn::Arn;
-
 use std::fmt::Debug;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -45,7 +40,10 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
+
+use crate::common::{Envelope, StopSignal, SystemSignal};
 use crate::pool::PoolItem;
+use crate::traits::{ActorContext, SupervisorContext};
 
 /// Represents a supervisor in the actor system, responsible for managing subordinates and handling their messages.
 pub(crate) struct Supervisor {

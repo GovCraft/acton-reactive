@@ -32,6 +32,7 @@
  */
 
 use std::any::Any;
+
 use akton_arn::Arn;
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc::error::SendError;
@@ -40,6 +41,7 @@ use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
 use crate::traits::AktonMessage;
+
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
@@ -128,7 +130,10 @@ impl OutboundEnvelope {
                         trace!("Reply to {} from OutboundEnvelope", &self.sender.value)
                     }
                     Err(_) => {
-                        error!("Failed to reply to {} from OutboundEnvelope with message type {:?}", &self.sender.value, &type_id)
+                        error!(
+                            "Failed to reply to {} from OutboundEnvelope with message type {:?}",
+                            &self.sender.value, &type_id
+                        )
                     }
                 }
             }
@@ -159,4 +164,3 @@ impl OutboundEnvelope {
         Ok(())
     }
 }
-

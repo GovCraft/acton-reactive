@@ -35,21 +35,17 @@ use std::any::TypeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-
-use crate::message::EventRecord;
-use crate::common::*;
-use crate::common::{LifecycleReactor, SignalReactor};
-use crate::traits::{AktonMessage};
-use dashmap::DashMap;
-use std::fmt;
-use std::fmt::Formatter;
 use std::future::Future;
 use std::pin::Pin;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
+
+use dashmap::DashMap;
+use futures::future;
 use tracing::{debug, error, event, instrument, Level};
 
 use crate::actors::{Actor, Awake};
+use crate::common::*;
 use crate::common::LifecycleReactor;
 use crate::message::{Envelope, EventRecord, OutboundEnvelope};
 use crate::traits::AktonMessage;
@@ -86,11 +82,9 @@ impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
     /// # Returns
     /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Idle")
-            .finish()
+        f.debug_struct("Idle").finish()
     }
 }
-
 
 /// Represents an actor in the idle state and provides methods to set up its behavior.
 ///
@@ -134,9 +128,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     pub fn act_on<M: AktonMessage + 'static>(
         &mut self,
         message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>)
-        + Send
-        + Sync
-        + 'static,
+            + Send
+            + Sync
+            + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
@@ -173,9 +167,9 @@ impl<State: Default + Send + Debug> Idle<State> {
 
         self
     }
-    fn box_pin<F>(future: F) -> Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>
-        where
-            F: Future<Output=()> + Send + Sync + 'static,
+    fn box_pin<F>(future: F) -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>
+    where
+        F: Future<Output = ()> + Send + Sync + 'static,
     {
         Box::pin(future)
     }
@@ -185,10 +179,13 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `message_processor`: The function to handle the message.
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut + Send + Sync + 'static,
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut
+            + Send
+            + Sync
+            + 'static,
     ) -> &mut Self
-        where
-            M: AktonMessage + Send + Sync + 'static,
+    where
+        M: AktonMessage + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
 
@@ -214,7 +211,9 @@ impl<State: Default + Send + Debug> Idle<State> {
         );
 
         // Insert the handler into the reactors map.
-        let _ = &self.reactors.insert(type_id, ReactorItem::Future(handler_box));
+        let _ = &self
+            .reactors
+            .insert(type_id, ReactorItem::Future(handler_box));
         self
     }
 
@@ -226,8 +225,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
         signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
-        + Send + Sync
-        + 'static,
+            + Send
+            + Sync
+            + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
@@ -312,8 +312,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
-        where
-            F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+    where
+        F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -324,8 +324,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Returns
     /// A new `Idle` instance with default settings.
     pub(crate) fn new() -> Idle<State>
-        where
-            State: Send + 'static,
+    where
+        State: Send + 'static,
     {
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -351,4 +351,3 @@ impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
         Idle::new()
     }
 }
-

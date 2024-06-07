@@ -40,21 +40,21 @@
 //! It includes common utilities, trait definitions, and prelude exports.
 
 /// Common utilities and structures used throughout the Akton framework.
-mod common;
+pub(crate) mod common;
 
-/// Trait definitions used in the Akton framework.
-mod traits;
-mod actors;
-pub(crate) mod pool;
+pub(crate) mod actors;
 pub(crate) mod message;
+pub(crate) mod pool;
+/// Trait definitions used in the Akton framework.
+pub(crate) mod traits;
 
 /// Prelude module for convenient imports.
 ///
 /// This module re-exports commonly used items from the `common` and `traits` modules,
 /// as well as the `async_trait` crate.
 pub mod prelude {
-    pub use crate::traits::{AktonMessage, PooledActor, ActorContext};
-    pub use crate::pool::{PoolBuilder, LoadBalanceStrategy};
-    pub use crate::common::{Context, Akton};
+    pub use crate::common::{Akton, Context};
+    pub use crate::pool::{LoadBalanceStrategy, PoolBuilder};
+    pub use crate::traits::{ActorContext, AktonMessage, PooledActor};
     pub use async_trait;
 }

@@ -30,11 +30,12 @@
  *
  *
  */
+use crate::setup::*;
+use akton_core::prelude::*;
+use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
-use async_trait::async_trait;
-use akton_core::prelude::*;
-use crate::setup::*;
+use tracing::error;
 
 #[derive(Default, Debug, Clone)]
 pub struct PoolItem {
@@ -43,12 +44,12 @@ pub struct PoolItem {
 
 #[async_trait]
 impl PooledActor for PoolItem {
-    // Initialize the actor with a given name and parent context
+    // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, actor_name: String, parent_context: &Context) -> Context {
-        // Uncomment for debugging: tracing::trace!("Initializing actor with name: {}", actor_name);
+        // Uncomment for debugging: tracing::trace!("Initializing actor with actor_name: {}", actor_name);
 
         // Create a supervised actor
-        let mut actor = Akton::<PoolItem>::create_with_id(&name);
+        let mut actor = Akton::<PoolItem>::create_with_id(&actor_name);
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
@@ -66,7 +67,6 @@ impl PooledActor for PoolItem {
                     actor.key.value
                 );
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
-
             })
             .on_before_stop(|actor| {
                 let final_count = actor.state.receive_count;
@@ -85,9 +85,6 @@ impl PooledActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        let actor_context = actor.activate(None).await?;
-
-        Ok(actor_context)
+        actor.activate(None).await.expect("")
     }
 }
-

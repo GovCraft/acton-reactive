@@ -30,18 +30,19 @@
  *
  *
  */
-pub use crate::pool::LoadBalanceStrategy;
-
-pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
-mod supervisor;
-pub(crate) use supervisor::Supervisor;
-mod akton;
 pub use akton::Akton;
-mod types;
+pub use context::Context;
+pub(crate) use supervisor::Supervisor;
 pub(crate) use types::*;
 
+pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub(crate) use crate::message::signal::SystemSignal;
+pub use crate::pool::LoadBalanceStrategy;
+
+mod supervisor;
+
+mod akton;
+
+mod types;
 
 mod context;
-pub use context::Context;
-

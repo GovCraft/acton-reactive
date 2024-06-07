@@ -31,10 +31,11 @@
  *
  */
 
+pub(crate) use actor::Actor;
+pub(crate) use awake::Awake;
+pub(crate) use idle::Idle;
+
 mod actor;
 mod awake;
 mod idle;
 
-pub(crate) use awake::Awake;
-pub(crate) use actor::Actor;
-pub(crate) use idle::Idle;

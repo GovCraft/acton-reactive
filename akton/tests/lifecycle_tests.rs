@@ -30,9 +30,11 @@
  *
  *
  */
-mod setup;
 use akton::prelude::*;
+
 use crate::setup::*;
+
+mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_lifecycle_events() -> anyhow::Result<()> {

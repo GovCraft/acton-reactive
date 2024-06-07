@@ -31,9 +31,11 @@
  *
  */
 
+use rand::{Rng, thread_rng};
+
 use crate::common::Context;
 use crate::traits::LoadBalancerStrategy;
-use rand::{thread_rng, Rng};
+
 /// Implements a round-robin load balancing strategy.
 #[derive(Debug, Default)]
 pub struct RoundRobinStrategy {

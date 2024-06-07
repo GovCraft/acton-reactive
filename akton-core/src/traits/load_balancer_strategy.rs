@@ -32,6 +32,7 @@
  */
 
 use std::fmt::Debug;
+
 use crate::common::Context;
 
 /// Trait defining the strategy for load balancing.

@@ -36,9 +36,7 @@ use std::marker::PhantomData;
 
 use tracing::instrument;
 
-use crate::actors::{Idle,Actor};
-use std::fmt::Debug;
-use std::marker::PhantomData;
+use crate::actors::{Actor, Idle};
 
 /// Represents an actor with a root state.
 ///
@@ -57,21 +55,20 @@ impl<State: Default + Send + Debug> Akton<State> {
     /// A new `Actor` instance in the idle state with the root state.
     #[instrument]
     pub fn create<'a>() -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
+    where
+        State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new("root", State::default(), None)
     }
     #[instrument]
     pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
+    where
+        State: Default + Send + Debug,
     {
         // Creates a new actor with "root" as its identifier and a default state.
         Actor::new(id, State::default(), None)
     }
-
 }
 
 /// Provides a default implementation for the `Akton` struct.

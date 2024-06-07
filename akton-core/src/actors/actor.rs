@@ -31,26 +31,27 @@
  *
  */
 
-use crate::common::{
-    Context, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
-};
-use crate::actors::{Awake, Idle};
-use crate::traits::{ActorContext, SupervisorContext};
-use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
+use std::fmt;
 use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::future::Future;
 use std::mem;
+use std::pin::Pin;
 use std::sync::atomic::Ordering;
+
+use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
+use futures::SinkExt;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
 use tracing::{error, event, instrument, Level, trace};
 use tracing::field::Empty;
 
-use crate::message::signal::SupervisorSignal;
-use crate::common::Envelope;
+use crate::common::{Context, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::message::{Envelope, OutboundEnvelope};
 use crate::pool::PoolBuilder;
-use std::fmt;
-use std::fmt::Formatter;
-use crate::message::{Envelope, OutboundEnvelope, SupervisorSignal, SystemSignal};
+use crate::traits::{ActorContext, SupervisorContext};
+
+use super::{Awake, Idle};
 
 /// Represents an actor in the Akton framework.
 ///
@@ -87,7 +88,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
 impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
-for Actor<RefType, State>
+    for Actor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
     ///
@@ -150,7 +151,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 
                 match reactor.value() {
                     ReactorItem::Message(reactor) => {
-                        event!(Level::TRACE, "Executing non-future reactor with {} children", &self.context.children().len());
+                        event!(
+                            Level::TRACE,
+                            "Executing non-future reactor with {} children",
+                            &self.context.children().len()
+                        );
                         (*reactor)(self, &envelope);
                     }
                     ReactorItem::Future(fut) => {
@@ -169,13 +174,19 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 
             // Handle SystemSignal::Terminate to stop the actor
             trace!("Checking for SystemSignal::Terminate");
-            if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+            if let Some(SystemSignal::Terminate) =
+                envelope.message.as_any().downcast_ref::<SystemSignal>()
+            {
                 event!(Level::TRACE, "Received SystemSignal::Terminate");
 
-                event!(Level::TRACE, "Terminating {} children", &self.context.children.len());
+                event!(
+                    Level::TRACE,
+                    "Terminating {} children",
+                    &self.context.children.len()
+                );
                 for item in &self.context.children {
                     let context = item.value();
-                    let tracker = item.get_task_tracker().clone();
+                    let tracker = item.task_tracker().clone();
                     let _ = context.terminate().await;
                     tracker.wait().await;
                 }
@@ -220,69 +231,70 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (outbox, mailbox) = channel(255);
 
         // Initialize context and task tracker based on whether a parent context is provided
-        let (parent_return_envelope, key, task_tracker, context) = if let Some(parent_context) = parent_context {
-            let mut key = parent_context.return_address().sender.clone();
-            key.append_part(id);
-            trace!("NEW ACTOR: {}", &key.value);
+        let (parent_return_envelope, key, task_tracker, context) =
+            if let Some(parent_context) = parent_context {
+                let mut key = parent_context.key.clone();
+                key.append_part(id);
+                trace!("NEW ACTOR: {}", &key.value);
 
-            let context = Context {
-                key: key.clone(),
-                outbox: Some(outbox.clone()),
-                supervisor_task_tracker: TaskTracker::new(),
-                supervisor_outbox: parent_context.return_address().reply_to,
-                task_tracker: TaskTracker::new(),
-                ..Default::default()
+                let context = Context {
+                    key: key.clone(),
+                    outbox: Some(outbox.clone()),
+                    supervisor_task_tracker: TaskTracker::new(),
+                    supervisor_outbox: parent_context.return_address().reply_to,
+                    task_tracker: TaskTracker::new(),
+                    ..Default::default()
+                };
+
+                // Ensure the parent context's outbox and supervisor outbox are not closed
+                debug_assert!(
+                    parent_context
+                        .outbox
+                        .as_ref()
+                        .map_or(true, |outbox| !outbox.is_closed()),
+                    "Parent context outbox is closed in new"
+                );
+                debug_assert!(
+                    parent_context
+                        .supervisor_outbox
+                        .as_ref()
+                        .map_or(true, |outbox| !outbox.is_closed()),
+                    "Parent context supervisor outbox is closed in new"
+                );
+
+                (
+                    parent_context.return_address().clone(),
+                    key,
+                    parent_context.task_tracker.clone(),
+                    context,
+                )
+            } else {
+                // If no parent context is provided, initialize a new context
+                let key = ArnBuilder::new()
+                    .add::<Domain>("akton")
+                    .add::<Category>("system")
+                    .add::<Company>("framework")
+                    .add::<Part>(id)
+                    .build();
+                trace!("NEW ACTOR: {}", &key.value);
+
+                let context = Context {
+                    key,
+                    outbox: Some(outbox.clone()),
+                    supervisor_task_tracker: TaskTracker::new(),
+                    supervisor_outbox: None,
+                    task_tracker: TaskTracker::new(),
+                    ..Default::default()
+                };
+                let key = context.key.clone();
+
+                (
+                    context.return_address().clone(),
+                    key,
+                    TaskTracker::new(),
+                    context,
+                )
             };
-
-            // Ensure the parent context's outbox and supervisor outbox are not closed
-            debug_assert!(
-                parent_context
-                    .outbox
-                    .as_ref()
-                    .map_or(true, |outbox| !outbox.is_closed()),
-                "Parent context outbox is closed in new"
-            );
-            debug_assert!(
-                parent_context
-                    .supervisor_outbox
-                    .as_ref()
-                    .map_or(true, |outbox| !outbox.is_closed()),
-                "Parent context supervisor outbox is closed in new"
-            );
-
-            (
-                parent_context.return_address().clone(),
-                key,
-                parent_context.task_tracker.clone(),
-                context,
-            )
-        } else {
-            // If no parent context is provided, initialize a new context
-            let key = ArnBuilder::new()
-                .add::<Domain>("akton")
-                .add::<Category>("system")
-                .add::<Company>("framework")
-                .add::<Part>(id)
-                .build();
-            trace!("NEW ACTOR: {}", &key.value);
-
-            let context = Context {
-                key,
-                outbox: Some(outbox.clone()),
-                supervisor_task_tracker: TaskTracker::new(),
-                supervisor_outbox: None,
-                task_tracker: TaskTracker::new(),
-                ..Default::default()
-            };
-            let key = context.key().clone();
-
-            (
-                context.return_address().clone(),
-                key,
-                TaskTracker::new(),
-                context,
-            )
-        };
 
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
@@ -318,7 +330,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     /// # Returns
     /// The actor's context after activation.
     #[instrument(skip(self), fields(key = self.key.value))]
-    pub fn activate(self, builder: Option<PoolBuilder>) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Send + 'static>> {
+    pub fn activate(
+        self,
+        builder: Option<PoolBuilder>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Context>> + Send + 'static>> {
         Box::pin(async move {
             // Store and activate all supervised children if a builder is provided
             let mut actor = self;
@@ -337,7 +352,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
                 let active_actor: Actor<Awake<State>, State> = actor.into();
                 if active_actor.context.children().len() > 0 {
-                    tracing::trace!("Child pool count after awake actor creation {}", active_actor.context.children().len());
+                    tracing::trace!(
+                        "Child pool count after awake actor creation {}",
+                        active_actor.context.children().len()
+                    );
                 }
 
                 let actor = Box::leak(Box::new(active_actor));
@@ -364,7 +382,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 event!(Level::TRACE, "Activating with no PoolBuilder.");
                 // If no builder is provided, activate the actor directly
                 let active_actor: Actor<Awake<State>, State> = actor.into();
-                tracing::trace!("Child count after awake actor creation {}", active_actor.context.children().len());
+                tracing::trace!(
+                    "Child count after awake actor creation {}",
+                    active_actor.context.children().len()
+                );
 
                 let actor = Box::leak(Box::new(active_actor));
                 let actor_tracker = &context.task_tracker.clone();
@@ -382,7 +403,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             // Close the actor's task tracker
             context.task_tracker.close();
             if context.children().len() > 0 {
-                tracing::trace!("Child count before returning context {}", context.children().len());
+                tracing::trace!(
+                    "Child count before returning context {}",
+                    context.children().len()
+                );
             }
 
             Ok(context.clone())

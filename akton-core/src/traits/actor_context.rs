@@ -32,9 +32,12 @@
  */
 
 use std::future::Future;
+
 use async_trait::async_trait;
+use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{debug, event, instrument, Level};
+
 use crate::common::*;
 use crate::traits::akton_message::AktonMessage;
 
@@ -43,24 +46,40 @@ use crate::traits::akton_message::AktonMessage;
 pub trait ActorContext {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
-
+    fn children(&self) -> DashMap<String, Context>;
+    fn find_child(&self, arn: &str) -> Option<Context>;
     /// Returns the actor's task tracker.
     fn task_tracker(&self) -> TaskTracker;
 
     /// Emit a message from the actor.
-    #[instrument(skip(self))]
-    fn emit(
+    #[instrument(skip(self), fields(children = self.children().len()))]
+    fn emit_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
-    ) -> impl Future<Output = Result<(), MessageError>> + Sync
-        where
-            Self: Sync,
+    ) -> impl Future<Output = ()> + Send + Sync + '_
+    where
+        Self: Sync,
     {
-        async {
+        // Box::pin(async move {
+        async move {
+            debug!("*");
             let envelope = self.return_address();
-            envelope.reply(message, None)?;
-            Ok(())
+            event!(Level::TRACE, addressed_to = envelope.sender.value);
+            envelope.reply_async(message, None).await;
+            // Ok(())
         }
+        // )
+    }
+
+    #[instrument(skip(self), fields(self.key.value))]
+    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static) -> Result<(), MessageError>
+    where
+        Self: Sync,
+    {
+        let envelope = self.return_address();
+        event!(Level::TRACE, addressed_to = envelope.sender.value);
+        envelope.reply(message, None)?;
+        Ok(())
     }
 
     /// Wakes the actor.

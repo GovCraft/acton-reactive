@@ -32,8 +32,8 @@
  */
 
 mod setup;
-use akton::prelude::*;
 use crate::setup::*;
+use akton::prelude::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
@@ -44,7 +44,6 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
         .act_on::<Ping>(|actor, _event| {
             tracing::info!("Received Ping");
             actor.state.receive_count += 1;
-
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} Pings", actor.state.receive_count);
@@ -54,4 +53,3 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
     context.terminate().await?;
     Ok(())
 }
-

@@ -35,13 +35,13 @@
 // They will randomly react to the jokes after which the Comedian will report on how many
 // jokes landed and didn't land
 
-use std::future::Future;
-use std::pin::Pin;
-use rand::Rng;
-use async_trait::async_trait;
+use crate::setup::*;
 use akton_core::prelude::*;
 use akton_macro::akton_actor;
-use crate::setup::*;
+use async_trait::async_trait;
+use rand::Rng;
+use std::future::Future;
+use std::pin::Pin;
 
 #[akton_actor]
 pub struct AudienceMember {
@@ -55,8 +55,8 @@ impl PooledActor for AudienceMember {
     // this trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, name: String, root: &Context) -> Context {
-        let mut parent = root.supervise::<AudienceMember>(&name);
-        parent.setup.act_on::<Joke>(|actor, _event| {
+        let mut actor = Akton::<AudienceMember>::create_with_id(&name);
+        actor.setup.act_on::<Joke>(|actor, _event| {
             let sender = &actor.new_parent_envelope();
             let mut random_choice = rand::thread_rng();
             let random_reaction = random_choice.gen_bool(0.5);
@@ -68,7 +68,6 @@ impl PooledActor for AudienceMember {
                 let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
             }
         });
-        let context = parent.activate(None).await?;
-        Ok(context)
+        actor.activate(None).await.expect("")
     }
 }

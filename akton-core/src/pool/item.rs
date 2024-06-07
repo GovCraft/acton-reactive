@@ -34,9 +34,8 @@
 use crate::common::Context;
 use crate::traits::LoadBalancerStrategy;
 
-mod envelope;
-mod outbound_envelope;
-mod message_error;
-mod signal;
-mod event_record;
-
+#[derive(Debug)]
+pub(crate) struct PoolItem {
+    pub(crate) pool: Vec<Context>,
+    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
+}

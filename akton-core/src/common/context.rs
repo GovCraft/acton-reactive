@@ -30,17 +30,22 @@
  *
  *
  */
-use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::actors::{Actor, Idle};
-use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
+
+use akton_arn::Arn;
 use async_trait::async_trait;
+use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level, span};
 use tracing::field::Empty;
 use tracing::trace_span;
 
+use crate::actors::{Actor, Idle};
+use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
 use crate::message::signal::SupervisorSignal;
+use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -72,7 +77,6 @@ impl Hash for Context {
     }
 }
 impl Context {
-
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
@@ -85,7 +89,6 @@ impl Context {
         Ok(())
     }
 
-
     /// Emits a message to a pool.
     ///
     /// # Parameters
@@ -93,7 +96,7 @@ impl Context {
     /// - `message`: The message to be emitted.
     #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.emit_to_pool(name, message).await.expect("Failed to emit message to pool");
+        self.emit_to_pool(name, message);
     }
 
     /// Terminates the actor and its subordinates.
@@ -110,7 +113,6 @@ impl Context {
         tracker.wait().await;
         Ok(())
     }
-
 
     /// Terminates all subordinate actors.
     ///
@@ -135,7 +137,7 @@ impl Context {
         let actor = self.return_address().clone();
         event!(Level::TRACE, "Sending Terminate to actor");
         actor.reply(SystemSignal::Terminate, None)?;
-        let tracker = self.get_task_tracker().clone();
+        let tracker = self.task_tracker().clone();
         tracker.wait().await;
         Ok(())
     }
@@ -171,7 +173,6 @@ impl SupervisorContext for Context {
     fn supervisor_task_tracker(&self) -> TaskTracker {
         self.supervisor_task_tracker.clone()
     }
-
 
     /// Returns the return address for the supervisor, if available.
     #[instrument(skip(self))]

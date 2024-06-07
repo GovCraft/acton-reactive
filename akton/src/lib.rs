@@ -42,7 +42,6 @@
 ///
 /// This module re-exports commonly used and required items from the `akton_macro` and `akton_core` crates.
 pub mod prelude {
-    pub use akton_macro::*;
     pub use akton_core::prelude::*;
+    pub use akton_macro::*;
 }
-

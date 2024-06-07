@@ -32,8 +32,8 @@
  */
 
 mod setup;
-use akton::prelude::*;
 use crate::setup::*;
+use akton::prelude::*;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
@@ -50,18 +50,17 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
             match event.message {
                 StatusReport::Complete(total) => {
                     tracing::info!("{} reported {}", sender.value, total);
-                    actor.state.receive_count += total;  // Increment receive_count based on StatusReport
-
+                    actor.state.receive_count += total; // Increment receive_count based on StatusReport
                 }
             };
-
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);
         });
 
     // Set up the pool with a round-robin load balance strategy
-    let pool_builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::RoundRobin);
+    let pool_builder =
+        PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::RoundRobin);
 
     // Activate the main actor with the pool builder
     let main_context = main_actor.activate(Some(pool_builder)).await?;
@@ -92,17 +91,17 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
             match event.message {
                 StatusReport::Complete(total) => {
                     tracing::debug!("{} reported {}", sender.value, total);
-                    actor.state.receive_count += total;  // Increment receive_count based on StatusReport
+                    actor.state.receive_count += total; // Increment receive_count based on StatusReport
                 }
             };
-
         })
         .on_before_stop(|actor| {
             tracing::info!("Processed {} PONGs", actor.state.receive_count);
         });
 
     // Set up the pool with a random load balance strategy
-    let pool_builder = PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::Random);
+    let pool_builder =
+        PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::Random);
 
     // Activate the main actor with the pool builder
     let main_context = main_actor.activate(Some(pool_builder)).await?;

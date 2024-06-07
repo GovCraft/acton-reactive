@@ -36,35 +36,41 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
-use crate::actors::{Actor, Awake};
-use crate::common::Envelope;
+
 use dashmap::DashMap;
-use tokio::sync::mpsc::{Sender};
+use tokio::sync::mpsc::Sender;
 
 use crate::actors::{Actor, Awake};
 use crate::message::Envelope;
+use crate::traits::AktonMessage;
 
 /// A type alias for a map of reactors, indexed by `TypeId`.
 pub(crate) type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
-pub(crate) enum ReactorItem<T: Clone + Default + Send + Debug + 'static> {
+/// An enum representing different types of reactors for handling signals, messages, and futures.
+pub enum ReactorItem<T: Default + Send + Debug + 'static> {
+    /// A signal reactor, which reacts to signals.
+    Signal(Box<SignalReactor<T>>),
     /// A message reactor, which reacts to messages.
     Message(Box<MessageReactor<T>>),
     /// A future reactor, which reacts to futures.
     Future(Box<FutReactor<T>>),
 }
 
-use anyhow::Result;
 /// A type alias for a message reactor function.
 pub(crate) type MessageReactor<State> =
-dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
-
+    dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
+/// A type alias for a signal reactor function.
+pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
+    + Send
+    + Sync
+    + 'static;
 /// A type alias for a future reactor function.
 pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut
-+ Send
-+ Sync
-+ 'static;
+    + Send
+    + Sync
+    + 'static;
 
 /// A type alias for a boxed future.
 pub(crate) type Fut = Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>;
@@ -75,13 +81,12 @@ pub(crate) type OutboundChannel = Sender<Envelope>;
 /// A type alias for a stop signal, represented by an atomic boolean.
 pub(crate) type StopSignal = AtomicBool;
 
-
 /// A type alias for a lifecycle reactor function.
 pub(crate) type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type LifecycleReactorAsync<State> =
-Box<dyn for<'a, 'b> Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
+    Box<dyn for<'a, 'b> Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;

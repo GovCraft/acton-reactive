@@ -31,14 +31,15 @@
  *
  */
 
-use std::fmt::Debug;
-
-use crate::common::{LifecycleReactor, LifecycleReactorAsync};
-use crate::actors::Idle;
 use std::fmt;
+use std::fmt::Debug;
 use std::fmt::Formatter;
+
 use tracing::{instrument, warn};
+
 use crate::actors::actor::Actor;
+use crate::actors::Idle;
+use crate::common::{LifecycleReactor, LifecycleReactorAsync};
 
 /// Represents the lifecycle state of an actor when it is awake.
 ///
@@ -67,8 +68,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
     /// # Returns
     /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Awake")
-            .finish()
+        f.debug_struct("Awake").finish()
     }
 }
 
@@ -79,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
 impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
-for Actor<Awake<State>, State>
+    for Actor<Awake<State>, State>
 {
     /// Converts an `Actor` from the idle state to the awake state.
     ///
@@ -90,8 +90,8 @@ for Actor<Awake<State>, State>
     /// A new `Actor` instance in the awake state.
     #[instrument("from idle to awake", skip(value), fields(key=value.key.value,children_in=value.context.children.len()))]
     fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State>
-        where
-            State: Send + 'static,
+    where
+        State: Send + 'static,
     {
         tracing::trace!("*");
         // Extract lifecycle reactors and other properties from the idle actor
@@ -135,7 +135,10 @@ for Actor<Awake<State>, State>
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
         if context.children.len() > 0 {
-            tracing::trace!("child count before Actor creation {}", context.children.len());
+            tracing::trace!(
+                "child count before Actor creation {}",
+                context.children.len()
+            );
         }
         // Create and return the new actor in the awake state
         Actor {
@@ -155,4 +158,3 @@ for Actor<Awake<State>, State>
         }
     }
 }
-

@@ -32,9 +32,11 @@
  */
 
 use std::future::Future;
+
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
+
 use crate::common::{Envelope, MessageError, OutboundEnvelope};
 use crate::traits::actor_context::ActorContext;
 use crate::traits::akton_message::AktonMessage;
@@ -50,12 +52,9 @@ pub(crate) trait SupervisorContext: ActorContext {
 
     /// Emit an envelope to the supervisor.
     #[instrument(skip(self))]
-    fn emit_envelope(
-        &self,
-        envelope: Envelope,
-    ) -> impl Future<Output=Result<(), MessageError>>
-        where
-            Self: Sync,
+    fn emit_envelope(&self, envelope: Envelope) -> impl Future<Output = Result<(), MessageError>>
+    where
+        Self: Sync,
     {
         async {
             let forward_address = self.return_address();
@@ -67,14 +66,11 @@ pub(crate) trait SupervisorContext: ActorContext {
     }
 
     /// Emit a message to a pool using the supervisor's return address.
-    fn emit_to_pool(
-        &self,
-        name: &str,
-        message: impl AktonMessage + Send + Sync + 'static,
-    )
-    {
+    fn emit_to_pool(&self, name: &str, message: impl AktonMessage + Send + Sync + 'static) {
         if let Some(envelope) = self.supervisor_return_address() {
-            envelope.reply(message, Some(name.to_string())).expect("couldnt reply message");
+            envelope
+                .reply(message, Some(name.to_string()))
+                .expect("couldnt reply message");
         }
     }
 }

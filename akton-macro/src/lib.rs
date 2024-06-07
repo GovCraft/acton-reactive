@@ -31,7 +31,6 @@
  *
  */
 #![forbid(unsafe_code)]
-
 // extern crate proc_macro;
 //! Akton Macro Library
 //!
