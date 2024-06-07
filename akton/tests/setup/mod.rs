@@ -64,6 +64,7 @@ pub fn init_tracing() {
             .add_directive("akton_core::common::supervisor=off".parse().unwrap())
             .add_directive("akton_core::common::actor=trace".parse().unwrap())
             .add_directive("akton_core::common::idle=off".parse().unwrap())
+            .add_directive("supervisor_tests::setup::actors::audience_member=off".parse().unwrap())
             .add_directive(
                 "akton_core::common::outbound_envelope=trace"
                     .parse()
