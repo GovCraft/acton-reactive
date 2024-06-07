@@ -145,20 +145,14 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     let mut messenger_actor = Akton::<Messenger>::create();
     messenger_actor
         .setup
-        .on_before_wake(|actor| {
-            if let Some(sender) = actor.state.sender.clone() {
-                let _ = sender.reply(Tally::AddCount, None);  // Reply with AddCount before waking
-            }
+        .on_before_wake(|_actor| {
+            tracing::trace!("*");
         })
-        .on_wake(|actor| {
-            if let Some(sender) = actor.state.sender.clone() {
-                let _ = sender.reply(Tally::AddCount, None);  // Reply with AddCount on wake
-            }
+        .on_wake(|_actor| {
+            tracing::trace!("*");
         })
-        .on_stop(|actor| {
-            if let Some(sender) = actor.state.sender.clone() {
-                let _ = sender.reply(Tally::AddCount, None);  // Reply with AddCount on stop
-            }
+        .on_stop(|_actor| {
+            tracing::trace!("*");
         });
 
     // Activate the messenger actor

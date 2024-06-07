@@ -57,25 +57,17 @@ impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
 /// System-wide signals used to control actor lifecycle events.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum SystemSignal {
-    /// Signal to wake up the actor.
-    Wake,
-    /// Signal to recreate the actor.
-    Recreate,
-    /// Signal to suspend the actor.
-    Suspend,
-    /// Signal to resume the actor.
-    Resume,
+pub(crate) enum SystemSignal {
+    // Wake,
+    // Recreate,
+    // Suspend,
+    // Resume,
     /// Signal to terminate the actor.
     Terminate,
-    /// Signal to supervise the actor.
-    Supervise,
-    /// Signal to watch the actor.
-    Watch,
-    /// Signal to unwatch the actor.
-    Unwatch,
-    /// Signal to mark the actor as failed.
-    Failed,
+    // Supervise,
+    // Watch,
+    // Unwatch,
+    // Failed,
 }
 
 impl AktonMessage for SystemSignal {

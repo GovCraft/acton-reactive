@@ -30,12 +30,9 @@
  *
  *
  */
-use std::fmt::Debug;
-use std::future::Future;
-use std::hash::{Hash, Hasher};
-use std::pin::Pin;
-
-use akton_arn::Arn;
+use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
+use crate::actors::{Actor, Idle};
+use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::oneshot;
@@ -44,10 +41,7 @@ use tracing::{event, instrument, Level, span};
 use tracing::field::Empty;
 use tracing::trace_span;
 
-use crate::common::{Actor, Idle, OutboundChannel, OutboundEnvelope, SystemSignal};
-use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
-
-use super::signal::SupervisorSignal;
+use crate::message::signal::SupervisorSignal;
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -100,7 +94,7 @@ impl Context {
     /// - `message`: The message to be emitted.
     #[instrument]
     pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.pool_emit(name, message).await;
+        self.emit_to_pool(name, message).await.expect("Failed to emit message to pool");
     }
 
     /// Terminates the actor and its subordinates.
@@ -109,12 +103,13 @@ impl Context {
     /// An `anyhow::Result` indicating success or failure.
     #[instrument(skip(self), fields(children=self.children().len()))]
     pub async fn terminate(&self) -> anyhow::Result<()> {
-            event!(Level::TRACE, target_actor=self.key.value);
-            let supervisor_tracker = self.supervisor_task_tracker().clone();
-            self.terminate_subordinates().await?;
-            supervisor_tracker.wait().await;
-            self.terminate_actor().await?;
-            Ok(())
+        let supervisor_tracker = self.supervisor_task_tracker().clone();
+        let tracker = self.task_tracker().clone();
+        self.terminate_subordinates().await?;
+        supervisor_tracker.wait().await;
+        self.terminate_actor().await?;
+        tracker.wait().await;
+        Ok(())
     }
 
 
@@ -213,13 +208,8 @@ impl ActorContext for Context {
     }
 
     /// Returns the task tracker for the actor.
-    fn get_task_tracker(&self) -> TaskTracker {
+    fn task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
-    }
-
-    /// Returns the unique identifier (ARN) for the context.
-    fn key(&self) -> &Arn {
-        &self.key
     }
 
     /// Wakes the actor.
@@ -258,7 +248,7 @@ impl ActorContext for Context {
     }
 
     /// Marks the actor as failed.
-    async fn failed(&mut self) -> anyhow::Result<()> {
+    async fn fail(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 }

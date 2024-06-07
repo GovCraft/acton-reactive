@@ -31,57 +31,11 @@
  *
  */
 
-use tracing::instrument;
+use crate::common::Context;
+use crate::traits::LoadBalancerStrategy;
 
-use crate::actors::{Idle,Actor};
-use std::fmt::Debug;
-use std::marker::PhantomData;
-
-/// Represents an actor with a root state.
-///
-/// # Type Parameters
-/// - `State`: The type representing the state of the actor.
 #[derive(Debug)]
-pub struct Akton<State: Default + Send + Debug> {
-    /// The root state of the actor.
-    root_actor: PhantomData<State>,
-}
-
-impl<State: Default + Send + Debug> Akton<State> {
-    /// Creates a new root actor in the idle state.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state with the root state.
-    #[instrument]
-    pub fn create<'a>() -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
-    {
-        // Creates a new actor with "root" as its identifier and a default state.
-        Actor::new("root", State::default(), None)
-    }
-    #[instrument]
-    pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
-    {
-        // Creates a new actor with "root" as its identifier and a default state.
-        Actor::new(id, State::default(), None)
-    }
-
-}
-
-/// Provides a default implementation for the `Akton` struct.
-///
-/// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Default + Send + Debug> Default for Akton<State> {
-    /// Creates a new `Akton` instance with the default root state.
-    ///
-    /// # Returns
-    /// A new `Akton` instance.
-    fn default() -> Self {
-        Akton {
-            root_actor: PhantomData,
-        }
-    }
+pub(crate) struct PoolItem {
+    pub(crate) pool: Vec<Context>,
+    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }

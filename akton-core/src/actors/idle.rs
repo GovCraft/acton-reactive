@@ -35,12 +35,11 @@ use std::any::TypeId;
 use std::cell::RefCell;
 use std::fmt::Debug;
 
-use crate::common::event_record::EventRecord;
+use crate::message::EventRecord;
 use crate::common::*;
 use crate::common::{LifecycleReactor, SignalReactor};
 use crate::traits::{AktonMessage};
 use dashmap::DashMap;
-use futures::future;
 use std::fmt;
 use std::fmt::Formatter;
 use std::future::Future;

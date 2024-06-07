@@ -38,8 +38,9 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
 use tokio_util::task::TaskTracker;
 use tracing::instrument;
-use crate::common::{Context, LoadBalanceStrategy, PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy, StopSignal, Supervisor};
-use crate::prelude::{ConfigurableActor, LoadBalancerStrategy};
+use crate::common::{Context, LoadBalanceStrategy, StopSignal, Supervisor};
+use crate::pool::{PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy};
+use crate::traits::{LoadBalancerStrategy, PooledActor};
 /// Builder for creating and configuring actor pools.
 #[derive(Debug, Default)]
 pub struct PoolBuilder {
@@ -57,7 +58,7 @@ impl PoolBuilder {
     ///
     /// # Returns
     /// The updated `PoolBuilder` instance.
-    pub fn add_pool<T: ConfigurableActor + Default + Debug + Send + 'static>(
+    pub fn add_pool<T: PooledActor + Default + Debug + Send + 'static>(
         mut self,
         name: &str,
         size: usize,
@@ -88,7 +89,7 @@ impl PoolBuilder {
             let mut context_items = Vec::with_capacity(pool_def.size);
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
-                let context = pool_def.actor_type.init(item_name.clone()).await?;
+                let context = pool_def.actor_type.initialize(item_name.clone(), parent).await;
                 tracing::trace!("item_name: {}, context: {:?}", &item_name, &context);
                 context_items.push(context);
             }

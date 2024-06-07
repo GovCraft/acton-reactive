@@ -32,8 +32,8 @@
  */
 
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![allow(unused)]
+// #![warn(missing_docs)]
+//#![warn(unused)]
 //! Akton Core Library
 //!
 //! This library provides the core functionality for the Akton actor framework.
@@ -44,13 +44,17 @@ mod common;
 
 /// Trait definitions used in the Akton framework.
 mod traits;
+mod actors;
+pub(crate) mod pool;
+pub(crate) mod message;
 
 /// Prelude module for convenient imports.
 ///
 /// This module re-exports commonly used items from the `common` and `traits` modules,
 /// as well as the `async_trait` crate.
 pub mod prelude {
-    pub use crate::common::*;
-    pub use crate::traits::*;
+    pub use crate::traits::{AktonMessage, PooledActor, ActorContext};
+    pub use crate::pool::{PoolBuilder, LoadBalanceStrategy};
+    pub use crate::common::{Context, Akton};
     pub use async_trait;
 }

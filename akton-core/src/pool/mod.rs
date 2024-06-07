@@ -31,11 +31,12 @@
  *
  */
 
-use crate::common::Context;
-use crate::prelude::LoadBalancerStrategy;
-
-#[derive(Debug)]
-pub(crate) struct PoolItem {
-    pub(crate) pool: Vec<Context>,
-    pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
-}
+mod builder;
+mod config;
+mod item;
+mod load_balance_strategy;
+pub(crate) use load_balance_strategy::{RandomStrategy, RoundRobinStrategy};
+pub use load_balance_strategy::LoadBalanceStrategy;
+pub(crate) use config::PoolConfig;
+pub(crate) use item::PoolItem;
+pub use builder::PoolBuilder;

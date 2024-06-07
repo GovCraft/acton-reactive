@@ -31,57 +31,50 @@
  *
  */
 
+use std::future::Future;
+use async_trait::async_trait;
+use tokio_util::task::TaskTracker;
 use tracing::instrument;
+use crate::common::{Envelope, MessageError, OutboundEnvelope};
+use crate::traits::actor_context::ActorContext;
+use crate::traits::akton_message::AktonMessage;
 
-use crate::actors::{Idle,Actor};
-use std::fmt::Debug;
-use std::marker::PhantomData;
+/// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
+#[async_trait]
+pub(crate) trait SupervisorContext: ActorContext {
+    /// Returns the supervisor's task tracker.
+    fn supervisor_task_tracker(&self) -> TaskTracker;
 
-/// Represents an actor with a root state.
-///
-/// # Type Parameters
-/// - `State`: The type representing the state of the actor.
-#[derive(Debug)]
-pub struct Akton<State: Default + Send + Debug> {
-    /// The root state of the actor.
-    root_actor: PhantomData<State>,
-}
+    /// Returns the supervisor's return address, if available.
+    fn supervisor_return_address(&self) -> Option<OutboundEnvelope>;
 
-impl<State: Default + Send + Debug> Akton<State> {
-    /// Creates a new root actor in the idle state.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state with the root state.
-    #[instrument]
-    pub fn create<'a>() -> Actor<Idle<State>, State>
+    /// Emit an envelope to the supervisor.
+    #[instrument(skip(self))]
+    fn emit_envelope(
+        &self,
+        envelope: Envelope,
+    ) -> impl Future<Output=Result<(), MessageError>>
         where
-            State: Default + Send + Debug,
+            Self: Sync,
     {
-        // Creates a new actor with "root" as its identifier and a default state.
-        Actor::new("root", State::default(), None)
-    }
-    #[instrument]
-    pub fn create_with_id<'a>(id: &str) -> Actor<Idle<State>, State>
-        where
-            State: Default + Send + Debug,
-    {
-        // Creates a new actor with "root" as its identifier and a default state.
-        Actor::new(id, State::default(), None)
+        async {
+            let forward_address = self.return_address();
+            if let Some(reply_to) = forward_address.reply_to {
+                reply_to.send(envelope).await?;
+            }
+            Ok(())
+        }
     }
 
-}
-
-/// Provides a default implementation for the `Akton` struct.
-///
-/// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Default + Send + Debug> Default for Akton<State> {
-    /// Creates a new `Akton` instance with the default root state.
-    ///
-    /// # Returns
-    /// A new `Akton` instance.
-    fn default() -> Self {
-        Akton {
-            root_actor: PhantomData,
+    /// Emit a message to a pool using the supervisor's return address.
+    fn emit_to_pool(
+        &self,
+        name: &str,
+        message: impl AktonMessage + Send + Sync + 'static,
+    )
+    {
+        if let Some(envelope) = self.supervisor_return_address() {
+            envelope.reply(message, Some(name.to_string())).expect("couldnt reply message");
         }
     }
 }

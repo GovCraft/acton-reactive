@@ -32,8 +32,9 @@
  */
 
 use crate::common::{
-    Awake, Context, Idle, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
+    Context, OutboundEnvelope, ReactorItem, ReactorMap, StopSignal, SystemSignal,
 };
+use crate::actors::{Awake, Idle};
 use crate::traits::{ActorContext, SupervisorContext};
 use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
 use std::fmt::Debug;
@@ -44,9 +45,9 @@ use tokio_util::task::TaskTracker;
 use tracing::{error, event, instrument, Level, trace};
 use tracing::field::Empty;
 
-use super::signal::SupervisorSignal;
-use super::Envelope;
-use super::PoolBuilder;
+use crate::message::signal::SupervisorSignal;
+use crate::common::Envelope;
+use crate::pool::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
 use std::future::Future;
@@ -222,7 +223,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
         // Initialize context and task tracker based on whether a parent context is provided
         let (parent_return_envelope, key, task_tracker, context) = if let Some(parent_context) = parent_context {
-            let mut key = parent_context.key().clone();
+            let mut key = parent_context.return_address().sender.clone();
             key.append_part(id);
             trace!("NEW ACTOR: {}", &key.value);
 
