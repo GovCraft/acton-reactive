@@ -34,7 +34,6 @@ use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
 use crate::actors::{Actor, Idle};
 use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
 use async_trait::async_trait;
-use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level, span};
@@ -146,11 +145,16 @@ impl Context {
     /// # Returns
     /// An `Option` containing the state of the actor if successful, otherwise `None`.
     #[instrument(skip(self), target = "peek_space_span")]
-    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(&self) -> Option<State> {
+    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(
+        &self,
+    ) -> Option<State> {
         let (sender, receiver) = oneshot::channel();
         let actor = self.return_address().clone();
 
-        if actor.reply(SupervisorSignal::Inspect(Some(sender)), None).is_err() {
+        if actor
+            .reply(SupervisorSignal::Inspect(Some(sender)), None)
+            .is_err()
+        {
             return None;
         }
 

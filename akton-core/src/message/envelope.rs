@@ -31,10 +31,13 @@
  *
  */
 
+use std::time::SystemTime;
+
+use static_assertions::assert_impl_all;
+
 use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
-use static_assertions::assert_impl_all;
-use std::time::SystemTime;
+
 /// Represents an envelope that carries a message within the actor system.
 #[derive(Debug)]
 pub struct Envelope {

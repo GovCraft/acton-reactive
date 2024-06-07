@@ -30,9 +30,11 @@
  *
  *
  */
-use crate::traits::AktonMessage;
 use std::{any::Any, fmt::Debug};
+
 use tokio::sync::oneshot::Sender;
+
+use crate::traits::AktonMessage;
 
 /// Signals used by the supervisor to interact with actors.
 #[derive(Debug)]

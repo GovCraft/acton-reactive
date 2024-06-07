@@ -31,9 +31,11 @@
  *
  */
 
-use crate::common::OutboundEnvelope;
-use static_assertions::assert_impl_all;
 use std::time::SystemTime;
+
+use static_assertions::assert_impl_all;
+use crate::message::OutboundEnvelope;
+
 
 /// Represents a record of an event within the actor system.
 ///

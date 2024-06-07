@@ -50,9 +50,7 @@ use crate::common::Envelope;
 use crate::pool::PoolBuilder;
 use std::fmt;
 use std::fmt::Formatter;
-use std::future::Future;
-use std::pin::Pin;
-use futures::SinkExt;
+use crate::message::{Envelope, OutboundEnvelope, SupervisorSignal, SystemSignal};
 
 /// Represents an actor in the Akton framework.
 ///

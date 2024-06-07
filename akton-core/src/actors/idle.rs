@@ -32,8 +32,9 @@
  */
 
 use std::any::TypeId;
-use std::cell::RefCell;
+use std::fmt;
 use std::fmt::Debug;
+use std::fmt::Formatter;
 
 use crate::message::EventRecord;
 use crate::common::*;
@@ -47,6 +48,11 @@ use std::pin::Pin;
 use std::rc::Weak;
 use std::sync::{Arc, Mutex};
 use tracing::{debug, error, event, instrument, Level};
+
+use crate::actors::{Actor, Awake};
+use crate::common::LifecycleReactor;
+use crate::message::{Envelope, EventRecord, OutboundEnvelope};
+use crate::traits::AktonMessage;
 
 /// Represents the lifecycle state of an actor when it is idle.
 ///

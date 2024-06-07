@@ -41,6 +41,9 @@ use crate::common::Envelope;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Sender};
 
+use crate::actors::{Actor, Awake};
+use crate::message::Envelope;
+
 /// A type alias for a map of reactors, indexed by `TypeId`.
 pub(crate) type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
