@@ -44,7 +44,7 @@ pub struct PoolItem {
 #[async_trait]
 impl ConfigurableActor for PoolItem {
     // Initialize the actor with a given name and parent context
-    async fn init<'a>(&'a self, name: String) -> anyhow::Result<Context> {
+    async fn init(&self, name: String) -> anyhow::Result<Context> {
 
         // Create a supervised actor
         let mut actor = Akton::<PoolItem>::create_with_id(&name);

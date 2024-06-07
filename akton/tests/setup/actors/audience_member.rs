@@ -54,7 +54,7 @@ pub struct AudienceMember {
 impl ConfigurableActor for AudienceMember {
     // this trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn init<'a>(&'a self, name: String) -> anyhow::Result<Context> {
+    async fn init(&self, name: String) -> anyhow::Result<Context> {
 
             let mut parent = Akton::<AudienceMember>::create_with_id(&name);
         parent.setup.act_on::<Joke>(|actor, _event| {

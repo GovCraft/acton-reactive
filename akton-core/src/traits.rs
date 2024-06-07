@@ -69,7 +69,7 @@ pub trait AktonMessage: Any + Send + Debug {
 #[async_trait]
 pub trait ConfigurableActor: Send + Debug {
     /// Initializes the actor with a given name and root context.
-    async fn init<'a>(&'a self, name: String) -> anyhow::Result<Context>;
+    async fn init(&self, name: String) -> anyhow::Result<Context>;
 }
 
 /// Trait for supervisor context, extending `ActorContext` with supervisor-specific methods.
@@ -131,15 +131,11 @@ pub trait ActorContext {
     fn emit_async(&self, message: impl AktonMessage + Sync + Clone + Send + 'static) -> impl Future<Output=()> + Send + Sync + '_
         where Self: Sync
     {
-        // Box::pin(async move {
         async move {
-            debug!("*");
             let envelope = self.return_address();
             event!(Level::TRACE, addressed_to=envelope.sender.value);
             envelope.reply_async(message, None).await;
-            // Ok(())
         }
-        // )
     }
 
     #[instrument(skip(self), fields(self.key.value))]
