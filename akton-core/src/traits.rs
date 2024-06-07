@@ -128,7 +128,7 @@ pub trait ActorContext {
 
     /// Emit a message from the actor.
     #[instrument(skip(self), fields(children = self.children().len()))]
-    fn emit_async(&self, message: impl AktonMessage + Any + Sync + Send + 'static) -> impl Future<Output=()> + Send + Sync + '_
+    fn emit_async(&self, message: impl AktonMessage + Sync + Send + 'static) -> impl Future<Output=()> + Send + Sync + '_
         where Self: Sync
     {
         // Box::pin(async move {
