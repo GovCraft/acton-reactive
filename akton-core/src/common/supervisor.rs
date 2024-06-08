@@ -39,11 +39,11 @@ use akton_arn::Arn;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{event, info, instrument, trace, warn, Level};
 
 use crate::common::{Envelope, StopSignal, SystemSignal};
 use crate::pool::PoolItem;
-use crate::traits::{ActorContext, SupervisorContext};
+use crate::traits::SupervisorContext;
 
 /// Represents a supervisor in the actor system, responsible for managing subordinates and handling their messages.
 pub(crate) struct Supervisor {
@@ -84,42 +84,59 @@ impl Supervisor {
     /// An `anyhow::Result` indicating success or failure.
     #[instrument(skip(self))]
     pub(crate) async fn wake_supervisor(&mut self) -> anyhow::Result<()> {
-        loop {
-            if let Ok(envelope) = self.mailbox.try_recv() {
-                if let Some(ref pool_id) = envelope.pool_id {
-                    tracing::trace!("{:?}", self.subordinates);
-                    if let Some(mut pool_def) = self.subordinates.get_mut(pool_id) {
-                        // First, clone or copy the data needed for the immutable borrow.
-                        // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
-                        let pool_clone = pool_def.pool.clone();
-
-                        // Now perform the selection outside the mutable borrowed variable's scope.
-                        if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
-                            // Access the original data using the index now that we're outside the conflicting borrow.
-                            let context = &pool_def.pool[index];
-                            context.emit_envelope(envelope).await?;
-                        }
-                    }
-                } else if let Some(concrete_msg) =
-                    envelope.message.as_any().downcast_ref::<SystemSignal>()
-                {
-                    match concrete_msg {
-                        SystemSignal::Terminate => {
-                            self.terminate().await?;
-                        }
+        while let Some(envelope) = self.mailbox.recv().await {
+            event!(
+                Level::TRACE,
+                "Supervisor mailbox received {:?}",
+                &envelope.message
+            );
+            if let Some(concrete_msg) = &envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                match concrete_msg {
+                    SystemSignal::Terminate => {
+                        // Event: Termination Signal Received
+                        // Description: Received a termination signal.
+                        // Context: None
+                        info!("Received termination signal.");
+                        self.terminate().await?;
                     }
                 }
             }
-            // Check stop condition.
+            if let Some(ref pool_id) = &envelope.pool_id {
+                // Event: Processing Envelope
+                // Description: Processing an envelope for a specific pool.
+                // Context: Pool ID and envelope details.
+                // trace!(pool_id = ?pool_id, envelope = ?envelope, "Processing envelope for pool.");
+
+                if let Some(mut pool_def) = self.subordinates.get_mut(pool_id) {
+                    // First, clone or copy the data needed for the immutable borrow.
+                    // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
+                    let pool_clone = pool_def.pool.clone();
+
+                    // Now perform the selection outside the mutable borrowed variable's scope.
+                    if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
+                        // Access the original data using the index now that we're outside the conflicting borrow.
+                        let context = &pool_def.pool[index];
+                        trace!(index = index, "Emitting to pool item");
+                        context.emit_envelope(envelope).await?;
+                    }
+                }
+            }
+
             let should_stop =
                 { self.halt_signal.load(Ordering::SeqCst) && self.mailbox.is_empty() };
 
             if should_stop {
+                // Event: Stopping Supervisor
+                // Description: Stopping the supervisor as halt signal is set and mailbox is empty.
+                // Context: None
+                info!("Stopping the supervisor as halt signal is set and mailbox is empty.");
                 break;
             } else {
                 tokio::time::sleep(Duration::from_nanos(1)).await;
             }
         }
+
+        // Check stop condition.
         Ok(())
     }
 
@@ -130,19 +147,34 @@ impl Supervisor {
     #[instrument(skip(self))]
     pub(crate) async fn terminate(&self) -> anyhow::Result<()> {
         let subordinates = &self.subordinates;
-        tracing::trace!("subordinate count: {}", subordinates.len());
+
+        // Event: Terminating Supervisor
+        // Description: Initiating termination of the supervisor and its subordinates.
+        // Context: Number of subordinates.
+        warn!(
+            subordinate_count = subordinates.len(),
+            "Initiating termination of the supervisor and its subordinates."
+        );
+
         let halt_signal = self.halt_signal.load(Ordering::SeqCst);
         if !halt_signal {
             for item in subordinates {
                 for context in &item.value().pool {
-                    let envelope = &context.return_address();
-                    tracing::trace!("Terminating done {:?}", &context);
-                    envelope.reply(SystemSignal::Terminate, None)?;
-                    context.terminate_actor().await?;
+                    // Event: Terminating Subordinate
+                    // Description: Terminating a subordinate actor.
+                    // Context: Subordinate context details.
+                    warn!(subordinate=context.key.value,context = ?context, "Terminating subordinate actor.");
+                    context.terminate().await?;
                 }
             }
             self.halt_signal.store(true, Ordering::SeqCst);
         }
+
+        // Event: Supervisor Terminated
+        // Description: The supervisor and its subordinates have been terminated.
+        // Context: None
+        info!("The supervisor and its subordinates have been terminated.");
+
         Ok(())
     }
 }

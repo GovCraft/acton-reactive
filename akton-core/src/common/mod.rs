@@ -35,8 +35,8 @@ pub use context::Context;
 pub(crate) use supervisor::Supervisor;
 pub(crate) use types::*;
 
-pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub(crate) use crate::message::signal::SystemSignal;
+pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub use crate::pool::LoadBalanceStrategy;
 
 mod supervisor;

@@ -37,7 +37,7 @@ use std::fmt::Debug;
 use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{info, instrument, trace};
 
 use crate::common::{Context, LoadBalanceStrategy, StopSignal, Supervisor};
 use crate::pool::{PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy};
@@ -86,16 +86,22 @@ impl PoolBuilder {
     #[instrument(skip(self, parent), fields(id=parent.key.value))]
     pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<Supervisor> {
         let subordinates = DashMap::new();
+
         for (pool_name, pool_def) in &mut self.pools {
             let pool_name = pool_name.to_string();
             let mut context_items = Vec::with_capacity(pool_def.size);
+
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
                 let context = pool_def
                     .actor_type
                     .initialize(item_name.clone(), parent)
                     .await;
-                tracing::trace!("item_name: {}, context: {:?}", &item_name, &context);
+
+                // Event: Actor Initialized
+                // Description: An actor has been initialized and added to the pool.
+                // Context: Item name and context details.
+                trace!(item_name = %item_name, context = ?context, "Actor initialized and added to the pool.");
                 context_items.push(context);
             }
 
@@ -103,16 +109,11 @@ impl PoolBuilder {
             let strategy: Box<dyn LoadBalancerStrategy> = match &pool_def.strategy {
                 LoadBalanceStrategy::RoundRobin => Box::<RoundRobinStrategy>::default(),
                 LoadBalanceStrategy::Random => Box::<RandomStrategy>::default(),
-                LoadBalanceStrategy::LeastBusy => {
-                    unimplemented!()
-                }
-                LoadBalanceStrategy::HashBased => {
-                    unimplemented!()
-                }
+                LoadBalanceStrategy::LeastBusy => unimplemented!(),
+                LoadBalanceStrategy::HashBased => unimplemented!(),
             };
 
             // Create a pool item and insert it into the subordinates map.
-
             let item = PoolItem {
                 pool: context_items,
                 strategy,
@@ -123,6 +124,11 @@ impl PoolBuilder {
         // Create the outbox and mailbox channels for the supervisor.
         let (outbox, mailbox) = channel(255);
         let task_tracker = TaskTracker::new();
+
+        // Event: Supervisor Initialized
+        // Description: The supervisor has been initialized with the actor pools.
+        // Context: Parent key and number of subordinates.
+        info!(parent_key = %parent.key.value, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
 
         // Return the new supervisor instance.
         Ok(Supervisor {

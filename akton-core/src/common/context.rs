@@ -38,9 +38,7 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level, span};
-use tracing::field::Empty;
-use tracing::trace_span;
+use tracing::{event, info, instrument, trace, Level};
 
 use crate::actors::{Actor, Idle};
 use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
@@ -94,23 +92,56 @@ impl Context {
     /// # Parameters
     /// - `name`: The name of the pool.
     /// - `message`: The message to be emitted.
-    #[instrument]
+    #[instrument(skip(self, name, message))]
     pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        self.emit_to_pool(name, message);
+        // Event: Emitting Message to Pool
+        // Description: Emitting a message to a pool.
+        // Context: Pool name and message details.
+        // trace!(pool_name = name, message = ?message, "Emitting message to pool.");
+        self.emit_to_pool(name, message).await;
     }
 
     /// Terminates the actor and its subordinates.
     ///
     /// # Returns
     /// An `anyhow::Result` indicating success or failure.
-    #[instrument(skip(self), fields(children=self.children().len()))]
+    #[instrument(skip(self), fields(actor=self.key.value))]
     pub async fn terminate(&self) -> anyhow::Result<()> {
         let supervisor_tracker = self.supervisor_task_tracker().clone();
         let tracker = self.task_tracker().clone();
+
+        // Event: Terminating Subordinates
+        // Description: Initiating termination of the actor's subordinates.
+        // Context: Number of children.
+        trace!(
+            children_count = self.children().len(),
+            "Initiating termination of the actor's subordinates."
+        );
         self.terminate_subordinates().await?;
+
+        // Event: Waiting for Supervisor Tasks
+        // Description: Waiting for all supervisor tasks to complete.
+        // Context: None
+        trace!("Waiting for all supervisor tasks to complete.");
         supervisor_tracker.wait().await;
+
+        // Event: Terminating Actor
+        // Description: Initiating termination of the actor.
+        // Context: None
+        trace!("Initiating termination of the actor.");
         self.terminate_actor().await?;
+
+        // Event: Waiting for Actor Tasks
+        // Description: Waiting for all actor tasks to complete.
+        // Context: None
+        trace!("Waiting for all actor tasks to complete.");
         tracker.wait().await;
+
+        // Event: Actor Terminated
+        // Description: The actor and its subordinates have been terminated.
+        // Context: None
+        info!("The actor and its subordinates have been terminated.");
+
         Ok(())
     }
 
@@ -205,11 +236,7 @@ impl ActorContext for Context {
     }
 
     fn find_child(&self, arn: &str) -> Option<Context> {
-        if let Some(item) = self.children.get(arn) {
-            Some(item.value().clone())
-        } else {
-            None
-        }
+        self.children.get(arn).map(|item| item.value().clone())
     }
 
     /// Returns the task tracker for the actor.

@@ -30,12 +30,11 @@
  *
  *
  */
-
 use std::future::Future;
 
 use async_trait::async_trait;
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundEnvelope};
 use crate::traits::actor_context::ActorContext;
@@ -59,6 +58,10 @@ pub(crate) trait SupervisorContext: ActorContext {
         async {
             let forward_address = self.return_address();
             if let Some(reply_to) = forward_address.reply_to {
+                // Event: Emitting Envelope
+                // Description: Emitting an envelope to the supervisor.
+                // Context: Envelope details.
+                trace!(envelope = ?envelope, supervisor=self.return_address().sender.value, "Emitting envelope to the supervisor.");
                 reply_to.send(envelope).await?;
             }
             Ok(())
@@ -66,11 +69,14 @@ pub(crate) trait SupervisorContext: ActorContext {
     }
 
     /// Emit a message to a pool using the supervisor's return address.
-    fn emit_to_pool(&self, name: &str, message: impl AktonMessage + Send + Sync + 'static) {
+    #[instrument(skip(self, message))]
+    async fn emit_to_pool(&self, name: &str, message: impl AktonMessage + Send + Sync + 'static) {
         if let Some(envelope) = self.supervisor_return_address() {
-            envelope
-                .reply(message, Some(name.to_string()))
-                .expect("couldnt reply message");
+            // Event: Emitting Message to Pool
+            // Description: Emitting a message to a pool using the supervisor's return address.
+            // Context: Pool name and message details.
+            trace!(sender=?self.supervisor_return_address().unwrap().sender.value,pool_name = name, message = ?message, "Emitting message to pool.");
+            envelope.reply_async(message, Some(name.to_string())).await;
         }
     }
 }

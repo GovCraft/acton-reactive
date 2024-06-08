@@ -34,7 +34,7 @@ use std::sync::Once;
 
 use tracing::Level;
 use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::FmtSubscriber;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 pub use messages::*;
 
@@ -46,31 +46,78 @@ static INIT: Once = Once::new();
 pub fn init_tracing() {
     INIT.call_once(|| {
         // Define an environment filter to suppress logs from the specific function
-        let filter = tracing_subscriber::EnvFilter::new("")
+
+        // let filter = EnvFilter::new("")
+        //     // .add_directive("akton_core::common::context::emit_pool=trace".parse().unwrap())
+        //     // .add_directive("akton_core::common::context::my_func=trace".parse().unwrap())
+        //     .add_directive("akton_core::common::context[my_func]=trace".parse().unwrap())
+        //     .add_directive(Level::INFO.into()); // Set global log level to INFO
+
+        let filter = EnvFilter::new("")
+            .add_directive("akton_core::common::context=error".parse().unwrap())
             .add_directive(
-                "akton_core::common::context::peek_state_span=off"
+                "akton_core::common::context[emit_pool]=error"
                     .parse()
                     .unwrap(),
             )
-            .add_directive("akton_core::common::context=off".parse().unwrap())
-            .add_directive("tests=off".parse().unwrap())
-            .add_directive("actor_tests=trace".parse().unwrap())
-            .add_directive("akton_core::traits=off".parse().unwrap())
-            .add_directive("akton_core::common::awake=off".parse().unwrap())
-            .add_directive("akton_core::message=off".parse().unwrap())
-            .add_directive("akton_core::common::akton=off".parse().unwrap())
-            .add_directive("akton_core::pool=off".parse().unwrap())
-            .add_directive("akton_core::common::system=off".parse().unwrap())
-            .add_directive("akton_core::common::supervisor=off".parse().unwrap())
-            .add_directive("akton_core::common::actor=trace".parse().unwrap())
-            .add_directive("akton_core::common::idle=off".parse().unwrap())
-            .add_directive("supervisor_tests::setup::actors::audience_member=off".parse().unwrap())
             .add_directive(
-                "akton_core::common::outbound_envelope=trace"
+                "akton_core::common::context[emit_envelope]=error"
                     .parse()
                     .unwrap(),
             )
-            .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
+            .add_directive(
+                "akton_core::common::context[terminate]=error"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "akton_core::traits::supervisor_context[emit_to_pool]=error"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive("akton_core::common::awake=error".parse().unwrap())
+            .add_directive(
+                "akton_core::message::outbound_envelope[reply_async]=error"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "akton_core::message::outbound_envelope[reply]=error"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive("akton_core::common::akton=error".parse().unwrap())
+            .add_directive("akton_core::pool=error".parse().unwrap())
+            .add_directive("akton_core::common::system=error".parse().unwrap())
+            .add_directive("akton_core::common::supervisor=error".parse().unwrap())
+            .add_directive("akton_core::actors::actor=error".parse().unwrap())
+            .add_directive("akton_core::common::idle=error".parse().unwrap())
+            .add_directive(
+                "actor_tests::setup::actors::audience_member=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "lifecycle_tests::setup::actors::audience_member=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "load_balancer_tests::setup::actors::audience_member=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "messaging_tests::setup::actors::audience_member=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "supervisor_tests::setup::actors::audience_member=info"
+                    .parse()
+                    .unwrap(),
+            );
+        // .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()
             // .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
