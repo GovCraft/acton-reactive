@@ -51,9 +51,9 @@ pub(crate) trait SupervisorContext: ActorContext {
 
     /// Emit an envelope to the supervisor.
     #[instrument(skip(self))]
-    fn emit_envelope(&self, envelope: Envelope) -> impl Future<Output = Result<(), MessageError>>
-    where
-        Self: Sync,
+    fn emit_envelope(&self, envelope: Envelope) -> impl Future<Output=Result<(), MessageError>>
+        where
+            Self: Sync,
     {
         async {
             let forward_address = self.return_address();
@@ -68,15 +68,19 @@ pub(crate) trait SupervisorContext: ActorContext {
         }
     }
 
+
     /// Emit a message to a pool using the supervisor's return address.
     #[instrument(skip(self, message))]
-    async fn emit_to_pool(&self, name: &str, message: impl AktonMessage + Send + Sync + 'static) {
-        if let Some(envelope) = self.supervisor_return_address() {
-            // Event: Emitting Message to Pool
-            // Description: Emitting a message to a pool using the supervisor's return address.
-            // Context: Pool name and message details.
-            trace!(sender=?self.supervisor_return_address().unwrap().sender.value,pool_name = name, message = ?message, "Emitting message to pool.");
-            envelope.reply_async(message, Some(name.to_string())).await;
+    fn emit_to_pool(&self, name: String, message: impl AktonMessage + Send + Sync + 'static)
+                    -> impl Future<Output=()> + Send + Sync + '_  where Self: Sync {
+        async move {
+            if let Some(envelope) = self.supervisor_return_address() {
+                // Event: Emitting Message to Pool
+                // Description: Emitting a message to a pool using the supervisor's return address.
+                // Context: Pool name and message details.
+                trace!(sender=?self.supervisor_return_address().unwrap().sender.value,pool_name = ?name, message = ?message, "Emitting message to pool.");
+                envelope.reply_async(message, Some(name)).await;
+            }
         }
     }
 }

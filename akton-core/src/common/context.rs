@@ -98,7 +98,7 @@ impl Context {
         // Description: Emitting a message to a pool.
         // Context: Pool name and message details.
         // trace!(pool_name = name, message = ?message, "Emitting message to pool.");
-        self.emit_to_pool(name, message).await;
+        self.emit_to_pool(name.into(), message).await;
     }
 
     /// Terminates the actor and its subordinates.
