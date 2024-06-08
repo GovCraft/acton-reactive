@@ -118,7 +118,7 @@ pub trait ActorContext {
     async fn recreate(&mut self) -> anyhow::Result<()>;
 
     /// Suspends the actor.
-    async fn suspend(&self) -> anyhow::Result<()>;
+    fn suspend(&self) -> impl Future<Output = anyhow::Result<()>> + Send + Sync + '_;
 
     /// Resumes the actor.
     async fn resume(&mut self) -> anyhow::Result<()>;

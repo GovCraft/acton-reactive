@@ -31,6 +31,7 @@
  *
  */
 use std::fmt::Debug;
+use std::future::Future;
 use std::hash::{Hash, Hasher};
 
 use akton_arn::Arn;
@@ -145,29 +146,31 @@ impl ActorContext for Context {
     }
 
     /// Suspends the actor.
-    async fn suspend(&self) -> anyhow::Result<()> {
-        let tracker = self.task_tracker().clone();
+    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
+        async move {
+            let tracker = self.task_tracker().clone();
 
-        let actor = self.return_address().clone();
+            let actor = self.return_address().clone();
 
 
-        // Event: Sending Terminate Signal
-        // Description: Sending a terminate signal to the actor.
-        // Context: Target actor key.
-        warn!(actor=self.key.value, "Sending Terminate to");
-        actor.reply(SystemSignal::Terminate, None)?;
+            // Event: Sending Terminate Signal
+            // Description: Sending a terminate signal to the actor.
+            // Context: Target actor key.
+            warn!(actor=self.key.value, "Sending Terminate to");
+            actor.reply(SystemSignal::Terminate, None)?;
 
-        // Event: Waiting for Actor Tasks
-        // Description: Waiting for all actor tasks to complete.
-        // Context: None
-        trace!("Waiting for all actor tasks to complete.");
-        tracker.wait().await;
+            // Event: Waiting for Actor Tasks
+            // Description: Waiting for all actor tasks to complete.
+            // Context: None
+            trace!("Waiting for all actor tasks to complete.");
+            tracker.wait().await;
 
-        // Event: Actor Terminated
-        // Description: The actor and its subordinates have been terminated.
-        // Context: None
-        info!(actor=self.key.value, "The actor and its subordinates have been terminated.");
-        Ok(())
+            // Event: Actor Terminated
+            // Description: The actor and its subordinates have been terminated.
+            // Context: None
+            info!(actor=self.key.value, "The actor and its subordinates have been terminated.");
+            Ok(())
+        }
     }
 
     /// Resumes the actor.
