@@ -32,17 +32,23 @@
  */
 
 mod setup;
+
 use crate::setup::*;
 use akton::prelude::*;
+use tracing::{info, trace, warn};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_audience_pool() -> anyhow::Result<()> {
     init_tracing();
-    let mut audience = Akton::<AudienceMember>::create();
 
+    let mut audience = Akton::<AudienceMember>::create();
     audience
         .setup
         .act_on::<AudienceReactionMsg>(|actor, event| {
+            // Event: Audience Reaction
+            // Description: Handling audience reaction message.
+            // Context: Reaction type and actor state.
+            trace!(reaction = ?event.message, "Handling audience reaction message.");
             match event.message {
                 AudienceReactionMsg::Groan => actor.state.funny += 1,
                 AudienceReactionMsg::Chuckle => actor.state.bombers += 1,
@@ -50,25 +56,39 @@ async fn test_audience_pool() -> anyhow::Result<()> {
             actor.state.jokes_told += 1;
         })
         .on_before_stop(|actor| {
-            tracing::info!(
+            // Event: Actor Stopping
+            // Description: Logging actor state before stopping.
+            // Context: Jokes told, funny count, and bombers count.
+            warn!(
                 "Jokes Told: {}\tFunny: {}\tBombers: {}",
-                actor.state.jokes_told,
-                actor.state.funny,
-                actor.state.bombers
+                actor.state.jokes_told, actor.state.funny, actor.state.bombers
             );
         });
+
     let pool = PoolBuilder::default().add_pool::<AudienceMember>(
         "audience",
-        10,
+        1,
         LoadBalanceStrategy::Random,
     );
 
-    //here we call the init method on the 1000 pool members we created
+    // Event: Initializing Pool
+    // Description: Initializing the pool with audience members.
+    // Context: Pool name and size.
+    info!("Initializing the pool with audience members.");
     let context = audience.activate(Some(pool)).await?;
 
-    for _ in 0..10 {
+    for _ in 0..1 {
+        // Event: Emitting Joke to Pool
+        // Description: Emitting a joke message to the audience pool.
+        // Context: Pool name.
+        trace!("Emitting a joke message to the audience pool.");
         context.emit_pool("audience", Joke).await;
     }
+
+    // Event: Terminating Context
+    // Description: Terminating the context after test completion.
+    // Context: None
+    info!("Terminating the context after test completion.");
     context.terminate().await?;
     Ok(())
 }

@@ -33,6 +33,7 @@
 
 #![allow(unused)]
 mod audience_member;
+mod broker_owner;
 mod comedian;
 mod counter;
 mod messenger;

@@ -40,11 +40,9 @@ use std::pin::Pin;
 use std::sync::atomic::Ordering;
 
 use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
-use futures::SinkExt;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio_util::task::TaskTracker;
-use tracing::{error, event, instrument, Level, trace};
-use tracing::field::Empty;
+use tracing::{debug, event, instrument, Level, trace};
 
 use crate::common::{Context, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{Envelope, OutboundEnvelope};
@@ -142,11 +140,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         (self.setup.on_wake)(self);
 
         let mut yield_counter = 0;
-        while let Some(mut envelope) = self.mailbox.recv().await {
+        while let Some(envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
             event!(Level::TRACE, "Mailbox received {:?}", &envelope.message);
 
-            if let Some(reactor) = reactors.get(&type_id) {
+            if let Some(reactor) = reactors.get(type_id) {
                 event!(Level::TRACE, "Message reactor found");
 
                 match reactor.value() {
@@ -168,8 +166,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 }
 
                 trace!("Message handled by reactor");
-            } else {
-                tracing::warn!("No reactor found for: {:?} ", &envelope.message);
             }
 
             // Handle SystemSignal::Terminate to stop the actor
@@ -197,6 +193,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     on_before_stop_async(self).await;
                 }
                 break;
+            } else {
+                tracing::warn!("No reactor found for: {:?} ", &envelope.message);
             }
 
             // Yield less frequently to reduce context switching
@@ -309,7 +307,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         }
 
         // Create and return the new actor instance
-        let actor = Actor {
+        Actor {
             setup: Idle::default(),
             context,
             parent_return_envelope,
@@ -318,8 +316,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             state,
             task_tracker,
             mailbox,
-        };
-        actor
+        }
     }
 
     /// Activates the actor, optionally with a pool builder.
@@ -342,17 +339,17 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             event!(Level::TRACE, idle_child_count = context.children().len());
 
             if let Some(builder) = builder {
-                event!(Level::TRACE, "PoolBuilder provided.");
+                debug!(id = actor.key.value, "PoolBuilder provided.");
                 // If a pool builder is provided, spawn the supervisor
-                let actor_context = actor.context.clone();
+
                 let moved_context = actor.context.clone();
-                let mut supervisor = builder.spawn(&moved_context).await?;
+                let supervisor = builder.spawn(&moved_context).await?;
                 context.supervisor_outbox = Some(supervisor.outbox.clone());
                 context.supervisor_task_tracker = supervisor.task_tracker.clone();
 
                 let active_actor: Actor<Awake<State>, State> = actor.into();
-                if active_actor.context.children().len() > 0 {
-                    tracing::trace!(
+                if active_actor.context.children().is_empty() {
+                    trace!(
                         "Child pool count after awake actor creation {}",
                         active_actor.context.children().len()
                     );
@@ -379,10 +376,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 // Close the supervisor task tracker
                 supervisor_tracker.close();
             } else {
-                event!(Level::TRACE, "Activating with no PoolBuilder.");
+                debug!(id = actor.key.value, "Activating with no PoolBuilder.");
                 // If no builder is provided, activate the actor directly
                 let active_actor: Actor<Awake<State>, State> = actor.into();
-                tracing::trace!(
+                trace!(
                     "Child count after awake actor creation {}",
                     active_actor.context.children().len()
                 );
@@ -402,8 +399,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
             // Close the actor's task tracker
             context.task_tracker.close();
-            if context.children().len() > 0 {
-                tracing::trace!(
+            if context.children().is_empty() {
+                trace!(
                     "Child count before returning context {}",
                     context.children().len()
                 );
@@ -413,6 +410,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         })
     }
 }
+
 /// Represents an actor in the awake state.
 ///
 /// # Type Parameters

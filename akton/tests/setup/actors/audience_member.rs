@@ -42,7 +42,7 @@ use async_trait::async_trait;
 use rand::Rng;
 use std::future::Future;
 use std::pin::Pin;
-use tracing::{info, trace};
+use tracing::{debug, error, info, trace};
 
 #[akton_actor]
 pub struct AudienceMember {
@@ -55,15 +55,19 @@ pub struct AudienceMember {
 impl PooledActor for AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn initialize(&self, name: String, root: &Context) -> Context {
-        let mut actor = Akton::<AudienceMember>::create_with_id(&name);
+    async fn initialize(&self, name: String, parent_context: &Context) -> Context {
+        let parent_context = parent_context.clone();
+        let mut actor =
+            Akton::<AudienceMember>::create_with_id_and_context(&name, Some(parent_context));
 
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
-        info!("Setting up an actor to handle the `Joke` event.");
-        actor.setup.act_on::<Joke>(|actor, _event| {
+        trace!("Setting up an actor to handle the `Joke` event.");
+        actor.setup.act_on::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope();
+            let parent_sender = actor.new_parent_envelope().sender.value;
+            let event_sender = &event.return_address.sender.value;
             let mut rng = rand::thread_rng();
             let random_reaction = rng.gen_bool(0.5);
 
@@ -71,13 +75,13 @@ impl PooledActor for AudienceMember {
                 // Event: Sending Chuckle
                 // Description: Sending a chuckle reaction to the joke.
                 // Context: None
-                trace!("Send chuckle");
+                info!(pool_item = actor.key.value, "Send chuckle");
                 let _ = sender.reply(AudienceReactionMsg::Chuckle, Some("audience".to_string()));
             } else {
                 // Event: Sending Groan
                 // Description: Sending a groan reaction to the joke.
                 // Context: None
-                trace!("Send groan");
+                info!(pool_item = actor.key.value, "Send groan");
                 let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
             }
         });
@@ -85,7 +89,10 @@ impl PooledActor for AudienceMember {
         // Event: Activating AudienceMember
         // Description: Activating the AudienceMember actor.
         // Context: None
-        info!("Activating the AudienceMember actor.");
-        actor.activate(None).await.expect("Failed to activate AudienceMember")
+        trace!("Activating the AudienceMember actor.");
+        actor
+            .activate(None)
+            .await
+            .expect("Failed to activate AudienceMember")
     }
 }

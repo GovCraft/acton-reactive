@@ -35,10 +35,6 @@ use std::any::TypeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::future::Future;
-use std::pin::Pin;
-use std::rc::Weak;
-use std::sync::{Arc, Mutex};
 
 use dashmap::DashMap;
 use futures::future;
@@ -67,7 +63,6 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<State>,
-    pub(crate) children: Vec<Actor<Idle<State>, State>>,
 }
 
 /// Custom implementation of the `Debug` trait for the `Idle` struct.
@@ -106,7 +101,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         // parent: Arc<Mutex<Actor<Idle<State>, State>>>,
     ) -> Actor<Idle<State>, State> {
         let parent_context = parent_context.clone();
-        let mut actor = Actor::new(id, State::default(), Some(parent_context));
+        let actor = Actor::new(id, State::default(), Some(parent_context));
 
         // Set the parent reference using Weak
         // actor.setup.parent = Some(parent);
@@ -128,9 +123,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     pub fn act_on<M: AktonMessage + 'static>(
         &mut self,
         message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>)
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
@@ -140,7 +135,7 @@ impl<State: Default + Send + Debug> Idle<State> {
                 if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                     // let cloned_message = concrete_msg.clone(); // Clone the message.
                     let msg = concrete_msg;
-                    let mut event_record = &EventRecord {
+                    let event_record = &EventRecord {
                         message: msg,
                         sent_time: envelope.sent_time,
                         return_address: OutboundEnvelope::new(
@@ -167,12 +162,7 @@ impl<State: Default + Send + Debug> Idle<State> {
 
         self
     }
-    fn box_pin<F>(future: F) -> Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>
-    where
-        F: Future<Output = ()> + Send + Sync + 'static,
-    {
-        Box::pin(future)
-    }
+
     /// Adds an asynchronous message handler for a specific message type.
     ///
     /// # Parameters
@@ -180,12 +170,12 @@ impl<State: Default + Send + Debug> Idle<State> {
     pub fn act_on_async<M>(
         &mut self,
         message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> &mut Self
-    where
-        M: AktonMessage + Send + Sync + 'static,
+        where
+            M: AktonMessage + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
 
@@ -199,7 +189,7 @@ impl<State: Default + Send + Debug> Idle<State> {
                         return_address: actor.parent_return_envelope.clone(),
                     };
                     // Call the user-provided function and get the future.
-                    let user_future = message_processor(actor, &event_record);
+                    let user_future = message_processor(actor, event_record);
 
                     // Automatically box and pin the user future.
                     Box::pin(user_future)
@@ -225,9 +215,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
         signal_reactor: impl Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
-            + Send
-            + Sync
-            + 'static,
+        + Send
+        + Sync
+        + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
 
@@ -312,8 +302,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
-    where
-        F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+        where
+            F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -324,8 +314,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Returns
     /// A new `Idle` instance with default settings.
     pub(crate) fn new() -> Idle<State>
-    where
-        State: Send + 'static,
+        where
+            State: Send + 'static,
     {
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -334,7 +324,6 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
-            children: vec![],
         }
     }
 }
