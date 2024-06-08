@@ -38,16 +38,19 @@ use std::future::Future;
 use std::mem;
 use std::pin::Pin;
 use std::sync::atomic::Ordering;
+use std::time::Duration;
 
 use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
+use dashmap::DashMap;
 use tokio::sync::mpsc::{channel, Receiver};
+use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, event, instrument, Level, trace};
+use tracing::{event, instrument, Level, trace, warn};
 
 use crate::common::{Context, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{Envelope, OutboundEnvelope};
-use crate::pool::PoolBuilder;
-use crate::traits::{ActorContext, SupervisorContext};
+use crate::pool::{PoolBuilder, PoolItem};
+use crate::traits::{ActorContext};
 
 use super::{Awake, Idle};
 
@@ -64,7 +67,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub context: Context,
 
     /// The parent actor's return envelope.
-    pub(crate) parent_return_envelope: OutboundEnvelope,
+    pub parent: Option<Context>,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
@@ -80,13 +83,15 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
 
     /// The mailbox for receiving envelopes.
     pub mailbox: Receiver<Envelope>,
+    /// The mailbox for receiving envelopes.
+    pub(crate) pool_supervisor: DashMap<String, PoolItem>,
 }
 
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
 impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
-    for Actor<RefType, State>
+for Actor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
     ///
@@ -126,15 +131,19 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     ///
     /// # Returns
     /// A clone of the parent's return envelope.
-    pub fn new_parent_envelope(&self) -> OutboundEnvelope {
-        self.parent_return_envelope.clone()
+    pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
+        if let Some(parent) = &self.parent {
+            Some(parent.return_address().clone())
+        } else {
+            None
+        }
     }
 
     /// Wakes the actor and processes incoming messages using the provided reactors.
     ///
     /// # Parameters
     /// - `reactors`: A map of reactors to handle different message types.
-    #[instrument(skip(reactors, self), fields(key = self.key.value))]
+    #[instrument(skip(reactors, self))]
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
         // Call the on_wake setup function
         (self.setup.on_wake)(self);
@@ -142,9 +151,29 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         let mut yield_counter = 0;
         while let Some(envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
-            event!(Level::TRACE, "Mailbox received {:?}", &envelope.message);
+            tracing::debug!(actor=self.key.value, "Mailbox received {:?} for", &envelope.message);
 
-            if let Some(reactor) = reactors.get(type_id) {
+            // Handle SystemSignal::Terminate to stop the actor
+
+            if let Some(ref pool_id) = &envelope.pool_id {
+                // Event: Processing Envelope
+                // Description: Processing an envelope for a specific pool.
+                // Context: Pool ID and envelope details.
+                // trace!(pool_id = ?pool_id, envelope = ?envelope, "Processing envelope for pool.");
+                if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
+                    // First, clone or copy the data needed for the immutable borrow.
+                    // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
+                    let pool_clone = pool_def.pool.clone();
+
+                    // Now perform the selection outside the mutable borrowed variable's scope.
+                    if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
+                        // Access the original data using the index now that we're outside the conflicting borrow.
+                        let context = &pool_def.pool[index];
+                        trace!(pool_item=context.key.value,index = index, "Emitting to pool item");
+                        context.emit_message_async(envelope.message, None).await;
+                    }
+                }
+            } else if let Some(reactor) = reactors.get(type_id) {
                 event!(Level::TRACE, "Message reactor found");
 
                 match reactor.value() {
@@ -161,40 +190,39 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                         fut(self, &envelope).await;
                     }
                     _ => {
-                        tracing::warn!("Unknown ReactorItem type for: {:?}", &envelope.message);
+                        tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone());
                     }
                 }
 
                 trace!("Message handled by reactor");
-            }
-
-            // Handle SystemSignal::Terminate to stop the actor
-            trace!("Checking for SystemSignal::Terminate");
-            if let Some(SystemSignal::Terminate) =
+            } else if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
-                event!(Level::TRACE, "Received SystemSignal::Terminate");
+                tracing::warn!(actor=self.key.value, "Received SystemSignal::Terminate for");
 
-                event!(
-                    Level::TRACE,
+                tracing::trace!(
                     "Terminating {} children",
                     &self.context.children.len()
                 );
                 for item in &self.context.children {
                     let context = item.value();
-                    let tracker = item.task_tracker().clone();
-                    let _ = context.terminate().await;
-                    tracker.wait().await;
+                    let _ = context.suspend().await;
+                }
+                tracing::trace!(
+                    "Terminating {} actor managed pools", &self.pool_supervisor.len()
+                );
+                for pool in &self.pool_supervisor {
+                    tracing::trace!(
+                    "Terminating pool with id \"{}\".", pool.id
+                );
+                    for item_context in &pool.pool {
+                        trace!(item=item_context.key.value,"Terminating pool item.");
+                        let _ = item_context.suspend().await;
+                    }
                 }
 
-                // Call the on_before_stop setup function
-                (self.setup.on_before_stop)(self);
-                if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
-                    on_before_stop_async(self).await;
-                }
-                break;
-            } else {
-                tracing::warn!("No reactor found for: {:?} ", &envelope.message);
+                trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
+                self.mailbox.close();
             }
 
             // Yield less frequently to reduce context switching
@@ -203,9 +231,24 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 tokio::task::yield_now().await;
             }
         }
+        // Call the on_before_stop setup function
+        (self.setup.on_before_stop)(self);
+        tracing::trace!(actor=self.key.value,"called on_before_stop for");
+        if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
+            // Add a timeout to prevent hanging indefinitely
+            match timeout(Duration::from_secs(5), on_before_stop_async(self)).await {
+                Ok(_) => {
+                    tracing::info!(actor=self.key.value,"called on_before_stop_async for");
+                }
+                Err(e) => {
+                    tracing::error!("on_before_stop_async timed out or failed: {:?}", e);
+                }
+            }
+        }
 
         // Call the on_stop setup function
         (self.setup.on_stop)(self);
+        tracing::trace!(actor=self.key.value,"called on_stop for");
     }
 }
 
@@ -229,7 +272,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (outbox, mailbox) = channel(255);
 
         // Initialize context and task tracker based on whether a parent context is provided
-        let (parent_return_envelope, key, task_tracker, context) =
+        let (parent, key, task_tracker, context) =
             if let Some(parent_context) = parent_context {
                 let mut key = parent_context.key.clone();
                 key.append_part(id);
@@ -238,30 +281,13 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 let context = Context {
                     key: key.clone(),
                     outbox: Some(outbox.clone()),
-                    supervisor_task_tracker: TaskTracker::new(),
-                    supervisor_outbox: parent_context.return_address().reply_to,
+                    parent: Some(Box::new(parent_context.clone())),
                     task_tracker: TaskTracker::new(),
                     ..Default::default()
                 };
 
-                // Ensure the parent context's outbox and supervisor outbox are not closed
-                debug_assert!(
-                    parent_context
-                        .outbox
-                        .as_ref()
-                        .map_or(true, |outbox| !outbox.is_closed()),
-                    "Parent context outbox is closed in new"
-                );
-                debug_assert!(
-                    parent_context
-                        .supervisor_outbox
-                        .as_ref()
-                        .map_or(true, |outbox| !outbox.is_closed()),
-                    "Parent context supervisor outbox is closed in new"
-                );
-
                 (
-                    parent_context.return_address().clone(),
+                    Some(parent_context.clone()),
                     key,
                     parent_context.task_tracker.clone(),
                     context,
@@ -279,15 +305,14 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 let context = Context {
                     key,
                     outbox: Some(outbox.clone()),
-                    supervisor_task_tracker: TaskTracker::new(),
-                    supervisor_outbox: None,
+                    parent: None,
                     task_tracker: TaskTracker::new(),
                     ..Default::default()
                 };
                 let key = context.key.clone();
 
                 (
-                    context.return_address().clone(),
+                    None,
                     key,
                     TaskTracker::new(),
                     context,
@@ -298,31 +323,25 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
-        // Ensure the supervisor outbox is not closed if it exists
-        if let Some(ref supervisor_outbox) = context.supervisor_outbox {
-            debug_assert!(
-                !supervisor_outbox.is_closed(),
-                "Supervisor outbox is closed in new"
-            );
-        }
 
         // Create and return the new actor instance
         Actor {
             setup: Idle::default(),
             context,
-            parent_return_envelope,
+            parent,
             halt_signal: Default::default(),
             key,
             state,
             task_tracker,
             mailbox,
+            pool_supervisor: Default::default(),
         }
     }
 
     /// Activates the actor, optionally with a pool builder.
     ///
     /// # Parameters
-    /// - `builder`: An optional `PoolBuilder` to initialize supervised children.
+    /// - `builder`: An optional `PoolBuilder` to initialize a `PoolSupervisor` to manage pool items .
     ///
     /// # Returns
     /// The actor's context after activation.
@@ -330,81 +349,36 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub fn activate(
         self,
         builder: Option<PoolBuilder>,
-    ) -> Pin<Box<dyn Future<Output = anyhow::Result<Context>> + Send + 'static>> {
+    ) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Send + 'static>> {
         Box::pin(async move {
             // Store and activate all supervised children if a builder is provided
             let mut actor = self;
             let reactors = mem::take(&mut actor.setup.reactors);
-            let mut context = actor.context.clone();
-            event!(Level::TRACE, idle_child_count = context.children().len());
+            let context = actor.context.clone();
 
+
+            // If a pool builder is provided, spawn the supervisor
             if let Some(builder) = builder {
-                debug!(id = actor.key.value, "PoolBuilder provided.");
-                // If a pool builder is provided, spawn the supervisor
-
+                trace!(id = actor.key.value, "PoolBuilder provided.");
                 let moved_context = actor.context.clone();
-                let supervisor = builder.spawn(&moved_context).await?;
-                context.supervisor_outbox = Some(supervisor.outbox.clone());
-                context.supervisor_task_tracker = supervisor.task_tracker.clone();
-
-                let active_actor: Actor<Awake<State>, State> = actor.into();
-                if active_actor.context.children().is_empty() {
-                    trace!(
-                        "Child pool count after awake actor creation {}",
-                        active_actor.context.children().len()
-                    );
-                }
-
-                let actor = Box::leak(Box::new(active_actor));
-                let actor_tracker = &context.task_tracker.clone();
-                debug_assert!(
-                    !actor.mailbox.is_closed(),
-                    "Actor mailbox is closed in spawn_with_pools"
-                );
-
-                // Spawn the actor's wake task
-                actor_tracker.spawn(actor.wake(reactors));
-                debug_assert!(
-                    !supervisor.mailbox.is_closed(),
-                    "Supervisor mailbox is closed in spawn_with_pools"
-                );
-
-                let supervisor = Box::leak(Box::new(supervisor));
-                let supervisor_tracker = supervisor.task_tracker.clone();
-                // Spawn the supervisor's wake task
-                supervisor_tracker.spawn(supervisor.wake_supervisor());
-                // Close the supervisor task tracker
-                supervisor_tracker.close();
-            } else {
-                debug!(id = actor.key.value, "Activating with no PoolBuilder.");
-                // If no builder is provided, activate the actor directly
-                let active_actor: Actor<Awake<State>, State> = actor.into();
-                trace!(
-                    "Child count after awake actor creation {}",
-                    active_actor.context.children().len()
-                );
-
-                let actor = Box::leak(Box::new(active_actor));
-                let actor_tracker = &context.task_tracker.clone();
-                debug_assert!(
-                    !actor.mailbox.is_closed(),
-                    "Actor mailbox is closed in spawn"
-                );
-
-                // Spawn the actor's wake task
-                actor_tracker.spawn(actor.wake(reactors));
-                // Close the supervisor task tracker
-                let _ = &context.supervisor_task_tracker().close();
+                actor.pool_supervisor = builder.spawn(&moved_context).await?;
             }
 
-            // Close the actor's task tracker
+            // here we transition from an Actor<Idle> to an Actor<Awake>
+            let active_actor: Actor<Awake<State>, State> = actor.into();
+
+            // makes actor live for static, required for the `wake` function
+            let actor = Box::leak(Box::new(active_actor));
+            debug_assert!(
+                !actor.mailbox.is_closed(),
+                "Actor mailbox is closed in spawn"
+            );
+
+            // TODO: we need to store this join handle
+            // Spawn the actor's wake task
+            let _ = &context.task_tracker.spawn(actor.wake(reactors));
+
             context.task_tracker.close();
-            if context.children().is_empty() {
-                trace!(
-                    "Child count before returning context {}",
-                    context.children().len()
-                );
-            }
 
             Ok(context.clone())
         })
@@ -415,7 +389,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Clone + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     /// Terminates the actor by setting the halt signal.
     ///
     /// This method sets the halt signal to true, indicating that the actor should stop processing.

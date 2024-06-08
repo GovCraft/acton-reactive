@@ -38,12 +38,12 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
-use tracing::{event, info, instrument, trace, Level};
+use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{Actor, Idle};
 use crate::common::{OutboundChannel, OutboundEnvelope, SystemSignal};
 use crate::message::signal::SupervisorSignal;
-use crate::traits::{ActorContext, AktonMessage, SupervisorContext};
+use crate::traits::{ActorContext};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -52,12 +52,10 @@ pub struct Context {
     pub key: Arn,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Option<OutboundChannel>,
-    /// The task tracker for the supervisor.
-    pub(crate) supervisor_task_tracker: TaskTracker,
     /// The task tracker for the actor.
     pub(crate) task_tracker: TaskTracker,
-    /// The supervisor's outbound channel for sending messages.
-    pub(crate) supervisor_outbox: Option<OutboundChannel>,
+    /// The actor's optional parent context.
+    pub parent: Option<Box<Context>>,
     pub(crate) children: DashMap<String, Context>,
 }
 
@@ -74,6 +72,7 @@ impl Hash for Context {
         self.key.value.hash(state);
     }
 }
+
 impl Context {
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
@@ -84,92 +83,6 @@ impl Context {
         let id = context.key.value.clone();
         self.children.insert(id, context);
 
-        Ok(())
-    }
-
-    /// Emits a message to a pool.
-    ///
-    /// # Parameters
-    /// - `name`: The name of the pool.
-    /// - `message`: The message to be emitted.
-    #[instrument(skip(self, name, message))]
-    pub async fn emit_pool(&self, name: &str, message: impl AktonMessage + Sync + Send + 'static) {
-        // Event: Emitting Message to Pool
-        // Description: Emitting a message to a pool.
-        // Context: Pool name and message details.
-        // trace!(pool_name = name, message = ?message, "Emitting message to pool.");
-        self.emit_to_pool(name.into(), message).await;
-    }
-
-    /// Terminates the actor and its subordinates.
-    ///
-    /// # Returns
-    /// An `anyhow::Result` indicating success or failure.
-    #[instrument(skip(self), fields(actor=self.key.value))]
-    pub async fn terminate(&self) -> anyhow::Result<()> {
-        let supervisor_tracker = self.supervisor_task_tracker().clone();
-        let tracker = self.task_tracker().clone();
-
-        // Event: Terminating Subordinates
-        // Description: Initiating termination of the actor's subordinates.
-        // Context: Number of children.
-        trace!(
-            children_count = self.children().len(),
-            "Initiating termination of the actor's subordinates."
-        );
-        self.terminate_subordinates().await?;
-
-        // Event: Waiting for Supervisor Tasks
-        // Description: Waiting for all supervisor tasks to complete.
-        // Context: None
-        trace!("Waiting for all supervisor tasks to complete.");
-        supervisor_tracker.wait().await;
-
-        // Event: Terminating Actor
-        // Description: Initiating termination of the actor.
-        // Context: None
-        trace!("Initiating termination of the actor.");
-        self.terminate_actor().await?;
-
-        // Event: Waiting for Actor Tasks
-        // Description: Waiting for all actor tasks to complete.
-        // Context: None
-        trace!("Waiting for all actor tasks to complete.");
-        tracker.wait().await;
-
-        // Event: Actor Terminated
-        // Description: The actor and its subordinates have been terminated.
-        // Context: None
-        info!("The actor and its subordinates have been terminated.");
-
-        Ok(())
-    }
-
-    /// Terminates all subordinate actors.
-    ///
-    /// # Returns
-    /// An `anyhow::Result` indicating success or failure.
-    #[instrument(skip(self), fields(children=self.children().len()))]
-    pub(crate) async fn terminate_subordinates(&self) -> anyhow::Result<()> {
-        let supervisor = self.supervisor_return_address().clone();
-        if let Some(supervisor) = supervisor {
-            event!(Level::TRACE, "Terminating supervisor");
-            supervisor.reply_all(SystemSignal::Terminate).await?;
-        }
-        Ok(())
-    }
-
-    /// Terminates the actor.
-    ///
-    /// # Returns
-    /// An `anyhow::Result` indicating success or failure.
-    #[instrument(skip(self), fields(target_actor=self.key.value, children=self.children().len()))]
-    pub(crate) async fn terminate_actor(&self) -> anyhow::Result<()> {
-        let actor = self.return_address().clone();
-        event!(Level::TRACE, "Sending Terminate to actor");
-        actor.reply(SystemSignal::Terminate, None)?;
-        let tracker = self.task_tracker().clone();
-        tracker.wait().await;
         Ok(())
     }
 
@@ -194,29 +107,6 @@ impl Context {
         match receiver.await {
             Ok(result) => Some(result),
             Err(_) => None,
-        }
-    }
-}
-
-#[async_trait]
-impl SupervisorContext for Context {
-    /// Returns the task tracker for the supervisor.
-    fn supervisor_task_tracker(&self) -> TaskTracker {
-        self.supervisor_task_tracker.clone()
-    }
-
-    /// Returns the return address for the supervisor, if available.
-    #[instrument(skip(self))]
-    fn supervisor_return_address(&self) -> Option<OutboundEnvelope> {
-        if let Some(outbox) = &self.supervisor_outbox {
-            let outbox = outbox.clone();
-            if !outbox.is_closed() {
-                Some(OutboundEnvelope::new(Some(outbox), self.key.clone()))
-            } else {
-                None
-            }
-        } else {
-            None
         }
     }
 }
@@ -255,8 +145,29 @@ impl ActorContext for Context {
     }
 
     /// Suspends the actor.
-    async fn suspend(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
+    async fn suspend(&self) -> anyhow::Result<()> {
+        let tracker = self.task_tracker().clone();
+
+        let actor = self.return_address().clone();
+
+
+        // Event: Sending Terminate Signal
+        // Description: Sending a terminate signal to the actor.
+        // Context: Target actor key.
+        warn!(actor=self.key.value, "Sending Terminate to");
+        actor.reply(SystemSignal::Terminate, None)?;
+
+        // Event: Waiting for Actor Tasks
+        // Description: Waiting for all actor tasks to complete.
+        // Context: None
+        trace!("Waiting for all actor tasks to complete.");
+        tracker.wait().await;
+
+        // Event: Actor Terminated
+        // Description: The actor and its subordinates have been terminated.
+        // Context: None
+        info!(actor=self.key.value, "The actor and its subordinates have been terminated.");
+        Ok(())
     }
 
     /// Resumes the actor.

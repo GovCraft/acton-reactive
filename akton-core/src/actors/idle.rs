@@ -44,7 +44,7 @@ use crate::actors::{Actor, Awake};
 use crate::common::*;
 use crate::common::LifecycleReactor;
 use crate::message::{Envelope, EventRecord, OutboundEnvelope};
-use crate::traits::AktonMessage;
+use crate::traits::{ActorContext, AktonMessage};
 
 /// Represents the lifecycle state of an actor when it is idle.
 ///
@@ -183,13 +183,23 @@ impl<State: Default + Send + Debug> Idle<State> {
         let handler_box = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
                 if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                    let event_record = &EventRecord {
-                        message: concrete_msg,
-                        sent_time: envelope.sent_time,
-                        return_address: actor.parent_return_envelope.clone(),
+                    let event_record = {
+                        if let Some(parent) = &actor.parent {
+                            EventRecord {
+                                message: concrete_msg,
+                                sent_time: envelope.sent_time,
+                                return_address: parent.return_address(),
+                            }
+                        } else {
+                            EventRecord {
+                                message: concrete_msg,
+                                sent_time: envelope.sent_time,
+                                return_address: actor.context.return_address(),
+                            }
+                        }
                     };
                     // Call the user-provided function and get the future.
-                    let user_future = message_processor(actor, event_record);
+                    let user_future = message_processor(actor, &event_record);
 
                     // Automatically box and pin the user future.
                     Box::pin(user_future)

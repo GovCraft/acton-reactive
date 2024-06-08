@@ -35,11 +35,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use dashmap::DashMap;
-use tokio::sync::mpsc::channel;
-use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace};
 
-use crate::common::{Context, LoadBalanceStrategy, StopSignal, Supervisor};
+use crate::common::{Context, LoadBalanceStrategy};
 use crate::pool::{PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy};
 use crate::traits::{LoadBalancerStrategy, PooledActor};
 
@@ -84,7 +82,7 @@ impl PoolBuilder {
     /// # Returns
     /// A new `Supervisor` instance.
     #[instrument(skip(self, parent), fields(id=parent.key.value))]
-    pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<Supervisor> {
+    pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<DashMap<String, PoolItem>> {
         let subordinates = DashMap::new();
 
         for (pool_name, pool_def) in &mut self.pools {
@@ -115,15 +113,12 @@ impl PoolBuilder {
 
             // Create a pool item and insert it into the subordinates map.
             let item = PoolItem {
+                id: pool_name.clone(),
                 pool: context_items,
                 strategy,
             };
             subordinates.insert(pool_name, item);
         }
-
-        // Create the outbox and mailbox channels for the supervisor.
-        let (outbox, mailbox) = channel(255);
-        let task_tracker = TaskTracker::new();
 
         // Event: Supervisor Initialized
         // Description: The supervisor has been initialized with the actor pools.
@@ -131,13 +126,6 @@ impl PoolBuilder {
         info!(parent_key = %parent.key.value, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
 
         // Return the new supervisor instance.
-        Ok(Supervisor {
-            key: parent.key.clone(),
-            halt_signal: StopSignal::new(false),
-            subordinates,
-            outbox,
-            mailbox,
-            task_tracker,
-        })
+        Ok(subordinates)
     }
 }

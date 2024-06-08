@@ -36,6 +36,7 @@ use crate::traits::LoadBalancerStrategy;
 
 #[derive(Debug)]
 pub(crate) struct PoolItem {
+    pub(crate) id: String,
     pub(crate) pool: Vec<Context>,
     pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }

@@ -36,7 +36,7 @@ use std::future::Future;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, event, instrument, Level};
+use tracing::{event, instrument, Level};
 
 use crate::common::*;
 use crate::traits::akton_message::AktonMessage;
@@ -51,28 +51,57 @@ pub trait ActorContext {
     /// Returns the actor's task tracker.
     fn task_tracker(&self) -> TaskTracker;
 
-    /// Emit a message from the actor.
+    /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit_async(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl AktonMessage + Sync + Send,
+        pool_name: Option<&str>,
     ) -> impl Future<Output = ()> + Send + Sync + '_
-    where
-        Self: Sync,
+        where
+            Self: Sync,
     {
-        // Box::pin(async move {
+        let pool_name = {
+            if let Some(pool_id) = pool_name {
+                Some(String::from(pool_id))
+            } else {
+                None
+            }
+        };
         async move {
-            debug!("*");
+
             let envelope = self.return_address();
-            event!(Level::TRACE, addressed_to = envelope.sender.value);
-            envelope.reply_async(message, None).await;
-            // Ok(())
+            event!(Level::TRACE, return_address = envelope.sender.value);
+            envelope.reply_async(message, pool_name).await;
         }
-        // )
     }
 
+    /// Emit a message from the actor.
+    #[instrument(skip(self), fields(children = self.children().len()))]
+    fn emit_message_async(
+        &self,
+        message: Box<dyn AktonMessage + Send + Sync>,
+        pool_name: Option<&str>,
+    ) -> impl Future<Output = ()> + Send + Sync + '_
+        where
+            Self: Sync,
+    {
+        let pool_name = {
+            if let Some(pool_id) = pool_name {
+                Some(String::from(pool_id))
+            } else {
+                None
+            }
+        };
+        async move {
+
+            let envelope = self.return_address();
+            envelope.reply_async_boxed(message, pool_name).await;
+        }
+    }
     #[instrument(skip(self), fields(self.key.value))]
-    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static) -> Result<(), MessageError>
+    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>
+    ) -> Result<(), MessageError>
     where
         Self: Sync,
     {
@@ -89,7 +118,7 @@ pub trait ActorContext {
     async fn recreate(&mut self) -> anyhow::Result<()>;
 
     /// Suspends the actor.
-    async fn suspend(&mut self) -> anyhow::Result<()>;
+    async fn suspend(&self) -> anyhow::Result<()>;
 
     /// Resumes the actor.
     async fn resume(&mut self) -> anyhow::Result<()>;

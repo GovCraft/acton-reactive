@@ -95,13 +95,12 @@ impl OutboundEnvelope {
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
-
+trace!("*");
         // Event: Replying to Message
         // Description: Replying to a message with an optional pool ID.
         // Context: Message details and pool ID.
-        trace!(msg = ?message, pool_id = ?pool_id, "Replying to message.");
-
-        tokio::task::spawn_blocking(move || {
+        let _ = tokio::task::spawn_blocking(move || {
+            tracing::trace!(msg = ?message, pool_id = ?pool_id, "Replying to message.");
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
                 envelope.reply_async(message, pool_id).await;
@@ -119,53 +118,66 @@ impl OutboundEnvelope {
     /// # Returns
     /// A result indicating success or failure.
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    async fn reply_message_async(
+        &self,
+        message: Box<dyn AktonMessage + Send + Sync>,
+        pool_id: Option<String>,
+    ) {
+        if let Some(reply_to) = &self.reply_to {
+            let type_id = AktonMessage::type_id(&*message);
+            if !reply_to.is_closed() {
+                // Reserve capacity
+                match reply_to.reserve().await {
+                    Ok(permit) => {
+                        let envelope = Envelope::new(message, self.reply_to.clone(), pool_id);
+                        permit.send(envelope);
+                        trace!("Reply to {} from OutboundEnvelope", &self.sender.value)
+                    }
+                    Err(_) => {
+                        error!(
+                        "Failed to reply to {} from OutboundEnvelope with message type {:?}",
+                        &self.sender.value,
+                        &type_id
+                    )
+                    }
+                }
+            } else {
+                error!("reply_message_async to is closed for {} with message {:?}", self.sender.value, message);
+            }
+        }
+    }
+
+    /// Sends a reply message asynchronously.
+    ///
+    /// # Parameters
+    /// - `message`: The message to be sent.
+    /// - `pool_id`: An optional pool ID.
+    ///
+    /// # Returns
+    /// A result indicating success or failure.
+    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) {
-        if let Some(reply_to) = &self.reply_to {
-            let type_id = AktonMessage::type_id(&message);
-            let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
-            if !reply_to.is_closed() {
-                match reply_to.send(envelope).await {
-                    Ok(_) => {
-                        trace!("Reply to {} from OutboundEnvelope", &self.sender.value)
-                    }
-                    Err(_) => {
-                        error!(
-                            "Failed to reply to {} from OutboundEnvelope with message type {:?}",
-                            &self.sender.value, &type_id
-                        )
-                    }
-                }
-            }
-        }
-        // Ok(())
+        self.reply_message_async(Box::new(message), pool_id).await;
     }
 
-    /// Sends a reply message to all recipients asynchronously.
+    /// Sends a reply message asynchronously.
     ///
     /// # Parameters
     /// - `message`: The message to be sent.
+    /// - `pool_id`: An optional pool ID.
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender.value, message = ? message))]
-    pub(crate) async fn reply_all(
+    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    pub async fn reply_async_boxed(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
-    ) -> Result<(), MessageError> {
-        if let Some(reply_to) = &self.reply_to {
-            if !reply_to.is_closed() {
-                // Event: Sending Reply to All
-                // Description: Sending a reply message to all recipients.
-                // Context: Message details.
-                trace!("Sending reply message to all recipients.");
-                let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
-                reply_to.send(envelope).await?;
-            }
-        }
-        Ok(())
+        message: Box<dyn AktonMessage + Send + Sync>,
+        pool_id: Option<String>,
+    ) {
+        self.reply_message_async(message, pool_id).await;
     }
 }

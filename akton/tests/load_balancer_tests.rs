@@ -32,6 +32,7 @@
  */
 
 mod setup;
+
 use crate::setup::*;
 use akton::prelude::*;
 
@@ -39,6 +40,8 @@ use akton::prelude::*;
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
+
+    let pool_name = "pool";
 
     // Create the main actor
     let mut main_actor = Akton::<PoolItem>::create();
@@ -60,19 +63,20 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 
     // Set up the pool with a round-robin load balance strategy
     let pool_builder =
-        PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::RoundRobin);
+        PoolBuilder::default().add_pool::<PoolItem>(pool_name, 5, LoadBalanceStrategy::RoundRobin);
 
     // Activate the main actor with the pool builder
     let main_context = main_actor.activate(Some(pool_builder)).await?;
 
     // Emit PING events to the pool 22 times
     for _ in 0..22 {
+        let pool_name = pool_name;
         // Uncomment for debugging: tracing::trace!("Emitting PING");
-        main_context.emit_pool("pool", Ping).await;
+        main_context.emit_async(Ping, Some(pool_name)).await;
     }
 
     // Uncomment for debugging: tracing::trace!("Terminating main actor");
-    main_context.terminate().await?;
+    main_context.suspend().await?;
 
     Ok(())
 }
@@ -81,7 +85,6 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 async fn test_actor_pool_random() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
-
     // Create the main actor
     let mut main_actor = Akton::<PoolItem>::create();
     main_actor
@@ -95,8 +98,11 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
                 }
             };
         })
-        .on_before_stop(|actor| {
-            tracing::info!("Processed {} PONGs", actor.state.receive_count);
+        .on_before_stop_async(|actor| {
+            let count = actor.state.receive_count;
+            Box::pin(async move{
+                tracing::info!("Processed {} PONGs", count);
+            })
         });
 
     // Set up the pool with a random load balance strategy
@@ -107,13 +113,13 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
     let main_context = main_actor.activate(Some(pool_builder)).await?;
 
     // Emit PING events to the pool 22 times
-    for _ in 0..22 {
+    for _ in 0..20 {
         tracing::trace!("Emitting PING");
-        main_context.emit_pool("pool", Ping).await;
+        main_context.emit_async(Ping, Some("pool")).await;
     }
 
     tracing::trace!("Terminating main actor");
-    main_context.terminate().await?;
+    main_context.suspend().await?;
 
     Ok(())
 }

@@ -84,23 +84,24 @@ async fn test_async_reactor() -> anyhow::Result<()> {
             actor.state.jokes_told += 1;
             let context = actor.context.clone();
             Box::pin(async move {
-                debug!("emitting async");
-                context.emit_async(Ping).await;
+                trace!("emitting async");
+                context.emit_async(Ping, None).await;
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
-            debug!("Rcvd AudiencReaction");
+            trace!("Rcvd AudiencReaction");
             match event.message {
                 AudienceReactionMsg::Chuckle => actor.state.funny += 1,
                 AudienceReactionMsg::Groan => actor.state.bombers += 1,
             };
         })
         .act_on::<Ping>(|actor, event| {
-            debug!("PING");
+            trace!("PING");
         })
         .on_stop(|actor| {
             tracing::info!(
-                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
+                actor.key.value,
                 actor.state.jokes_told,
                 actor.state.funny,
                 actor.state.bombers
@@ -110,9 +111,9 @@ async fn test_async_reactor() -> anyhow::Result<()> {
 
     let comedian = comedy_show.activate(None).await?;
 
-    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await;
-    comedian.emit_async(FunnyJoke::Pun).await;
-    let _ = comedian.terminate().await?;
+    comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
+    comedian.emit_async(FunnyJoke::Pun, None).await;
+    let _ = comedian.suspend().await?;
 
     Ok(())
 }
@@ -140,7 +141,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.emit_async(Tally::AddCount).await;
+        counter_actor.emit_async(Tally::AddCount, None).await;
     }
 
     // Create an actor for messaging
@@ -161,8 +162,8 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     let messenger_actor = messenger_actor.activate(None).await?;
 
     // Terminate both actors
-    counter_actor.terminate().await?;
-    messenger_actor.terminate().await?;
+    counter_actor.suspend().await?;
+    messenger_actor.suspend().await?;
 
     Ok(())
 }
@@ -173,8 +174,8 @@ async fn test_child_actor() -> anyhow::Result<()> {
     init_tracing();
 
     // Create the parent actor
-    let parent_actor = Akton::<PoolItem>::create();
-    let mut child_actor = Akton::<PoolItem>::create_with_id("child");
+    let parent_actor = Akton::<PoolItem>::create_with_id("test_child_actor");
+    let mut child_actor = Akton::<PoolItem>::create_with_id("test_child_actor_child");
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
@@ -204,22 +205,24 @@ async fn test_child_actor() -> anyhow::Result<()> {
         1,
         "Parent context missing it's child after activation"
     );
-    tracing::info!("Searching all children {:?}", parent_context.children());
+    tracing::info!(child=&child_id,"Searching all children for");
     let found_child = parent_context.find_child(&child_id);
     assert!(
         found_child.is_some(),
         "Couldn't find child with id {}",
         child_id
     );
+    let child = found_child.unwrap();
+    tracing::info!(child=child.key.value, "Found child");
 
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
         trace!("Emitting PING");
-        // child_context.emit_pool("pool", Ping).await;
+        child.emit_async(Ping, Some("pool")).await;
     }
 
     trace!("Terminating parent actor");
-    parent_context.terminate().await?;
+    parent_context.suspend().await?;
 
     Ok(())
 }
@@ -247,16 +250,18 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
         1,
         "Parent actor missing it's child"
     );
-
-    tracing::info!("Searching all children {:?}", parent_context.children());
+    tracing::info!(child=&child_id,"Searching all children for");
     let found_child = parent_context.find_child(&child_id);
     assert!(
         found_child.is_some(),
         "Couldn't find child with id {}",
         child_id
     );
+    let child = found_child.unwrap();
+    tracing::info!(child=child.key.value, "Found child");
 
-    parent_context.terminate().await?;
+
+    parent_context.suspend().await?;
 
     Ok(())
 }
@@ -265,7 +270,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 async fn test_actor_mutation() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut comedy_show = Akton::<Comedian>::create();
+    let mut comedy_show = Akton::<Comedian>::create_with_id("test_actor_mutation");
 
     comedy_show
         .setup
@@ -277,14 +282,12 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 if let Some(envelope) = envelope {
                     match message {
                         FunnyJoke::ChickenCrossesRoad => {
-                            let _ = envelope.reply(AudienceReactionMsg::Chuckle, None);
+                            let _ = envelope.reply_async(AudienceReactionMsg::Chuckle, None).await;
                         }
                         FunnyJoke::Pun => {
-                            let _ = envelope.reply(AudienceReactionMsg::Groan, None);
+                            let _ = envelope.reply_async(AudienceReactionMsg::Groan, None).await;
                         }
                     }
-                } else {
-                    // Box::pin(async {})
                 }
             })
         })
@@ -296,7 +299,8 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         })
         .on_stop(|actor| {
             tracing::info!(
-                "Jokes Told: {}\tFunny: {}\tBombers: {}",
+                "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
+                actor.key.value,
                 actor.state.jokes_told,
                 actor.state.funny,
                 actor.state.bombers
@@ -306,9 +310,9 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     let comedian = comedy_show.activate(None).await?;
 
-    comedian.emit_async(FunnyJoke::ChickenCrossesRoad).await;
-    comedian.emit_async(FunnyJoke::Pun).await;
-    let _ = comedian.terminate().await?;
+    comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
+    comedian.emit_async(FunnyJoke::Pun, None).await;
+    let _ = comedian.suspend().await?;
 
     Ok(())
 }
@@ -317,7 +321,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut comedy_show = Akton::<Comedian>::create();
+    let mut comedy_show = Akton::<Comedian>::create_with_id("test_child_count_in_reactor");
     comedy_show
         .setup
         .act_on::<FunnyJokeFor>(|actor, event_record| {
@@ -329,7 +333,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
                     let context = actor.context.find_child(&child_id).clone();
                     if let Some(context) = context {
                         trace!("pinging child");
-                        context.emit(Ping);
+                        context.emit(Ping, None);
                     } else {
                         tracing::error!("no child");
                     }
@@ -346,9 +350,9 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     let comedian = comedy_show.activate(None).await?;
     assert_eq!(comedian.children().len(), 1);
     comedian
-        .emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id))
+        .emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id), None)
         .await;
-    comedian.terminate().await?;
+    comedian.suspend().await?;
 
     Ok(())
 }

@@ -100,7 +100,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let on_before_stop = value.setup.on_before_stop;
         let on_before_stop_async = value.setup.on_before_stop_async;
         let halt_signal = value.halt_signal;
-        let parent_return_envelope = value.parent_return_envelope;
+        let parent_return_envelope = value.parent;
         let key = value.key;
         let task_tracker = value.task_tracker;
 
@@ -114,6 +114,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let mailbox = value.mailbox;
         let context = value.context;
         let state = value.state;
+        let pool_supervisor = value.pool_supervisor;
 
         // Trace the conversion process
         // tracing::trace!(
@@ -124,13 +125,6 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         debug_assert!(
             !mailbox.is_closed(),
             "Actor mailbox is closed in From<Actor<Idle<State>, State>>"
-        );
-        debug_assert!(
-            context
-                .supervisor_outbox
-                .as_ref()
-                .map_or(true, |outbox| !outbox.is_closed()),
-            "Supervisor outbox is closed in From<Actor<Idle<State>, State>>"
         );
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
@@ -149,12 +143,13 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
                 on_stop,
             },
             context,
-            parent_return_envelope,
+            parent: parent_return_envelope,
             halt_signal,
             key,
             state,
             task_tracker,
             mailbox,
+            pool_supervisor
         }
     }
 }

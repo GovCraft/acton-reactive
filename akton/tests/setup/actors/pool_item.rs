@@ -47,9 +47,9 @@ impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, actor_name: String, parent_context: &Context) -> Context {
         // Uncomment for debugging: tracing::trace!("Initializing actor with actor_name: {}", actor_name);
-
+        let parent_context = parent_context.clone();
         // Create a supervised actor
-        let mut actor = Akton::<PoolItem>::create_with_id(&actor_name);
+        let mut actor = Akton::<PoolItem>::create_with_id_and_context(&actor_name, Some(parent_context));;
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
@@ -62,26 +62,27 @@ impl PooledActor for PoolItem {
         actor
             .setup
             .act_on::<Ping>(|actor, _event| {
-                tracing::trace!(
-                    "Received Ping event for actor with key: {}",
-                    actor.key.value
-                );
+                tracing::debug!(actor=actor.key.value,"Received Ping event for");
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
             })
-            .on_before_stop(|actor| {
+            .on_before_stop_async(|actor| {
+                let parent = &actor.parent.clone().unwrap();
                 let final_count = actor.state.receive_count;
-
-                let parent_envelope = actor.new_parent_envelope();
-                let parent_address = parent_envelope.sender.value.clone();
+                // let parent_envelope = parent.key.value.clone();
+                let parent_address = parent.key.value.clone();
                 let actor_address = actor.key.value.clone();
 
-                tracing::info!(
+
+                let parent = parent.clone();
+                Box::pin(async move {
+                    tracing::debug!(
                     "Reporting {} complete to {} from {}.",
                     final_count,
                     parent_address,
                     actor_address,
                 );
-                let _ = parent_envelope.reply(StatusReport::Complete(final_count), None);
+                    parent.emit_async(StatusReport::Complete(final_count), None).await
+                })
             });
 
         // Activate the actor and return the context

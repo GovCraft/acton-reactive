@@ -63,27 +63,24 @@ impl PooledActor for AudienceMember {
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
-        trace!("Setting up an actor to handle the `Joke` event.");
-        actor.setup.act_on::<Joke>(|actor, event| {
-            let sender = actor.new_parent_envelope();
-            let parent_sender = actor.new_parent_envelope().sender.value;
-            let event_sender = &event.return_address.sender.value;
+        trace!(id=actor.key.value, "Setting up actor to handle the `Joke` event.");
+        actor.setup.act_on_async::<Joke>(|actor, event| {
+            let sender = actor.new_parent_envelope().unwrap();
+            // let parent_sender = actor.new_parent_envelope().sender.value;
+            // let event_sender = &event.return_address.sender.value;
             let mut rng = rand::thread_rng();
             let random_reaction = rng.gen_bool(0.5);
 
-            if random_reaction {
-                // Event: Sending Chuckle
-                // Description: Sending a chuckle reaction to the joke.
-                // Context: None
-                info!(pool_item = actor.key.value, "Send chuckle");
-                let _ = sender.reply(AudienceReactionMsg::Chuckle, Some("audience".to_string()));
-            } else {
-                // Event: Sending Groan
-                // Description: Sending a groan reaction to the joke.
-                // Context: None
-                info!(pool_item = actor.key.value, "Send groan");
-                let _ = sender.reply(AudienceReactionMsg::Groan, Some("audience".to_string()));
-            }
+            let reaction = {
+                if random_reaction {
+                    AudienceReactionMsg::Chuckle
+                } else {
+                    AudienceReactionMsg::Groan
+                }
+            };
+            Box::pin(async move {
+                sender.reply_async(reaction, None).await
+            })
         });
 
         // Event: Activating AudienceMember

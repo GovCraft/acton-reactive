@@ -52,6 +52,6 @@ async fn test_lifecycle_events() -> anyhow::Result<()> {
             tracing::info!("Actor stopping with key: {}", actor.key.value);
         });
     let context = actor.activate(None).await?;
-    context.terminate().await?;
+    context.suspend().await?;
     Ok(())
 }

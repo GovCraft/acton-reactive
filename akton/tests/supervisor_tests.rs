@@ -35,20 +35,21 @@ mod setup;
 
 use crate::setup::*;
 use akton::prelude::*;
-use tracing::{info, trace, warn};
+use tracing::{info, trace};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_audience_pool() -> anyhow::Result<()> {
     init_tracing();
 
     let mut audience = Akton::<AudienceMember>::create();
+    let pool_name = "audience";
     audience
         .setup
         .act_on::<AudienceReactionMsg>(|actor, event| {
             // Event: Audience Reaction
             // Description: Handling audience reaction message.
             // Context: Reaction type and actor state.
-            trace!(reaction = ?event.message, "Handling audience reaction message.");
+            info!(reaction = ?event.message, "Handling audience reaction message.");
             match event.message {
                 AudienceReactionMsg::Groan => actor.state.funny += 1,
                 AudienceReactionMsg::Chuckle => actor.state.bombers += 1,
@@ -59,15 +60,15 @@ async fn test_audience_pool() -> anyhow::Result<()> {
             // Event: Actor Stopping
             // Description: Logging actor state before stopping.
             // Context: Jokes told, funny count, and bombers count.
-            warn!(
+            info!(
                 "Jokes Told: {}\tFunny: {}\tBombers: {}",
                 actor.state.jokes_told, actor.state.funny, actor.state.bombers
             );
         });
 
     let pool = PoolBuilder::default().add_pool::<AudienceMember>(
-        "audience",
-        1,
+        pool_name,
+        5,
         LoadBalanceStrategy::Random,
     );
 
@@ -77,18 +78,18 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     info!("Initializing the pool with audience members.");
     let context = audience.activate(Some(pool)).await?;
 
-    for _ in 0..1 {
+    for _ in 0..5 {
         // Event: Emitting Joke to Pool
         // Description: Emitting a joke message to the audience pool.
         // Context: Pool name.
         trace!("Emitting a joke message to the audience pool.");
-        context.emit_pool("audience", Joke).await;
+        context.emit_async(Joke,Some("audience")).await;
     }
 
     // Event: Terminating Context
     // Description: Terminating the context after test completion.
     // Context: None
     info!("Terminating the context after test completion.");
-    context.terminate().await?;
+    context.suspend().await?;
     Ok(())
 }

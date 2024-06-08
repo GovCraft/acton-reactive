@@ -86,7 +86,7 @@ pub(crate) type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type LifecycleReactorAsync<State> =
-    Box<dyn for<'a, 'b> Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
+    Box<dyn Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;

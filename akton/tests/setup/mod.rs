@@ -33,14 +33,15 @@
 use std::sync::Once;
 
 use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
+use tracing_subscriber::fmt::format::FmtSpan;
 
+pub use actors::*;
 pub use messages::*;
 
 mod actors;
 mod messages;
-pub use actors::*;
+
 static INIT: Once = Once::new();
 
 pub fn init_tracing() {
@@ -55,68 +56,23 @@ pub fn init_tracing() {
 
         let filter = EnvFilter::new("")
             .add_directive("akton_core::common::context=error".parse().unwrap())
-            .add_directive(
-                "akton_core::common::context[emit_pool]=error"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "akton_core::common::context[emit_envelope]=error"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "akton_core::common::context[terminate]=error"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "akton_core::traits::supervisor_context[emit_to_pool]=error"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive("akton_core::common::awake=error".parse().unwrap())
-            .add_directive(
-                "akton_core::message::outbound_envelope[reply_async]=error"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "akton_core::message::outbound_envelope[reply]=error"
-                    .parse()
-                    .unwrap(),
-            )
             .add_directive("akton_core::common::akton=error".parse().unwrap())
             .add_directive("akton_core::pool=error".parse().unwrap())
+            .add_directive("akton_core::pool::builder=error".parse().unwrap())
             .add_directive("akton_core::common::system=error".parse().unwrap())
             .add_directive("akton_core::common::supervisor=error".parse().unwrap())
             .add_directive("akton_core::actors::actor=error".parse().unwrap())
+            .add_directive("akton_core::actors::actor[wake]=error".parse().unwrap())
             .add_directive("akton_core::common::idle=error".parse().unwrap())
-            .add_directive(
-                "actor_tests::setup::actors::audience_member=info"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "lifecycle_tests::setup::actors::audience_member=info"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "load_balancer_tests::setup::actors::audience_member=info"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "messaging_tests::setup::actors::audience_member=info"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "supervisor_tests::setup::actors::audience_member=info"
-                    .parse()
-                    .unwrap(),
-            );
+            .add_directive("akton_core::message::outbound_envelope=error".parse().unwrap())
+            .add_directive("akton_core::traits::actor_context=error".parse().unwrap())
+            .add_directive("supervisor_tests=info".parse().unwrap())
+            .add_directive("lifecycle_tests=info".parse().unwrap())
+            .add_directive("actor_tests=info".parse().unwrap())
+            .add_directive("load_balancer_tests=info".parse().unwrap())
+            .add_directive("akton::tests::setup::actors::pool_item=info".parse().unwrap())
+            .add_directive("messaging_tests=info".parse().unwrap())
+            ;
         // .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()

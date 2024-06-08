@@ -35,10 +35,9 @@ pub use actor_context::ActorContext;
 pub use akton_message::AktonMessage;
 pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 pub use pooled_actor::PooledActor;
-pub(crate) use supervisor_context::SupervisorContext;
 
 mod actor_context;
 mod akton_message;
 mod load_balancer_strategy;
 mod pooled_actor;
-mod supervisor_context;
+
