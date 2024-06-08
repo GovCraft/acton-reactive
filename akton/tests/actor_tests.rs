@@ -132,7 +132,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         })
         .on_stop(|actor| {
             assert_eq!(4, actor.state.count); // Ensure count is 4 when stopping
-            tracing::trace!("on stopping");
+            trace!("on stopping");
         });
 
     // Activate the counter actor
@@ -148,13 +148,13 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     messenger_actor
         .setup
         .on_before_wake(|_actor| {
-            tracing::trace!("*");
+            trace!("*");
         })
         .on_wake(|_actor| {
-            tracing::trace!("*");
+            trace!("*");
         })
         .on_stop(|_actor| {
-            tracing::trace!("*");
+            trace!("*");
         });
 
     // Activate the messenger actor
@@ -214,11 +214,11 @@ async fn test_child_actor() -> anyhow::Result<()> {
 
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
-        tracing::trace!("Emitting PING");
+        trace!("Emitting PING");
         // child_context.emit_pool("pool", Ping).await;
     }
 
-    tracing::trace!("Terminating parent actor");
+    trace!("Terminating parent actor");
     parent_context.terminate().await?;
 
     Ok(())
@@ -328,7 +328,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
                     let context = actor.context.find_child(&child_id).clone();
                     if let Some(context) = context {
-                        tracing::trace!("pinging child");
+                        trace!("pinging child");
                         context.emit(Ping);
                     } else {
                         tracing::error!("no child");

@@ -134,7 +134,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         );
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
-        if context.children.len() > 0 {
+        if context.children.is_empty() {
             tracing::trace!(
                 "child count before Actor creation {}",
                 context.children.len()

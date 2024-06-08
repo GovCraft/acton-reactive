@@ -31,12 +31,9 @@
  *
  */
 
-use std::any::Any;
-
 use akton_arn::Arn;
 use tokio::runtime::Runtime;
-use tokio::sync::mpsc::error::SendError;
-use tokio::task::block_in_place;
+
 use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
@@ -45,7 +42,7 @@ use crate::traits::AktonMessage;
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
-    /// The sender's ARN (Amazon Resource Name).
+    /// The sender's ARN (Akton Resource Name).
     pub sender: Arn,
     /// The optional channel for sending replies.
     pub(crate) reply_to: Option<OutboundChannel>,
@@ -98,6 +95,12 @@ impl OutboundEnvelope {
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
+
+        // Event: Replying to Message
+        // Description: Replying to a message with an optional pool ID.
+        // Context: Message details and pool ID.
+        trace!(msg = ?message, pool_id = ?pool_id, "Replying to message.");
+
         tokio::task::spawn_blocking(move || {
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -122,7 +125,7 @@ impl OutboundEnvelope {
         pool_id: Option<String>,
     ) {
         if let Some(reply_to) = &self.reply_to {
-            let type_id = AktonMessage::type_id(&message).clone();
+            let type_id = AktonMessage::type_id(&message);
             let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), pool_id);
             if !reply_to.is_closed() {
                 match reply_to.send(envelope).await {
@@ -154,11 +157,13 @@ impl OutboundEnvelope {
         message: impl AktonMessage + Sync + Send + 'static,
     ) -> Result<(), MessageError> {
         if let Some(reply_to) = &self.reply_to {
-            // debug_assert!(!reply_to.is_closed(), "reply_to was closed in reply_all");
             if !reply_to.is_closed() {
+                // Event: Sending Reply to All
+                // Description: Sending a reply message to all recipients.
+                // Context: Message details.
+                trace!("Sending reply message to all recipients.");
                 let envelope = Envelope::new(Box::new(message), self.reply_to.clone(), None);
                 reply_to.send(envelope).await?;
-                tracing::trace!("reply_all completed");
             }
         }
         Ok(())

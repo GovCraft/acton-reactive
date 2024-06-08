@@ -34,8 +34,8 @@
 pub use builder::PoolBuilder;
 pub(crate) use config::PoolConfig;
 pub(crate) use item::PoolItem;
-pub(crate) use load_balance_strategy::{RandomStrategy, RoundRobinStrategy};
 pub use load_balance_strategy::LoadBalanceStrategy;
+pub(crate) use load_balance_strategy::{RandomStrategy, RoundRobinStrategy};
 
 mod builder;
 mod config;
