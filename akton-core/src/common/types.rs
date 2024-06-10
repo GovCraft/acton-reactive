@@ -41,6 +41,7 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
 use crate::actors::{Actor, Awake};
+use crate::common::Context;
 use crate::message::Envelope;
 use crate::traits::AktonMessage;
 
@@ -90,3 +91,5 @@ pub(crate) type LifecycleReactorAsync<State> =
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub type BrokerContext = Context;
+pub type ParentContext = Context;
