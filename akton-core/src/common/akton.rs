@@ -34,10 +34,9 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use tracing::{info, instrument, trace};
+use tracing::{instrument};
 
 use crate::actors::{Actor, ActorConfig, Idle};
-use crate::common::Context;
 
 /// Represents an actor with a root state.
 ///
