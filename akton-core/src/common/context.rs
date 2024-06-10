@@ -57,6 +57,7 @@ pub struct Context {
     pub(crate) task_tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<Context>>,
+    pub broker: Option<Box<Context>>,
     pub(crate) children: DashMap<String, Context>,
 }
 
