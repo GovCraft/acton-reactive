@@ -34,9 +34,9 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
-use tracing::{info, instrument};
+use tracing::{info, instrument, trace};
 
-use crate::actors::{Actor, Idle};
+use crate::actors::{Actor, ActorConfig, Idle};
 use crate::common::Context;
 
 /// Represents an actor with a root state.
@@ -56,66 +56,12 @@ impl<State: Default + Send + Debug> Akton<State> {
     /// A new `Actor` instance in the idle state with the root state.
     #[instrument]
     pub fn create() -> Actor<Idle<State>, State> {
-        // Event: Creating Root Actor
-        // Description: Creating a new root actor in the idle state.
-        // Context: None
-        info!("Creating a new root actor in the idle state.");
-        Actor::new("root", State::default(), None)
+        Actor::new(None, State::default())
     }
 
-    /// Creates a new actor with the specified identifier.
-    ///
-    /// # Parameters
-    /// - `id`: The identifier for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state with the specified identifier.
     #[instrument]
-    pub fn create_with_id(id: &str) -> Actor<Idle<State>, State> {
-        // Event: Creating Actor with ID
-        // Description: Creating a new actor with the specified identifier.
-        // Context: Actor ID.
-        info!(
-            actor_id = id,
-            "Creating a new actor with the specified identifier."
-        );
-        Actor::new(id, State::default(), None)
-    }
-
-    /// Creates a new root actor in the idle state with an optional parent context.
-    ///
-    /// # Parameters
-    /// - `parent_context`: An optional parent context for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state with the root state.
-    #[instrument]
-    pub fn create_with_context(parent_context: Option<Context>) -> Actor<Idle<State>, State> {
-        // Event: Creating Root Actor with Context
-        // Description: Creating a new root actor in the idle state with an optional parent context.
-        // Context: Parent context details.
-        info!(parent_context = ?parent_context, "Creating a new root actor in the idle state with an optional parent context.");
-        Actor::new("root", State::default(), parent_context)
-    }
-
-    /// Creates a new actor with the specified identifier and an optional parent context.
-    ///
-    /// # Parameters
-    /// - `id`: The identifier for the new actor.
-    /// - `parent_context`: An optional parent context for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state with the specified identifier and state.
-    #[instrument]
-    pub fn create_with_id_and_context(
-        id: &str,
-        parent_context: Option<Context>,
-    ) -> Actor<Idle<State>, State> {
-        // Event: Creating Actor with ID and Context
-        // Description: Creating a new actor with the specified identifier and an optional parent context.
-        // Context: Actor ID and parent context details.
-        info!(actor_id = id, parent_context = ?parent_context, "Creating a new actor with the specified identifier and an optional parent context.");
-        Actor::new(id, State::default(), parent_context)
+    pub fn create_with_config(config: ActorConfig) -> Actor<Idle<State>, State> {
+        Actor::new(Some(config), State::default())
     }
 }
 
