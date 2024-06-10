@@ -57,6 +57,7 @@ impl PooledActor for AudienceMember {
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, name: String, parent_context: &Context) -> Context {
         let parent_context = parent_context.clone();
+
         let mut actor =
             Akton::<AudienceMember>::create_with_id_and_context(&name, Some(parent_context));
 
