@@ -69,6 +69,9 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     /// The parent actor's return envelope.
     pub parent: Option<Context>,
 
+    /// The actor's optional context ref to a broker actor.
+    pub broker: Option<Context>,
+
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
 
