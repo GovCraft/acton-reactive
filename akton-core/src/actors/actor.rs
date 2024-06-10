@@ -52,7 +52,7 @@ use crate::message::{Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::traits::{ActorContext};
 
-use super::{Awake, Idle};
+use super::{ActorConfig, Awake, Idle};
 
 /// Represents an actor in the Akton framework.
 ///
@@ -269,8 +269,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// A new `Actor` instance.
-    #[instrument(skip(state, parent_context))]
-    pub(crate) fn new(id: &str, state: State, parent_context: Option<Context>) -> Self {
+    #[instrument(skip(state))]
+    pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
 
@@ -278,7 +278,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (parent, key, task_tracker, context) =
             if let Some(parent_context) = parent_context {
                 let mut key = parent_context.key.clone();
-                key.append_part(id);
+                key.append_part(config);
                 trace!("NEW ACTOR: {}", &key.value);
 
                 let context = Context {
@@ -301,7 +301,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                     .add::<Domain>("akton")
                     .add::<Category>("system")
                     .add::<Company>("framework")
-                    .add::<Part>(id)
+                    .add::<Part>(config)
                     .build();
                 trace!("NEW ACTOR: {}", &key.value);
 
