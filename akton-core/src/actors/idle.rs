@@ -101,7 +101,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         // parent: Arc<Mutex<Actor<Idle<State>, State>>>,
     ) -> Actor<Idle<State>, State> {
         let parent_context = parent_context.clone();
-        let actor = Actor::new(id, State::default(), Some(parent_context));
+        let actor = Actor::new(id, State::default());
 
         // Set the parent reference using Weak
         // actor.setup.parent = Some(parent);
