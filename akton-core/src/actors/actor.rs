@@ -273,69 +273,34 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-let mut context;
-        let mut broker;
+        let mut context = Default::default();
+        context.outbox = Some(outbox.clone());
+
+        let mut key = Default::default();
+
         if let Some(config) = config {
             if let Some(parent) = config.parent {
-                let mut key = parent.key.clone();
+                key = parent.key.clone();
                 key.append_part(&*config.name);
-                trace!("NEW ACTOR: {}", &key.value);
-
-                context = Context {
-                    key: key.clone(),
-                    outbox: Some(outbox.clone()),
-                    parent: Some(Box::new(parent.clone())),
-                    task_tracker: TaskTracker::new(),
-                    ..Default::default()
-                };
-
-            }
-            if config.broker.is_some(){
-                broker = config.broker;
-            }
-
-        }
-        // Initialize context and task tracker based on whether a parent context is provided
-        let (parent, key, task_tracker, context) =
-            if let Some(parent_context) = parent_context {
-
-                (
-                    Some(parent_context.clone()),
-                    key,
-                    parent_context.task_tracker.clone(),
-                    context,
-                )
+                context.parent = Some(Box::new(parent.clone()));
             } else {
-                // If no parent context is provided, initialize a new context
-                let key = ArnBuilder::new()
+                key = ArnBuilder::new()
                     .add::<Domain>("akton")
                     .add::<Category>("system")
                     .add::<Company>("framework")
-                    .add::<Part>(config)
+                    .add::<Part>(&*config.name)
                     .build();
-                trace!("NEW ACTOR: {}", &key.value);
-
-                let context = Context {
-                    key,
-                    outbox: Some(outbox.clone()),
-                    parent: None,
-                    task_tracker: TaskTracker::new(),
-                    ..Default::default()
-                };
-                let key = context.key.clone();
-
-                (
-                    None,
-                    key,
-                    TaskTracker::new(),
-                    context,
-                )
-            };
-
+            }
+            if config.broker.is_some() {
+                context.broker = config.broker;
+            }
+        }
+        context.key = key.clone();
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
+        trace!("NEW ACTOR: {}", &key.value);
 
         // Create and return the new actor instance
         Actor {
@@ -345,6 +310,7 @@ let mut context;
             halt_signal: Default::default(),
             key,
             state,
+            broker,
             task_tracker,
             mailbox,
             pool_supervisor: Default::default(),
