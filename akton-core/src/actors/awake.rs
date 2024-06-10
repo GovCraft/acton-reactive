@@ -115,6 +115,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
         let context = value.context;
         let state = value.state;
         let pool_supervisor = value.pool_supervisor;
+        let broker = value.broker;
 
         // Trace the conversion process
         // tracing::trace!(
@@ -149,7 +150,8 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
             state,
             task_tracker,
             mailbox,
-            pool_supervisor
+            pool_supervisor,
+            broker
         }
     }
 }
