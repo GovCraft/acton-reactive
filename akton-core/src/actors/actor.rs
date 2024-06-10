@@ -273,14 +273,14 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-        let mut context = Default::default();
-        context.outbox = Some(outbox.clone());
+        let mut context : Actor<Awake<State>, State>= Default::default();
+        context.outbox = outbox.clone();
 
         let mut key = Default::default();
         let mut parent = Default::default();
         let mut broker = Default::default();
         let task_tracker = Default::default();
-        
+
         if let Some(config) = config {
             parent = config.parent.clone();
             if let Some(parent) = config.parent {
