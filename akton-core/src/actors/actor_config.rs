@@ -34,8 +34,8 @@
 use crate::common::Context;
 
 #[derive(Default, Debug)]
-pub struct ActorConfig {
-    pub name: String,
+pub struct ActorConfig<'a> {
+    pub name: &'a str,
     pub broker: Option<Context>,
     pub parent: Option<Context>,
 }
