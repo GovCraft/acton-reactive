@@ -47,9 +47,14 @@ impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, actor_name: String, parent_context: &Context) -> Context {
         // Uncomment for debugging: tracing::trace!("Initializing actor with actor_name: {}", actor_name);
-        let parent_context = parent_context.clone();
-        // Create a supervised actor
-        let mut actor = Akton::<PoolItem>::create_with_id_and_context(&actor_name, Some(parent_context));;
+        let parent = parent_context.clone();
+
+        let actor_config = ActorConfig {
+            name,
+            broker: None,
+            parent: None,
+        };
+        let mut actor = Akton::<PoolItem>::create_with_config(actor_config);;
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
