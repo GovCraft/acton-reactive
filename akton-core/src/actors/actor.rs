@@ -295,9 +295,9 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                     .add::<Part>(&*config.name)
                     .build();
             }
-            if config.broker.is_some() {
-                broker = config.broker.clone();
-                context.broker = Box::new(config.broker);
+            if let Some(config_broker) = config.broker {
+                broker = config_broker.clone();
+                context.broker = Box::new(config_broker);
             }
         }
         context.key = key.clone();
