@@ -76,7 +76,12 @@ mod setup;
 async fn test_async_reactor() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut comedy_show = Akton::<Comedian>::create_with_id("improve_show");
+    let actor_config = ActorConfig {
+        name: "improve_show",
+        broker: None,
+        parent: None,
+    };
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
 
     comedy_show
         .setup
@@ -173,9 +178,22 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
 
+
+    let actor_config = ActorConfig {
+        name: "test_child_actor",
+        broker: None,
+        parent: None,
+    };
     // Create the parent actor
-    let parent_actor = Akton::<PoolItem>::create_with_id("test_child_actor");
-    let mut child_actor = Akton::<PoolItem>::create_with_id("test_child_actor_child");
+    let parent_actor = Akton::<PoolItem>::create_with_config(actor_config);
+
+    let actor_config = ActorConfig {
+        name:"test_child_actor_child",
+        broker: None,
+        parent: None,
+    };
+
+    let mut child_actor = Akton::<PoolItem>::create_with_config(actor_config);
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
@@ -240,7 +258,12 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     // Activate the parent actor
     let parent_context = parent_actor.activate(None).await?;
 
-    let mut child_actor = Akton::<PoolItem>::create_with_id("child");
+    let actor_config = ActorConfig {
+        name: "child",
+        broker: None,
+        parent: None,
+    };
+    let mut child_actor = Akton::<PoolItem>::create_with_config(actor_config);
     // Set up the child actor with handlers
     let child_id = child_actor.key.value.clone();
     // Activate the child actor
@@ -270,7 +293,12 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 async fn test_actor_mutation() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut comedy_show = Akton::<Comedian>::create_with_id("test_actor_mutation");
+    let actor_config = ActorConfig {
+        name: "test_actor_mutation",
+        broker: None,
+        parent: None,
+    };
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
 
     comedy_show
         .setup
@@ -320,8 +348,13 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     init_tracing();
+    let actor_config = ActorConfig {
+        name: "test_child_count_in_reactor",
+        broker: None,
+        parent: None,
+    };
 
-    let mut comedy_show = Akton::<Comedian>::create_with_id("test_child_count_in_reactor");
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
     comedy_show
         .setup
         .act_on::<FunnyJokeFor>(|actor, event_record| {
@@ -341,7 +374,13 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
                 FunnyJokeFor::Pun(_) => {}
             }
         });
-    let mut child = Akton::<Counter>::create_with_id("child");
+    let actor_config = ActorConfig {
+        name: "child",
+        broker: None,
+        parent: None,
+    };
+
+    let mut child = Akton::<Counter>::create_with_config(actor_config);
     child.setup.act_on::<Ping>(|actor, event| {
         tracing::info!("Received Ping from parent actor");
     });

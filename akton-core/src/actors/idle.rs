@@ -40,7 +40,7 @@ use dashmap::DashMap;
 use futures::future;
 use tracing::{debug, error, event, instrument, Level};
 
-use crate::actors::{Actor, Awake};
+use crate::actors::{Actor, ActorConfig, Awake};
 use crate::common::*;
 use crate::common::LifecycleReactor;
 use crate::message::{Envelope, EventRecord, OutboundEnvelope};
@@ -93,24 +93,13 @@ impl<State: Default + Send + Debug> Idle<State> {
     ///
     /// # Returns
     /// A new `Actor` instance in the idle state.
-    #[instrument(fields(child_key = id))]
+    #[instrument(skip(self))]
     pub fn create_child(
         &self,
-        id: &str,
-        parent_context: &Context,
-        // parent: Arc<Mutex<Actor<Idle<State>, State>>>,
+        config: ActorConfig,
     ) -> Actor<Idle<State>, State> {
-        let parent_context = parent_context.clone();
-        let actor = Actor::new(id, State::default(), Some(parent_context));
+        let actor = Actor::new(Some(config), State::default());
 
-        // Set the parent reference using Weak
-        // actor.setup.parent = Some(parent);
-
-        // Check if the mailbox is closed
-        debug_assert!(
-            !actor.mailbox.is_closed(),
-            "Actor mailbox is closed in new_actor"
-        );
         event!(Level::TRACE, new_actor_key = &actor.key.value);
         actor
     }

@@ -56,9 +56,15 @@ impl PooledActor for AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, name: String, parent_context: &Context) -> Context {
-        let parent_context = parent_context.clone();
+        let parent = parent_context.clone();
+
+        let actor_config = ActorConfig {
+            name: "audience_member_intialize",
+            broker: None,
+            parent: None,
+        };
         let mut actor =
-            Akton::<AudienceMember>::create_with_id_and_context(&name, Some(parent_context));
+            Akton::<AudienceMember>::create_with_config(actor_config);
 
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.

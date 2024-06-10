@@ -47,12 +47,12 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level, trace, warn};
 
-use crate::common::{Context, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::traits::{ActorContext};
 
-use super::{Awake, Idle};
+use super::{ActorConfig, Awake, Idle};
 
 /// Represents an actor in the Akton framework.
 ///
@@ -67,7 +67,10 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub context: Context,
 
     /// The parent actor's return envelope.
-    pub parent: Option<Context>,
+    pub parent: Option<ParentContext>,
+
+    /// The actor's optional context ref to a broker actor.
+    pub broker: Option<BrokerContext>,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
@@ -266,63 +269,43 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// A new `Actor` instance.
-    #[instrument(skip(state, parent_context))]
-    pub(crate) fn new(id: &str, state: State, parent_context: Option<Context>) -> Self {
+    #[instrument(skip(state))]
+    pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
+        let mut context : Context = Default::default();
+        context.outbox = Some(outbox.clone());
 
-        // Initialize context and task tracker based on whether a parent context is provided
-        let (parent, key, task_tracker, context) =
-            if let Some(parent_context) = parent_context {
-                let mut key = parent_context.key.clone();
-                key.append_part(id);
-                trace!("NEW ACTOR: {}", &key.value);
+        let mut key = Default::default();
+        let mut parent = Default::default();
+        let mut broker = Default::default();
+        let task_tracker = Default::default();
 
-                let context = Context {
-                    key: key.clone(),
-                    outbox: Some(outbox.clone()),
-                    parent: Some(Box::new(parent_context.clone())),
-                    task_tracker: TaskTracker::new(),
-                    ..Default::default()
-                };
-
-                (
-                    Some(parent_context.clone()),
-                    key,
-                    parent_context.task_tracker.clone(),
-                    context,
-                )
+        if let Some(config) = config {
+            parent = config.parent.clone();
+            if let Some(parent) = config.parent {
+                key = parent.key.clone();
+                key.append_part(&*config.name);
+                context.parent = Some(Box::new(parent.clone()));
             } else {
-                // If no parent context is provided, initialize a new context
-                let key = ArnBuilder::new()
+                key = ArnBuilder::new()
                     .add::<Domain>("akton")
                     .add::<Category>("system")
                     .add::<Company>("framework")
-                    .add::<Part>(id)
+                    .add::<Part>(&*config.name)
                     .build();
-                trace!("NEW ACTOR: {}", &key.value);
-
-                let context = Context {
-                    key,
-                    outbox: Some(outbox.clone()),
-                    parent: None,
-                    task_tracker: TaskTracker::new(),
-                    ..Default::default()
-                };
-                let key = context.key.clone();
-
-                (
-                    None,
-                    key,
-                    TaskTracker::new(),
-                    context,
-                )
-            };
-
+            }
+            if let Some(config_broker) = config.broker {
+                broker = Some(config_broker.clone());
+                context.broker = Some(Box::new(config_broker));
+            }
+        }
+        context.key = key.clone();
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
+        trace!("NEW ACTOR: {}", &key.value);
 
         // Create and return the new actor instance
         Actor {
@@ -332,6 +315,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             halt_signal: Default::default(),
             key,
             state,
+            broker,
             task_tracker,
             mailbox,
             pool_supervisor: Default::default(),
