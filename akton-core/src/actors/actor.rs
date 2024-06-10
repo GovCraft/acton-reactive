@@ -275,8 +275,10 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let (outbox, mailbox) = channel(255);
         let mut context = Default::default();
         context.outbox = Some(outbox.clone());
+
         let mut key = Default::default();
         let mut parent = Default::default();
+        let mut broker = Default::default();
         if let Some(config) = config {
             parent = config.parent.clone();
             if let Some(parent) = config.parent {
@@ -292,6 +294,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                     .build();
             }
             if config.broker.is_some() {
+                broker = config.broker.clone();
                 context.broker = config.broker;
             }
         }
