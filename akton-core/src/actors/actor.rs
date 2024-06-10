@@ -277,13 +277,13 @@ let mut context;
         if let Some(config) = config {
             if let Some(parent) = config.parent {
                 let mut key = parent.key.clone();
-                key.append_part(config.);
+                key.append_part(&*config.name);
                 trace!("NEW ACTOR: {}", &key.value);
 
                 context = Context {
                     key: key.clone(),
                     outbox: Some(outbox.clone()),
-                    parent: Some(Box::new(parent_context.clone())),
+                    parent: Some(Box::new(parent.clone())),
                     task_tracker: TaskTracker::new(),
                     ..Default::default()
                 };
