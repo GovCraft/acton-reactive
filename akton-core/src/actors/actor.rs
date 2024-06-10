@@ -47,7 +47,7 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level, trace, warn};
 
-use crate::common::{Context, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::traits::{ActorContext};
@@ -67,10 +67,10 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub context: Context,
 
     /// The parent actor's return envelope.
-    pub parent: Option<Context>,
+    pub parent: Option<ParentContext>,
 
     /// The actor's optional context ref to a broker actor.
-    pub broker: Option<Context>,
+    pub broker: Option<BrokerContext>,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
