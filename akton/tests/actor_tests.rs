@@ -173,9 +173,22 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
 
+
+    let actor_config = ActorConfig {
+        name: "test_child_actor".to_string(),
+        broker: None,
+        parent: None,
+    };
     // Create the parent actor
-    let parent_actor = Akton::<PoolItem>::create_with_id("test_child_actor");
-    let mut child_actor = Akton::<PoolItem>::create_with_id("test_child_actor_child");
+    let parent_actor = Akton::<PoolItem>::create_with_config(actor_config);
+
+    let actor_config = ActorConfig {
+        name:"test_child_actor_child".to_string(),
+        broker: None,
+        parent: None,
+    };
+
+    let mut child_actor = Akton::<PoolItem>::create_with_config(actor_config);
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
