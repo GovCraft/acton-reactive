@@ -59,7 +59,7 @@ impl PooledActor for AudienceMember {
         let parent = parent_context.clone();
 
         let actor_config = ActorConfig {
-            name,
+            name: "audience_member_intialize",
             broker: None,
             parent: None,
         };
