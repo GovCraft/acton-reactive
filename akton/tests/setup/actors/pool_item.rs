@@ -50,7 +50,7 @@ impl PooledActor for PoolItem {
         let parent = parent_context.clone();
 
         let actor_config = ActorConfig {
-            name,
+            name : "pool_item_initialize",
             broker: None,
             parent: None,
         };
