@@ -279,6 +279,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let mut key = Default::default();
         let mut parent = Default::default();
         let mut broker = Default::default();
+        let task_tracker = Default::default();
+        
         if let Some(config) = config {
             parent = config.parent.clone();
             if let Some(parent) = config.parent {
