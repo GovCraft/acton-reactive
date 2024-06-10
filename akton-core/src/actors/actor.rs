@@ -274,6 +274,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
 let mut context;
+        let mut broker;
         if let Some(config) = config {
             if let Some(parent) = config.parent {
                 let mut key = parent.key.clone();
@@ -289,6 +290,10 @@ let mut context;
                 };
 
             }
+            if config.broker.is_some(){
+                broker = config.broker;
+            }
+
         }
         // Initialize context and task tracker based on whether a parent context is provided
         let (parent, key, task_tracker, context) =
