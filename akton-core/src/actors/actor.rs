@@ -273,21 +273,26 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-
-        // Initialize context and task tracker based on whether a parent context is provided
-        let (parent, key, task_tracker, context) =
-            if let Some(parent_context) = parent_context {
-                let mut key = parent_context.key.clone();
-                key.append_part(config);
+let mut context;
+        if let Some(config) = config {
+            if let Some(parent) = config.parent {
+                let mut key = parent.key.clone();
+                key.append_part(config.);
                 trace!("NEW ACTOR: {}", &key.value);
 
-                let context = Context {
+                context = Context {
                     key: key.clone(),
                     outbox: Some(outbox.clone()),
                     parent: Some(Box::new(parent_context.clone())),
                     task_tracker: TaskTracker::new(),
                     ..Default::default()
                 };
+
+            }
+        }
+        // Initialize context and task tracker based on whether a parent context is provided
+        let (parent, key, task_tracker, context) =
+            if let Some(parent_context) = parent_context {
 
                 (
                     Some(parent_context.clone()),
