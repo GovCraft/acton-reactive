@@ -31,11 +31,11 @@
  *
  */
 
-use crate::common::Context;
+use crate::common::{BrokerContext, ParentContext};
 
 #[derive(Default, Debug)]
 pub struct ActorConfig<'a> {
     pub name: &'a str,
-    pub broker: Option<Context>,
-    pub parent: Option<Context>,
+    pub broker: Option<BrokerContext>,
+    pub parent: Option<ParentContext>,
 }
