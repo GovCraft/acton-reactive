@@ -33,7 +33,7 @@
 
 use crate::common::Context;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ActorConfig {
     pub name: Option<String>,
     pub broker: Option<Context>,
