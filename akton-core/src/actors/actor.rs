@@ -282,22 +282,22 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let task_tracker = Default::default();
 
         if let Some(config) = config {
-            parent = config.parent.clone();
-            if let Some(parent) = config.parent {
+            parent = config.parent().clone();
+            if let Some(parent) = config.parent() {
                 key = parent.key.clone();
-                key.append_part(&*config.name);
+                key.append_part(&*config.name());
                 context.parent = Some(Box::new(parent.clone()));
             } else {
                 key = ArnBuilder::new()
                     .add::<Domain>("akton")
                     .add::<Category>("system")
                     .add::<Company>("framework")
-                    .add::<Part>(&*config.name)
+                    .add::<Part>(&*config.name())
                     .build();
             }
-            if let Some(config_broker) = config.broker {
+            if let Some(config_broker) = config.broker() {
                 broker = Some(config_broker.clone());
-                context.broker = Some(Box::new(config_broker));
+                context.broker = Some(Box::new(config_broker.clone()));
             }
         }
         context.key = key.clone();

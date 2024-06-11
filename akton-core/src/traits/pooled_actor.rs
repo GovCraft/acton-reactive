@@ -34,6 +34,7 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
+use crate::actors::ActorConfig;
 
 use crate::common::Context;
 
@@ -48,5 +49,5 @@ pub trait PooledActor: Send + Debug {
     ///
     /// # Returns
     /// A new `Context` for the initialized actor.
-    async fn initialize(&self, name: String, parent: &Context) -> Context;
+    async fn initialize(&self, config: ActorConfig) -> Context;
 }

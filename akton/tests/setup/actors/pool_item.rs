@@ -45,16 +45,9 @@ pub struct PoolItem {
 #[async_trait]
 impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
-    async fn initialize(&self, actor_name: String, parent_context: &Context) -> Context {
-        // Uncomment for debugging: tracing::trace!("Initializing actor with actor_name: {}", actor_name);
-        let parent = parent_context.clone();
+    async fn initialize(&self, config: ActorConfig) -> Context {
 
-        let actor_config = ActorConfig {
-            name : "pool_item_initialize",
-            broker: None,
-            parent: None,
-        };
-        let mut actor = Akton::<PoolItem>::create_with_config(actor_config);;
+        let mut actor = Akton::<PoolItem>::create_with_config(config.clone());;
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(

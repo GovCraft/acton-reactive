@@ -36,6 +36,7 @@ use std::fmt::Debug;
 
 use dashmap::DashMap;
 use tracing::{info, instrument, trace};
+use crate::actors::ActorConfig;
 
 use crate::common::{Context, LoadBalanceStrategy};
 use crate::pool::{PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy};
@@ -91,9 +92,14 @@ impl PoolBuilder {
 
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
+                let actor_config = ActorConfig::new (
+                    item_name.clone(),
+                    None,
+                    None,
+                                                         );
                 let context = pool_def
                     .actor_type
-                    .initialize(item_name.clone(), parent)
+                    .initialize(actor_config)
                     .await;
 
                 // Event: Actor Initialized

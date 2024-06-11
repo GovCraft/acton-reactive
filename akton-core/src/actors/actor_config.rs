@@ -31,11 +31,31 @@
  *
  */
 
+use std::fmt::Display;
 use crate::common::{BrokerContext, ParentContext};
 
-#[derive(Default, Debug)]
-pub struct ActorConfig<'a> {
-    pub name: &'a str,
-    pub broker: Option<BrokerContext>,
-    pub parent: Option<ParentContext>,
+#[derive(Default, Debug, Clone)]
+pub struct ActorConfig {
+    name: String,
+    broker: Option<BrokerContext>,
+    parent: Option<ParentContext>,
+}
+
+impl ActorConfig {
+    pub fn new(name: impl AsRef<str> + Display, parent: Option<ParentContext>, broker: Option<BrokerContext>) -> ActorConfig {
+        ActorConfig {
+            name: name.to_string(),
+            broker,
+            parent,
+        }
+    }
+    pub(crate) fn name(&self) -> &String {
+        &self.name
+    }
+    pub(crate) fn broker(&self) -> &Option<BrokerContext> {
+        &self.broker
+    }
+    pub(crate) fn parent(&self) -> &Option<ParentContext> {
+        &self.parent
+    }
 }
