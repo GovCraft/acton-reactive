@@ -31,16 +31,26 @@
  *
  */
 
-pub use actor_context::ActorContext;
-pub use akton_message::AktonMessage;
-pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
-pub use pooled_actor::PooledActor;
-pub (crate) use subscriber::Subscriber;
+use std::any::{Any, TypeId};
+use std::fmt::Debug;
+use crate::common::Context;
+use crate::traits::AktonMessage;
 
-mod actor_context;
-mod akton_message;
-mod load_balancer_strategy;
-mod pooled_actor;
-mod subscribable;
-mod subscriber;
 
+#[derive(Debug)]
+pub(crate) struct UnsubscribeBroker {
+    pub(crate) subscriber_id: String,
+    pub(crate) message_type_id: TypeId,
+    pub(crate) subscriber_context: Context,
+}
+impl AktonMessage for UnsubscribeBroker {
+    /// Returns a reference to the signal as `Any`.
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    /// Returns a mutable reference to the signal as `Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}

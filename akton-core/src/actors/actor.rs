@@ -297,7 +297,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             }
             if let Some(config_broker) = config.broker() {
                 broker = Some(config_broker.clone());
-                context.broker = Some(Box::new(config_broker.clone()));
+                context.broker = Box::new(Some(config_broker.clone()));
             }
         }
         context.key = key.clone();

@@ -31,16 +31,8 @@
  *
  */
 
-pub use actor_context::ActorContext;
-pub use akton_message::AktonMessage;
-pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
-pub use pooled_actor::PooledActor;
-pub (crate) use subscriber::Subscriber;
+use crate::common::BrokerContext;
 
-mod actor_context;
-mod akton_message;
-mod load_balancer_strategy;
-mod pooled_actor;
-mod subscribable;
-mod subscriber;
-
+pub(crate) trait Subscriber {
+    fn broker(&self) -> Option<BrokerContext>;
+}

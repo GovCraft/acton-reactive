@@ -44,7 +44,7 @@ use tracing::{info, instrument, trace, warn};
 use crate::actors::{Actor, Idle};
 use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
 use crate::message::signal::SupervisorSignal;
-use crate::traits::{ActorContext};
+use crate::traits::{ActorContext, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -57,10 +57,15 @@ pub struct Context {
     pub(crate) task_tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentContext>>,
-    pub broker: Option<Box<BrokerContext>>,
+    pub broker: Box<Option<BrokerContext>>,
     pub(crate) children: DashMap<String, Context>,
 }
 
+impl Subscriber for Context {
+    fn broker(&self) -> Option<BrokerContext> {
+        *self.broker.clone()
+    }
+}
 impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
