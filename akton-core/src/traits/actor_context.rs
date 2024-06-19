@@ -50,16 +50,17 @@ pub trait ActorContext {
     fn find_child(&self, arn: &str) -> Option<Context>;
     /// Returns the actor's task tracker.
     fn task_tracker(&self) -> TaskTracker;
-
+    fn key(&self) -> String;
+    fn clone_self(&self) -> Context;
     /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit_async(
         &self,
         message: impl AktonMessage + Sync + Send,
         pool_name: Option<&str>,
-    ) -> impl Future<Output = ()> + Send + Sync + '_
-        where
-            Self: Sync,
+    ) -> impl Future<Output=()> + Send + Sync + '_
+    where
+        Self: Sync,
     {
         let pool_name = {
             if let Some(pool_id) = pool_name {
@@ -69,7 +70,6 @@ pub trait ActorContext {
             }
         };
         async move {
-
             let envelope = self.return_address();
             event!(Level::TRACE, return_address = envelope.sender.value);
             envelope.reply_async(message, pool_name).await;
@@ -82,9 +82,9 @@ pub trait ActorContext {
         &self,
         message: Box<dyn AktonMessage + Send + Sync>,
         pool_name: Option<&str>,
-    ) -> impl Future<Output = ()> + Send + Sync + '_
-        where
-            Self: Sync,
+    ) -> impl Future<Output=()> + Send + Sync + '_
+    where
+        Self: Sync,
     {
         let pool_name = {
             if let Some(pool_id) = pool_name {
@@ -94,13 +94,12 @@ pub trait ActorContext {
             }
         };
         async move {
-
             let envelope = self.return_address();
             envelope.reply_async_boxed(message, pool_name).await;
         }
     }
     #[instrument(skip(self), fields(self.key.value))]
-    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>
+    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
@@ -118,7 +117,7 @@ pub trait ActorContext {
     async fn recreate(&mut self) -> anyhow::Result<()>;
 
     /// Suspends the actor.
-    fn suspend(&self) -> impl Future<Output = anyhow::Result<()>> + Send + Sync + '_;
+    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
     /// Resumes the actor.
     async fn resume(&mut self) -> anyhow::Result<()>;

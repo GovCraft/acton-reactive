@@ -136,6 +136,14 @@ impl ActorContext for Context {
         self.task_tracker.clone()
     }
 
+    fn key(&self) -> String {
+        self.key.value.clone()
+    }
+
+    fn clone_self(&self) -> Context {
+        self.clone()
+    }
+
     /// Wakes the actor.
     async fn wake(&mut self) -> anyhow::Result<()> {
         unimplemented!()
