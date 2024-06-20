@@ -53,8 +53,10 @@ async fn test_broker() -> anyhow::Result<()> {
 
     comedy_show
         .setup
-        .act_on::<Ping>(|actor, event| {
+        .act_on_async::<Ping>(|actor, event| {
+
             info!("SUCCESS! PING!");
+            Box::pin(async move {  })
         });
 
 

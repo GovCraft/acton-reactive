@@ -38,7 +38,7 @@ use tracing::*;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage};
 use crate::traits::subscriber::Subscriber;
-
+use dyn_clone::DynClone;
 #[async_trait]
 pub trait Subscribable {
     fn subscribe<T: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_

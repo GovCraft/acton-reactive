@@ -35,10 +35,11 @@ use std::any::TypeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
+use std::sync::Arc;
 
 use dashmap::DashMap;
 use futures::future;
-use tracing::{debug, error, event, instrument, Level};
+use tracing::*;
 
 use crate::actors::{Actor, ActorConfig, Awake};
 use crate::common::*;
@@ -111,35 +112,38 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<M>)
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<Arc<M>>)
         + Send
         + Sync
         + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
-
+        info!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| {
-                if let Some(concrete_msg) = envelope.message.as_any_mut().downcast_mut::<M>() {
+                if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
                     // let cloned_message = concrete_msg.clone(); // Clone the message.
-                    let msg = concrete_msg.clone();
+                    let message = Arc::new(concrete_msg.clone());
+                    let sent_time = envelope.sent_time;
+                    let return_address = OutboundEnvelope::new(
+                        envelope.return_address.clone(),
+                        actor.key.clone(),
+                    );
                     let event_record = &mut EventRecord {
-                        message: msg,
-                        sent_time: envelope.sent_time,
-                        return_address: OutboundEnvelope::new(
-                            envelope.return_address.clone(),
-                            actor.key.clone(),
-                        ),
+                        message,
+                        sent_time,
+                        return_address,
                     };
                     message_reactor(actor, event_record);
                     Box::pin(())
                 } else {
-                    error!(
+                    Box::pin({
+                        error!(
                         "Message type mismatch: expected {:?}",
                         std::any::type_name::<M>()
                     );
-                    unreachable!("Shouldn't get here");
+                    })
                 };
             },
         );
@@ -156,45 +160,57 @@ impl<State: Default + Send + Debug> Idle<State> {
     ///
     /// # Parameters
     /// - `message_processor`: The function to handle the message.
+    #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a mut EventRecord<M>) -> Fut
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a mut EventRecord<Arc<M>>) -> Fut
         + Send
         + Sync
         + 'static,
     ) -> &mut Self
-        where
-            M: AktonMessage + Clone + Send + Sync + 'static,
+    where
+        M: AktonMessage + Clone + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
-
+        info!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| -> Fut {
-                if let Some(concrete_msg) = envelope.message.as_any_mut().downcast_mut::<M>() {
+                let envelope_type_id = envelope.message.as_any().type_id();
+                info!(
+                "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
+                type_id, envelope_type_id
+            );
+                if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
+                    info!("Message successfully downcasted to concrete type: {:?}", type_id);
+
+                    let message = Arc::new(concrete_msg.clone());
+                    let sent_time = envelope.sent_time;
                     let mut event_record = {
-                        let concrete_msg = concrete_msg.clone();
                         if let Some(parent) = &actor.parent {
-                          EventRecord {
-                                message: concrete_msg,
-                                sent_time: envelope.sent_time,
-                                return_address: parent.return_address(),
+                            let return_address = parent.return_address();
+                            EventRecord {
+                                message,
+                                sent_time,
+                                return_address,
                             }
                         } else {
-                          EventRecord {
-                                message: concrete_msg,
-                                sent_time: envelope.sent_time,
-                                return_address: actor.context.return_address(),
+                            let return_address = actor.context.return_address();
+                            EventRecord {
+                                message,
+                                sent_time,
+                                return_address,
                             }
                         }
                     };
+
                     // Call the user-provided function and get the future.
                     let user_future = message_processor(actor, &mut event_record);
 
                     // Automatically box and pin the user future.
                     Box::pin(user_future)
                 } else {
-                      error!("Should never get here, message failed to downcast");
+                    error!(type_name=std::any::type_name::<M>(),"Should never get here, message failed to downcast");
                     // Return an immediately resolving future if downcast fails.
                     Box::pin(async {})
                 }
@@ -303,8 +319,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
-        where
-            F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+    where
+        F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -315,8 +331,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Returns
     /// A new `Idle` instance with default settings.
     pub(crate) fn new() -> Idle<State>
-        where
-            State: Send + 'static,
+    where
+        State: Send + 'static,
     {
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -340,4 +356,9 @@ impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
     fn default() -> Self {
         Idle::new()
     }
+}
+
+// Function to downcast the message to the original type.
+pub fn downcast_message<T: 'static>(msg: &dyn AktonMessage) -> Option<&T> {
+    msg.as_any().downcast_ref::<T>()
 }

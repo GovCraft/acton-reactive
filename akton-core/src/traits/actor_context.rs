@@ -32,6 +32,7 @@
  */
 
 use std::future::Future;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -80,7 +81,7 @@ pub trait ActorContext {
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit_message_async(
         &self,
-        message: Box<dyn AktonMessage + Send + Sync>,
+        message: Arc<dyn AktonMessage + Send + Sync>,
         pool_name: Option<&str>,
     ) -> impl Future<Output=()> + Send + Sync + '_
     where

@@ -69,7 +69,7 @@ impl Broker {
 
                 Box::pin(async move {
                     Broker::broadcast(subscribers, message).await;
-                    // trace!("Broadcasted message to subscribers.");
+                     info!("Broadcasted message to subscribers.");
                 })
             })
             .act_on_async::<SubscribeBroker>(|actor, event| {
@@ -108,10 +108,11 @@ impl Broker {
     }
 
     #[instrument(skip(subscribers))]
-    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, envelope: BroadcastEnvelope) {
+    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, envelope: Arc<BroadcastEnvelope>) {
         let envelope_type_id = envelope.type_id();
         let message_type_id = envelope.message_type_id;
         let message = envelope.message.clone();
+        let message =
         debug!(envelope_type_id=?envelope_type_id,message_type_id=?message_type_id,subscriber_count=subscribers.len());
         //        let type_id = message.as_any().type_id();
         if let Some(subscribers) = subscribers.get(&message_type_id) {
