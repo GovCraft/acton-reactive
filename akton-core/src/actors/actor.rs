@@ -152,7 +152,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         (self.setup.on_wake)(self);
 
         let mut yield_counter = 0;
-        while let Some(envelope) = self.mailbox.recv().await {
+        while let Some(mut envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
             tracing::debug!(actor=self.key.value, "Mailbox received {:?} for", &envelope.message);
 
@@ -186,7 +186,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                             "Executing non-future reactor with {} children",
                             &self.context.children().len()
                         );
-                        (*reactor)(self, &envelope);
+                        (*reactor)(self, &mut envelope);
                     }
                     ReactorItem::Future(fut) => {
                         event!(Level::TRACE, "Awaiting future-based reactor");

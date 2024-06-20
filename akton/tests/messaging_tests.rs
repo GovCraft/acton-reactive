@@ -32,21 +32,26 @@
  */
 
 mod setup;
+
+use std::any::TypeId;
 use crate::setup::*;
 use akton::prelude::*;
-
+use tracing::*;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     init_tracing();
     let mut actor = Akton::<PoolItem>::create();
     actor
         .setup
-        .act_on::<Ping>(|actor, _event| {
-            tracing::info!("Received Ping");
+        .act_on::<Ping>(|actor, event| {
+            let message = event.message;
+            let type_id = TypeId::of::<&Ping>();
+            let type_name = std::any::type_name::<&Ping>();
+            info!(type_name=type_name,type_id=?type_id, "Received");
             actor.state.receive_count += 1;
         })
         .on_before_stop(|actor| {
-            tracing::info!("Processed {} Pings", actor.state.receive_count);
+            info!("Processed {} Pings", actor.state.receive_count);
         });
     let context = actor.activate(None).await?;
     context.emit_async(Ping, None).await;
