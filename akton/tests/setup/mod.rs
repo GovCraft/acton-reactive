@@ -74,6 +74,7 @@ pub fn init_tracing() {
             .add_directive("akton_core::actors::idle[act_on_async]=trace".parse().unwrap())
             .add_directive("akton_core::actors::idle[act_on]=debug".parse().unwrap())
             .add_directive("akton_core::message::outbound_envelope=off".parse().unwrap())
+            .add_directive("akton_core::message::broadcast_envelope=debug".parse().unwrap())
             .add_directive("akton_core::traits::actor_context=error".parse().unwrap())
             .add_directive("akton_core::traits::subscribable=trace".parse().unwrap())
             .add_directive("supervisor_tests=info".parse().unwrap())

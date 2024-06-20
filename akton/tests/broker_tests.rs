@@ -36,7 +36,7 @@ use crate::setup::*;
 
 mod setup;
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_broker() -> anyhow::Result<()> {
     init_tracing();
 
@@ -51,21 +51,20 @@ async fn test_broker() -> anyhow::Result<()> {
     let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
 
 
-//  comedy_show
-//      .setup
-//      .act_on::<Ping>(|actor, event| {
-//          error!("PING");
-//      });
-
-    comedy_show.context.subscribe::<Ping>().await;
- //   let comedian = comedy_show.activate(None).await?;
+    comedy_show
+        .setup
+        .act_on::<Ping>(|actor, event| {
+            info!("SUCCESS! PING!");
+        });
 
 
-    //   let broadcast_message = BroadcastEnvelope::new(Box::new(Ping));
-    //   broker.emit_async(broadcast_message, None).await;
-    // comedian.emit_async(FunnyJoke::Pun, None).await;
-    //  let _ = comedian.suspend().await?;
-  //  let _ = comedian.suspend().await?;
+    let comedian = comedy_show.activate(None).await?;
+    comedian.subscribe::<Ping>().await;
+    let broadcast_message = BroadcastEnvelope::new(Ping);
+
+    broker.emit_async(broadcast_message, None).await;
+
+    let _ = comedian.suspend().await?;
     let _ = broker.suspend().await?;
 
     Ok(())

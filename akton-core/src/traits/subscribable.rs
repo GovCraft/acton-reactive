@@ -34,7 +34,7 @@
 use std::any::TypeId;
 use std::future::Future;
 use async_trait::async_trait;
-use tracing::trace;
+use tracing::*;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage};
 use crate::traits::subscriber::Subscriber;
@@ -56,7 +56,7 @@ impl<T> Subscribable for T
 where
     T: AktonMessage + Send + Sync + 'static,
 {
-    fn subscribe<M: AktonMessage>(&self) -> impl Future<Output=()> + Send + Sync + '_
+    fn subscribe<M: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: ActorContext + Subscriber + 'static,
     {
@@ -72,10 +72,10 @@ where
         async move {
             if let Some(broker) = broker {
                 let broker_key = broker.key();
-                trace!(
-                          type_id = ?TypeId::of::<M>(),
+                debug!(
+                          type_id=?TypeId::of::<M>(),
                           subscribing_actor = key,
-                          "Subscribing to {} with broker {}",
+                          "Subscribing to type_name {} with broker {}",
                           std::any::type_name::<M>(),
                           broker_key
                       );

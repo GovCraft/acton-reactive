@@ -40,10 +40,10 @@ pub trait AktonMessage: Any + Send + Sync + Debug {
 
     /// Returns a mutable reference to the message as `Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
-   /// Returns the `TypeId` of the message.
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
+   // Returns the `TypeId` of the message.
+   //  fn type_id(&self) -> TypeId {
+   //      TypeId::of::<Self>()
+   //  }
     /// Clones the message as a boxed trait object.
     fn clone_box(&self) -> Box<dyn AktonMessage>;
 }

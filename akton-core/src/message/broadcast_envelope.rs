@@ -31,28 +31,36 @@
  *
  */
 
-use std::any::Any;
+use std::any::{Any, TypeId};
+use std::sync::Arc;
 use std::time::SystemTime;
 
 use static_assertions::assert_impl_all;
+use tracing::{debug, instrument};
 
 use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
-// #[derive(Clone)]
+#[derive(Debug,Clone)]
 pub struct BroadcastEnvelope {
     /// The message contained in the envelope.
-    pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
+    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub message_type_id: TypeId,
 }
 
 impl BroadcastEnvelope {
 
+    #[instrument]
     pub fn new(
-        message: Box<dyn AktonMessage + Send + Sync + 'static>,
+        message: impl AktonMessage + Send + Sync + 'static,
     ) -> Self {
+        let message_type_id = message.type_id();
+        debug!(message_type_id=?message_type_id);
+        let message = Arc::new(message);
         BroadcastEnvelope {
             message,
+            message_type_id
         }
     }
 }

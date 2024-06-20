@@ -31,6 +31,7 @@
  *
  */
 
+use std::any::Any;
 use akton_arn::Arn;
 use tokio::runtime::Runtime;
 
@@ -124,7 +125,7 @@ trace!("*");
         pool_id: Option<String>,
     ) {
         if let Some(reply_to) = &self.reply_to {
-            let type_id = AktonMessage::type_id(&*message);
+            let type_id = (&*message).type_id();
             if !reply_to.is_closed() {
                 // Reserve capacity
                 match reply_to.reserve().await {

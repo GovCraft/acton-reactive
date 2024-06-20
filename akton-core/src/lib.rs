@@ -57,5 +57,6 @@ pub mod prelude {
     pub use crate::pool::{LoadBalanceStrategy, PoolBuilder};
     pub use crate::traits::{ActorContext, AktonMessage, PooledActor, Subscriber, Subscribable};
     pub use crate::actors::ActorConfig;
+    pub use crate::message::BroadcastEnvelope;
     pub use async_trait;
 }
