@@ -109,9 +109,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `message_reactor`: The function to handle the message.
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: AktonMessage + 'static>(
+    pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<&M>)
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<M>)
         + Send
         + Sync
         + 'static,
@@ -121,9 +121,9 @@ impl<State: Default + Send + Debug> Idle<State> {
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| {
-                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
+                if let Some(concrete_msg) = envelope.message.as_any_mut().downcast_mut::<M>() {
                     // let cloned_message = concrete_msg.clone(); // Clone the message.
-                    let msg = concrete_msg;
+                    let msg = concrete_msg.clone();
                     let event_record = &mut EventRecord {
                         message: msg,
                         sent_time: envelope.sent_time,
