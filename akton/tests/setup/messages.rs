@@ -36,7 +36,8 @@ use akton::prelude::*;
 #[akton_message]
 pub struct Pong;
 
-#[akton_message]
+// #[akton_message]
+#[derive(Clone, Debug)]
 pub struct Ping;
 
 #[akton_message]

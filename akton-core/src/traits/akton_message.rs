@@ -30,27 +30,27 @@
  *
  *
  */
-
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 
 /// Trait for Akton messages, providing methods for type erasure.
-pub trait AktonMessage: Any + Send + Debug {
+pub trait AktonMessage: Any + Send + Sync + Debug {
     /// Returns a reference to the message as `Any`.
     fn as_any(&self) -> &dyn Any;
 
-    /// Returns the `TypeId` of the message.
+    /// Returns a mutable reference to the message as `Any`.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+   /// Returns the `TypeId` of the message.
     fn type_id(&self) -> TypeId {
         TypeId::of::<Self>()
     }
-
-    /// Returns a mutable reference to the message as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
+    /// Clones the message as a boxed trait object.
+    fn clone_box(&self) -> Box<dyn AktonMessage>;
 }
 
 impl<T> AktonMessage for T
 where
-    T: Any + Send + Debug + Sync + Clone + 'static,
+    T: Any + Send + Sync + Debug + Clone + 'static,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -60,4 +60,47 @@ where
         self
     }
 
+    fn clone_box(&self) -> Box<dyn AktonMessage> {
+        Box::new(self.clone())
+    }
 }
+// impl Clone for Box<dyn AktonMessage + Send + Sync> {
+//     fn clone(&self) -> Self {
+//         self.clone_box()
+//     }
+// }
+
+// Function to downcast the message to the original type.
+pub fn downcast_message<T: 'static>(msg: &dyn AktonMessage) -> Option<&T> {
+    msg.as_any().downcast_ref::<T>()
+}
+
+pub fn downcast_message_mut<T: 'static>(msg: &mut dyn AktonMessage) -> Option<&mut T> {
+    msg.as_any_mut().downcast_mut::<T>()
+}
+
+#[derive(Clone, Debug)]
+struct MyMessage {
+    content: String,
+}
+
+impl MyMessage {
+    fn new(content: &str) -> Self {
+        MyMessage {
+            content: content.to_string(),
+        }
+    }
+}
+
+fn main() {
+    let msg = MyMessage::new("Hello, world!");
+    let boxed_msg: Box<dyn AktonMessage + Send + Sync> = Box::new(msg);
+
+    // Simulate sending and receiving the message
+    if let Some(received_msg) = downcast_message::<MyMessage>(&*boxed_msg) {
+        println!("Received message: {:?}", received_msg);
+    } else {
+        println!("Failed to downcast message");
+    }
+}
+

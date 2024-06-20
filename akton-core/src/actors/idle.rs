@@ -194,6 +194,7 @@ impl<State: Default + Send + Debug> Idle<State> {
                     // Automatically box and pin the user future.
                     Box::pin(user_future)
                 } else {
+                      error!("Should never get here, message failed to downcast");
                     // Return an immediately resolving future if downcast fails.
                     Box::pin(async {})
                 }

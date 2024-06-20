@@ -40,7 +40,7 @@ use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
-#[derive(Debug, Clone)]
+// #[derive(Clone)]
 pub struct BroadcastEnvelope {
     /// The message contained in the envelope.
     pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
