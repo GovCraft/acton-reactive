@@ -32,74 +32,79 @@
  */
 
 use std::any::TypeId;
+use std::future::Future;
+use async_trait::async_trait;
 use tracing::trace;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage};
 use crate::traits::subscriber::Subscriber;
 
-pub(crate) trait Subscribable {
-    fn subscribe<T: AktonMessage>(&self, actor: &mut Self)
+#[async_trait]
+pub trait Subscribable {
+    fn subscribe<T: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
 
         Self: ActorContext + Subscriber;
-    fn unsubscribe<T: AktonMessage>(&self, actor: &mut Self)
+    fn unsubscribe<T: AktonMessage>(&self)
     where
 
-        Self: ActorContext + Subscriber;
+        Self: ActorContext + Subscriber + Send + Sync + 'static;
 }
 
+#[async_trait]
 impl<T> Subscribable for T
 where
-    T: AktonMessage,
+    T: AktonMessage + Send + Sync + 'static,
 {
-    fn subscribe<M: AktonMessage>(&self, actor: &mut Self)
+    fn subscribe<M: AktonMessage>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
-        Self: ActorContext + Subscriber,
+        Self: ActorContext + Subscriber + 'static,
     {
-        let subscriber_id = actor.key();
+        let subscriber_id = self.key();
         let subscription = SubscribeBroker {
             subscriber_id,
             message_type_id: TypeId::of::<M>(),
-            subscriber_context: actor.clone_self(),
+            subscriber_context: self.clone_self(),
         };
-        let broker = actor.broker();
-        if let Some(broker) = broker {
-            let broker = broker.clone();
-            tokio::spawn(async move {
-                broker.emit_async(subscription, None).await;
-            });
+        let broker = self.broker();
+        let key = self.key().clone();
 
-            trace!(
-            type_id = ?TypeId::of::<M>(),
-            repository_actor = actor.key(),
-            "Subscribed to {}",
-            std::any::type_name::<M>()
-        );
+        async move {
+            if let Some(broker) = broker {
+                let broker_key = broker.key();
+                trace!(
+                          type_id = ?TypeId::of::<M>(),
+                          subscribing_actor = key,
+                          "Subscribing to {} with broker {}",
+                          std::any::type_name::<M>(),
+                          broker_key
+                      );
+                broker.emit_async(subscription, None).await;
+            }
         }
     }
-    fn unsubscribe<M: AktonMessage>(&self, actor: &mut Self)
+    fn unsubscribe<M: AktonMessage>(&self)
     where
         Self: ActorContext + Subscriber,
     {
-        let subscriber_id = actor.key();
+        let subscriber_id = self.key();
         let subscription = UnsubscribeBroker {
             subscriber_id,
             message_type_id: TypeId::of::<M>(),
-            subscriber_context: actor.clone_self(),
+            subscriber_context: self.clone_self(),
         };
-        let broker = actor.broker();
+        let broker = self.broker();
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
                 broker.emit_async(subscription, None).await;
             });
-
-            trace!(
+        }
+        trace!(
             type_id = ?TypeId::of::<M>(),
-            repository_actor = actor.key(),
-            "Subscribed to {}",
+            repository_actor = self.key(),
+            "Unsubscribed to {}",
             std::any::type_name::<M>()
         );
-        }
     }
 }

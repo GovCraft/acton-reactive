@@ -43,7 +43,7 @@ use std::sync::Arc;
 use tracing::*;
 use crate::actors::ActorConfig;
 use crate::common::{Akton, Context};
-use crate::message::{BroadcastEnvelope, Ping, SubscribeBroker, UnsubscribeBroker};
+use crate::message::{BroadcastEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage};
 
 
@@ -59,39 +59,22 @@ impl Broker {
         let mut actor = Akton::<Broker>::create_with_config(actor_config);
 
         actor.setup
-            .act_on::<Ping>(|actor, event| {
-                info!("Got it!");
-            }
-            ).act_on_async::<SubscribeBroker>(|actor, event| {
-            error!("entered");
-            //                let type_id = event.message.message_type_id.clone();
-            let subscriber_context = event.message.subscriber_context.clone();
-            let subscriber_id = event.message.subscriber_id.clone();
+            .act_on_async::<SubscribeBroker>(|actor, event| {
+                let type_id = event.message.message_type_id.clone();
+                let subscriber_context = event.message.subscriber_context.clone();
+                let subscriber_id = event.message.subscriber_id.clone();
 
-            // Event: Subscriber Added
-            // Description: Triggered when a new subscriber is added.
-            // Context: Includes type ID, subscriber context key, and subscriber ID.
-            //               info!(type_id=?type_id, subscriber=subscriber_context.key.value, "Subscriber added");
+                // Event: Subscriber Added
+                // Description: Triggered when a new subscriber is added.
+                // Context: Includes type ID, subscriber context key, and subscriber ID.
 
-            let subscribers = actor.state.subscribers.clone();
-            Box::pin(async move {
-                //                subscribers
-                //                    .entry(type_id)
-                //                    .or_insert_with(HashSet::new)
-                //                    .insert((subscriber_id.clone(), subscriber_context.clone()));
-            })
-        })
-            .act_on_async::<BroadcastEnvelope>(|actor, event| {
                 let subscribers = actor.state.subscribers.clone();
-                let message = event.message;
-
-                // Event: Message Broadcast
-                // Description: Triggered when a message is broadcast to all subscribers.
-                // Context: Includes message details.
-                error!("Broadcasting message to subscribers.");
-
                 Box::pin(async move {
-                    Broker::broadcast(subscribers, message).await;
+                    subscribers
+                        .entry(type_id)
+                        .or_insert_with(HashSet::new)
+                        .insert((subscriber_id.clone(), subscriber_context.clone()));
+                    info!(type_id=?type_id, subscriber=subscriber_context.key.value, "Subscriber added");
                 })
             });
 
@@ -112,35 +95,35 @@ impl Broker {
         subscriber_context.emit_async(message, None).await;
     }
 
-    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, message: BroadcastEnvelope) {
-        let type_id = message.as_any().type_id();
-        if let Some(subscribers) = subscribers.get(&type_id) {
-            let mut futures = FuturesUnordered::new();
-
-            for (_, subscriber_context) in subscribers.value().clone() {
-                let subscriber_context = subscriber_context.clone();
-                let message = message.clone();
-
-                futures.push(async move {
-                    subscriber_context.emit_async(message, None).await;
-                });
-            }
-
-            Self::broadcast_futures(futures);
-        }
-    }
-
-    fn broadcast_futures<T>(
-        mut futures: FuturesUnordered<impl Future<Output=T> + Sized>,
-    ) -> Pin<Box<impl Future<Output=()> + Sized>> {
-        trace!(
-            futures_count = futures.len(),
-            "Broadcasting futures to be processed."
-        );
-
-        Box::pin(async move {
-            while futures.next().await.is_some() {}
-            trace!("All futures have been processed.");
-        })
-    }
+    // pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, message: BroadcastEnvelope) {
+    //     let type_id = message.as_any().type_id();
+    //     if let Some(subscribers) = subscribers.get(&type_id) {
+    //         let mut futures = FuturesUnordered::new();
+    //
+    //         for (_, subscriber_context) in subscribers.value().clone() {
+    //             let subscriber_context = subscriber_context.clone();
+    //             let message = message.clone();
+    //
+    //             futures.push(async move {
+    //                 subscriber_context.emit_async(message, None).await;
+    //             });
+    //         }
+    //
+    //         Self::broadcast_futures(futures);
+    //     }
+    // }
+    //
+    // fn broadcast_futures<T>(
+    //     mut futures: FuturesUnordered<impl Future<Output=T> + Sized>,
+    // ) -> Pin<Box<impl Future<Output=()> + Sized>> {
+    //     trace!(
+    //         futures_count = futures.len(),
+    //         "Broadcasting futures to be processed."
+    //     );
+    //
+    //     Box::pin(async move {
+    //         while futures.next().await.is_some() {}
+    //         trace!("All futures have been processed.");
+    //     })
+    // }
 }

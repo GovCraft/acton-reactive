@@ -30,18 +30,44 @@
  *
  *
  */
+use akton::prelude::*;
+use tracing::*;
+use crate::setup::*;
 
-pub use actor_context::ActorContext;
-pub use akton_message::AktonMessage;
-pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
-pub use pooled_actor::PooledActor;
-pub use subscriber::Subscriber;
-pub use subscribable::Subscribable;
+mod setup;
 
-mod actor_context;
-mod akton_message;
-mod load_balancer_strategy;
-mod pooled_actor;
-mod subscribable;
-mod subscriber;
+#[tokio::test]
+async fn test_broker() -> anyhow::Result<()> {
+    init_tracing();
+
+    let broker = Akton::<Broker>::spawn_broker().await?;
+
+    let actor_config = ActorConfig::new(
+        "improve_show",
+        None,
+        Some(broker.clone()),
+    );
+
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+
+
+//  comedy_show
+//      .setup
+//      .act_on::<Ping>(|actor, event| {
+//          error!("PING");
+//      });
+
+    comedy_show.context.subscribe::<Ping>().await;
+ //   let comedian = comedy_show.activate(None).await?;
+
+
+    //   let broadcast_message = BroadcastEnvelope::new(Box::new(Ping));
+    //   broker.emit_async(broadcast_message, None).await;
+    // comedian.emit_async(FunnyJoke::Pun, None).await;
+    //  let _ = comedian.suspend().await?;
+  //  let _ = comedian.suspend().await?;
+    let _ = broker.suspend().await?;
+
+    Ok(())
+}
 

@@ -37,6 +37,7 @@ use std::marker::PhantomData;
 use tracing::{instrument};
 
 use crate::actors::{Actor, ActorConfig, Idle};
+use crate::common::{Broker, BrokerContext};
 
 /// Represents an actor with a root state.
 ///
@@ -62,8 +63,11 @@ impl<State: Default + Send + Debug> Akton<State> {
     pub fn create_with_config(config: ActorConfig) -> Actor<Idle<State>, State> {
         Actor::new(Some(config), State::default())
     }
+    #[instrument]
+    pub async fn spawn_broker() -> anyhow::Result<BrokerContext> {
+        Broker::init().await
+    }
 }
-
 /// Provides a default implementation for the `Akton` struct.
 ///
 /// This implementation creates a new `Akton` instance with the default root state.
