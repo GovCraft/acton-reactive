@@ -35,7 +35,7 @@ use std::any::{Any, TypeId};
 use std::fmt::Debug;
 
 /// Trait for Akton messages, providing methods for type erasure.
-pub trait AktonMessage: Any + Send + Debug + Sync {
+pub trait AktonMessage: Any + Send + Debug {
     /// Returns a reference to the message as `Any`.
     fn as_any(&self) -> &dyn Any;
 
@@ -46,29 +46,4 @@ pub trait AktonMessage: Any + Send + Debug + Sync {
 
     /// Returns a mutable reference to the message as `Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    /// Clones the message into a `Box<dyn AktonMessage + Send + Sync>`.
-    fn clone_box(&self) -> Box<dyn AktonMessage + Send + Sync>;
-}
-
-impl<T> AktonMessage for T
-where
-    T: Any + Send + Debug + Sync + Clone + 'static,
-{
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn clone_box(&self) -> Box<dyn AktonMessage + Send + Sync> {
-        Box::new(self.clone())
-    }
-}
-impl Clone for Box<dyn AktonMessage + Send + Sync> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
 }

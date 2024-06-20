@@ -35,7 +35,6 @@ use std::any::TypeId;
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 use dashmap::DashMap;
@@ -47,7 +46,7 @@ use crate::message::Envelope;
 use crate::traits::AktonMessage;
 
 /// A type alias for a map of reactors, indexed by `TypeId`.
-pub(crate) type ReactorMap<T> = Arc<DashMap<TypeId, ReactorItem<T>>>;
+pub(crate) type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
 /// An enum representing different types of reactors for handling signals, messages, and futures.
@@ -62,14 +61,14 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 
 /// A type alias for a message reactor function.
 pub(crate) type MessageReactor<State> =
-    dyn for<'a,'b> Fn(&'a mut Actor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
+    dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
 pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn Fn(&mut Actor<Awake<State>, State>, &mut Envelope) -> Fut
+pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut
     + Send
     + Sync
     + 'static;

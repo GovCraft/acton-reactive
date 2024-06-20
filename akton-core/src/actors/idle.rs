@@ -35,11 +35,10 @@ use std::any::TypeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::pin::Pin;
 
 use dashmap::DashMap;
 use futures::future;
-use tracing::*;
+use tracing::{debug, error, event, instrument, Level};
 
 use crate::actors::{Actor, ActorConfig, Awake};
 use crate::common::*;
@@ -110,38 +109,37 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `message_reactor`: The function to handle the message.
     #[instrument(skip(self, message_reactor))]
-    pub fn act_on<M: AktonMessage + 'static + Clone>(
+    pub fn act_on<M: AktonMessage + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<&M>)
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &EventRecord<&M>)
         + Send
         + Sync
         + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
-        let type_name = std::any::type_name::<M>();
-        info!(type_name=type_name);
+
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| {
-                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<&M>() {
-                    let concrete_msg = concrete_msg.clone(); // Clone the message.
-                    let mut event_record = EventRecord {
-                        message: concrete_msg,
+            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| {
+                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
+                    // let cloned_message = concrete_msg.clone(); // Clone the message.
+                    let msg = concrete_msg;
+                    let event_record = &EventRecord {
+                        message: msg,
                         sent_time: envelope.sent_time,
                         return_address: OutboundEnvelope::new(
                             envelope.return_address.clone(),
                             actor.key.clone(),
                         ),
                     };
-                    message_reactor(actor, &mut event_record);
+                    message_reactor(actor, event_record);
                     Box::pin(())
                 } else {
                     error!(
                         "Message type mismatch: expected {:?}",
                         std::any::type_name::<M>()
                     );
-                    Box::pin(())
-                    //unreachable!("Shouldn't get here");
+                    unreachable!("Shouldn't get here");
                 };
             },
         );
@@ -153,31 +151,29 @@ impl<State: Default + Send + Debug> Idle<State> {
 
         self
     }
+
     /// Adds an asynchronous message handler for a specific message type.
     ///
     /// # Parameters
     /// - `message_processor`: The function to handle the message.
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, EventRecord<M>) -> Fut
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut
         + Send
         + Sync
         + 'static,
     ) -> &mut Self
-    where
-        M: AktonMessage + Clone + Send + Sync + 'static,
-    //        Fut: std::future::Future<Output=()> + Send + 'static,
+        where
+            M: AktonMessage + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
 
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, mut envelope: &mut Envelope| -> Fut {
-                warn!(msg=?envelope.message, type_id=?type_id);
-                if let Some(concrete_msg) = envelope.message.as_any_mut().downcast_mut::<M>() {
-                    let concrete_msg = concrete_msg.clone();
+            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
+                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                     let event_record = {
-                        if let Some(parent) = actor.parent.clone() {
+                        if let Some(parent) = &actor.parent {
                             EventRecord {
                                 message: concrete_msg,
                                 sent_time: envelope.sent_time,
@@ -191,23 +187,12 @@ impl<State: Default + Send + Debug> Idle<State> {
                             }
                         }
                     };
-
-                    // Event: Message Handler Invoked
-                    // Description: Triggered when the message handler is invoked.
-                    // Context: Includes the message type ID and sent time.
-                    trace!(type_id=?type_id, sent_time=?envelope.sent_time, "Message handler invoked.");
-
                     // Call the user-provided function and get the future.
-                    let user_future = message_processor(actor, event_record);
+                    let user_future = message_processor(actor, &event_record);
 
                     // Automatically box and pin the user future.
                     Box::pin(user_future)
                 } else {
-                    // Event: Downcast Failed
-                    // Description: Triggered when downcasting the message fails.
-                    // Context: Includes the message type ID.
-                    error!(type_id=?type_id, "Downcast failed for message.");
-
                     // Return an immediately resolving future if downcast fails.
                     Box::pin(async {})
                 }
@@ -218,12 +203,6 @@ impl<State: Default + Send + Debug> Idle<State> {
         let _ = &self
             .reactors
             .insert(type_id, ReactorItem::Future(handler_box));
-
-        // Event: Async Handler Added
-        // Description: Triggered when an asynchronous handler is added.
-        // Context: Includes the message type ID.
-        debug!(type_id=?type_id, "Asynchronous handler added.");
-
         self
     }
 
@@ -244,7 +223,6 @@ impl<State: Default + Send + Debug> Idle<State> {
         // Create a boxed handler for the signal type.
         let handler_box: Box<SignalReactor<State>> = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, message: &dyn AktonMessage| -> Fut {
-                info!(msg=?message,type_name=std::any::type_name::<M>(),type_id=?type_id);
                 if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                     let fut = signal_reactor(actor, concrete_msg);
                     Box::pin(fut)
@@ -323,8 +301,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Parameters
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
-    where
-        F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+        where
+            F: for<'b> Fn(&'b Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -335,8 +313,8 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// # Returns
     /// A new `Idle` instance with default settings.
     pub(crate) fn new() -> Idle<State>
-    where
-        State: Send + 'static,
+        where
+            State: Send + 'static,
     {
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -344,7 +322,7 @@ impl<State: Default + Send + Debug> Idle<State> {
             on_before_stop: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
-            reactors: DashMap::new().into(),
+            reactors: DashMap::new(),
         }
     }
 }

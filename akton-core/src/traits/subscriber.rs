@@ -33,6 +33,6 @@
 
 use crate::common::BrokerContext;
 
-pub trait Subscriber {
+pub(crate) trait Subscriber {
     fn broker(&self) -> Option<BrokerContext>;
 }

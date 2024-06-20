@@ -62,7 +62,7 @@ impl Envelope {
     /// # Returns
     /// A new `Envelope` instance.
     pub fn new(
-        mut message: Box<dyn AktonMessage + Send + Sync + 'static>,
+        message: Box<dyn AktonMessage + Send + Sync + 'static>,
         return_address: Option<OutboundChannel>,
         pool_id: Option<String>,
     ) -> Self {

@@ -51,7 +51,7 @@ pub trait ActorContext {
     /// Returns the actor's task tracker.
     fn task_tracker(&self) -> TaskTracker;
     fn key(&self) -> String;
-    fn context_self(&self) -> Context;
+    fn clone_self(&self) -> Context;
     /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit_async(
@@ -99,9 +99,7 @@ pub trait ActorContext {
         }
     }
     #[instrument(skip(self), fields(self.key.value))]
-    fn emit(&self,
-            message: impl AktonMessage + Send + Sync + 'static,
-            pool_name: Option<String>,
+    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
