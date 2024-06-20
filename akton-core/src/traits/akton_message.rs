@@ -47,3 +47,17 @@ pub trait AktonMessage: Any + Send + Debug {
     /// Returns a mutable reference to the message as `Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+impl<T> AktonMessage for T
+where
+    T: Any + Send + Debug + Sync + Clone + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+}
