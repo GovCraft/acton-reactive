@@ -43,7 +43,7 @@ use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{Actor, Idle};
 use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
-use crate::message::signal::SupervisorSignal;
+
 use crate::traits::{ActorContext, Subscriber};
 
 /// Represents the context in which an actor operates.
@@ -66,6 +66,7 @@ impl Subscriber for Context {
         *self.broker.clone()
     }
 }
+
 impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
@@ -91,30 +92,6 @@ impl Context {
         self.children.insert(id, context);
 
         Ok(())
-    }
-
-    /// Peeks at the state of the actor.
-    ///
-    /// # Returns
-    /// An `Option` containing the state of the actor if successful, otherwise `None`.
-    #[instrument(skip(self), target = "peek_space_span")]
-    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(
-        &self,
-    ) -> Option<State> {
-        let (sender, receiver) = oneshot::channel();
-        let actor = self.return_address().clone();
-
-        if actor
-            .reply(SupervisorSignal::Inspect(Some(sender)), None)
-            .is_err()
-        {
-            return None;
-        }
-
-        match receiver.await {
-            Ok(result) => Some(result),
-            Err(_) => None,
-        }
     }
 }
 
