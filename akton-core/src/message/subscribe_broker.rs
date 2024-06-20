@@ -36,20 +36,11 @@ use std::fmt::Debug;
 use crate::common::Context;
 use crate::traits::AktonMessage;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct SubscribeBroker {
     pub(crate) subscriber_id: String,
     pub(crate) message_type_id: TypeId,
     pub(crate) subscriber_context: Context
 }
-impl AktonMessage for SubscribeBroker {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
+#[derive(Debug, Clone)]
+pub(crate) struct Ping;

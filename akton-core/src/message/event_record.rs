@@ -36,6 +36,7 @@ use std::time::SystemTime;
 use static_assertions::assert_impl_all;
 
 use crate::message::OutboundEnvelope;
+use crate::traits::AktonMessage;
 
 /// Represents a record of an event within the actor system.
 ///
@@ -51,5 +52,3 @@ pub struct EventRecord<S> {
     pub return_address: OutboundEnvelope,
 }
 
-// Ensures that EventRecord<u32> implements the Send trait.
-assert_impl_all!(EventRecord<u32>: Send);

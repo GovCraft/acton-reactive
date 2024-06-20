@@ -30,50 +30,44 @@
  *
  *
  */
+use akton::prelude::*;
+use tracing::*;
+use crate::setup::*;
 
-use std::time::SystemTime;
+mod setup;
 
-use static_assertions::assert_impl_all;
+#[tokio::test]
+async fn test_broker() -> anyhow::Result<()> {
+    init_tracing();
 
-use crate::common::OutboundChannel;
-use crate::traits::AktonMessage;
+    let broker = Akton::<Broker>::spawn_broker().await?;
 
-/// Represents an envelope that carries a message within the actor system.
-#[derive(Debug)]
-pub struct Envelope {
-    /// The message contained in the envelope.
-    pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
-    /// The identifier of the pool, if any, to which this envelope belongs.
-    pub pool_id: Option<String>,
-    /// The time when the message was sent.
-    pub sent_time: SystemTime,
-    /// The return address for the message response.
-    pub return_address: Option<OutboundChannel>,
+    let actor_config = ActorConfig::new(
+        "improve_show",
+        None,
+        Some(broker.clone()),
+    );
+
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+
+
+//  comedy_show
+//      .setup
+//      .act_on::<Ping>(|actor, event| {
+//          error!("PING");
+//      });
+
+    comedy_show.context.subscribe::<Ping>().await;
+ //   let comedian = comedy_show.activate(None).await?;
+
+
+    //   let broadcast_message = BroadcastEnvelope::new(Box::new(Ping));
+    //   broker.emit_async(broadcast_message, None).await;
+    // comedian.emit_async(FunnyJoke::Pun, None).await;
+    //  let _ = comedian.suspend().await?;
+  //  let _ = comedian.suspend().await?;
+    let _ = broker.suspend().await?;
+
+    Ok(())
 }
 
-impl Envelope {
-    /// Creates a new envelope with the specified message, return address, and pool identifier.
-    ///
-    /// # Parameters
-    /// - `message`: The message to be carried in the envelope.
-    /// - `return_address`: The return address for the message response.
-    /// - `pool_id`: The identifier of the pool to which this envelope belongs, if any.
-    ///
-    /// # Returns
-    /// A new `Envelope` instance.
-    pub fn new(
-        mut message: Box<dyn AktonMessage + Send + Sync + 'static>,
-        return_address: Option<OutboundChannel>,
-        pool_id: Option<String>,
-    ) -> Self {
-        Envelope {
-            message,
-            sent_time: SystemTime::now(),
-            return_address,
-            pool_id,
-        }
-    }
-}
-
-// Ensures that Envelope implements the Send trait.
-assert_impl_all!(Envelope: Send);

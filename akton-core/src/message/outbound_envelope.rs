@@ -88,14 +88,13 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id))]
     pub fn reply(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
-trace!("*");
         // Event: Replying to Message
         // Description: Replying to a message with an optional pool ID.
         // Context: Message details and pool ID.

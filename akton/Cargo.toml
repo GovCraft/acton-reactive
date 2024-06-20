@@ -3,6 +3,9 @@ name = "akton"
 version = "0.1.0"
 edition = "2021"
 
+[lints.rust]
+unused="allow"
+
 [dependencies]
 akton-macro = { path = "../akton-macro" }
 akton-core = { path = "../akton-core" }

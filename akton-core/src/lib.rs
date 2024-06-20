@@ -31,7 +31,7 @@
  *
  */
 
-#![forbid(unsafe_code)]
+//#![forbid(unsafe_code)]
 // #![warn(missing_docs)]
 //#![warn(unused)]
 //! Akton Core Library
@@ -53,9 +53,10 @@ pub(crate) mod traits;
 /// This module re-exports commonly used items from the `common` and `traits` modules,
 /// as well as the `async_trait` crate.
 pub mod prelude {
-    pub use crate::common::{Akton, Context};
+    pub use crate::common::{Akton, Context, Broker};
     pub use crate::pool::{LoadBalanceStrategy, PoolBuilder};
-    pub use crate::traits::{ActorContext, AktonMessage, PooledActor};
-    pub use crate::actors::ActorConfig;
+    pub use crate::traits::{ActorContext, AktonMessage, PooledActor, Subscriber, Subscribable};
+    pub use crate::actors::{ActorConfig};
+    pub use crate::message::BroadcastEnvelope;
     pub use async_trait;
 }

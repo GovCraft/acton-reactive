@@ -37,9 +37,10 @@ pub(crate) use types::*;
 pub(crate) use crate::message::signal::SystemSignal;
 pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub use crate::pool::LoadBalanceStrategy;
-
+pub use broker::Broker;
 mod akton;
 
 mod types;
 
 mod context;
+pub mod broker;

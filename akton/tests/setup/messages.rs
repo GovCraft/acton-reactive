@@ -33,39 +33,48 @@
 #![allow(unused)]
 use akton::prelude::*;
 
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub struct Pong;
 
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub struct Ping;
 
-#[akton_message]
+
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub enum FunnyJoke {
     ChickenCrossesRoad,
     Pun,
 }
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub enum FunnyJokeFor {
     ChickenCrossesRoad(String),
     Pun(String),
 }
 
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub enum AudienceReactionMsg {
     Chuckle,
     Groan,
 }
 
 // the joke told by the comedian
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub struct Joke;
 
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub enum Tally {
     AddCount,
 }
 
-#[akton_message]
+//#[akton_message]
+#[derive(Clone, Debug)]
 pub enum StatusReport {
     Complete(usize),
 }

@@ -33,6 +33,7 @@
 
 pub(crate) use actor::Actor;
 pub(crate) use awake::Awake;
+
 pub(crate) use idle::Idle;
 pub use actor_config::ActorConfig;
 mod actor;

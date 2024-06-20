@@ -92,30 +92,6 @@ impl Context {
 
         Ok(())
     }
-
-    /// Peeks at the state of the actor.
-    ///
-    /// # Returns
-    /// An `Option` containing the state of the actor if successful, otherwise `None`.
-    #[instrument(skip(self), target = "peek_space_span")]
-    pub async fn peek_state<State: Default + Send + Debug + Clone + 'static>(
-        &self,
-    ) -> Option<State> {
-        let (sender, receiver) = oneshot::channel();
-        let actor = self.return_address().clone();
-
-        if actor
-            .reply(SupervisorSignal::Inspect(Some(sender)), None)
-            .is_err()
-        {
-            return None;
-        }
-
-        match receiver.await {
-            Ok(result) => Some(result),
-            Err(_) => None,
-        }
-    }
 }
 
 #[async_trait]
@@ -145,7 +121,7 @@ impl ActorContext for Context {
         self.key.value.clone()
     }
 
-    fn clone_self(&self) -> Context {
+    fn context_self(&self) -> Context {
         self.clone()
     }
 

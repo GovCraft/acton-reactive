@@ -31,6 +31,7 @@
  *
  */
 
+use std::any::TypeId;
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -45,7 +46,7 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level, trace, warn};
+use tracing::*;
 
 use crate::common::{BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{Envelope, OutboundEnvelope};
@@ -149,84 +150,16 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     #[instrument(skip(reactors, self))]
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
         // Call the on_wake setup function
+        trace!(actor=self.key.value,"Entered wake");
         (self.setup.on_wake)(self);
 
         let mut yield_counter = 0;
-        while let Some(envelope) = self.mailbox.recv().await {
+        while let Some(mut envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
-            tracing::debug!(actor=self.key.value, "Mailbox received {:?} for", &envelope.message);
-
+            tracing::debug!(type_id=?type_id,actor=self.key.value, "Mailbox received {:?} for", &envelope.message);
             // Handle SystemSignal::Terminate to stop the actor
-
-            if let Some(ref pool_id) = &envelope.pool_id {
-                // Event: Processing Envelope
-                // Description: Processing an envelope for a specific pool.
-                // Context: Pool ID and envelope details.
-                // trace!(pool_id = ?pool_id, envelope = ?envelope, "Processing envelope for pool.");
-                if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
-                    // First, clone or copy the data needed for the immutable borrow.
-                    // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
-                    let pool_clone = pool_def.pool.clone();
-
-                    // Now perform the selection outside the mutable borrowed variable's scope.
-                    if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
-                        // Access the original data using the index now that we're outside the conflicting borrow.
-                        let context = &pool_def.pool[index];
-                        trace!(pool_item=context.key.value,index = index, "Emitting to pool item");
-                        context.emit_message_async(envelope.message, None).await;
-                    }
-                }
-            } else if let Some(reactor) = reactors.get(type_id) {
-                event!(Level::TRACE, "Message reactor found");
-
-                match reactor.value() {
-                    ReactorItem::Message(reactor) => {
-                        event!(
-                            Level::TRACE,
-                            "Executing non-future reactor with {} children",
-                            &self.context.children().len()
-                        );
-                        (*reactor)(self, &envelope);
-                    }
-                    ReactorItem::Future(fut) => {
-                        event!(Level::TRACE, "Awaiting future-based reactor");
-                        fut(self, &envelope).await;
-                    }
-                    _ => {
-                        tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone());
-                    }
-                }
-
-                trace!("Message handled by reactor");
-            } else if let Some(SystemSignal::Terminate) =
-                envelope.message.as_any().downcast_ref::<SystemSignal>()
-            {
-                tracing::warn!(actor=self.key.value, "Received SystemSignal::Terminate for");
-
-                tracing::trace!(
-                    "Terminating {} children",
-                    &self.context.children.len()
-                );
-                for item in &self.context.children {
-                    let context = item.value();
-                    let _ = context.suspend().await;
-                }
-                tracing::trace!(
-                    "Terminating {} actor managed pools", &self.pool_supervisor.len()
-                );
-                for pool in &self.pool_supervisor {
-                    tracing::trace!(
-                    "Terminating pool with id \"{}\".", pool.id
-                );
-                    for item_context in &pool.pool {
-                        trace!(item=item_context.key.value,"Terminating pool item.");
-                        let _ = item_context.suspend().await;
-                    }
-                }
-
-                trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
-                self.mailbox.close();
-            }
+            let reactors = reactors.clone();
+            self.handle_message(reactors, envelope, type_id).await;
 
             // Yield less frequently to reduce context switching
             yield_counter += 1;
@@ -241,7 +174,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
             // Add a timeout to prevent hanging indefinitely
             match timeout(Duration::from_secs(5), on_before_stop_async(self)).await {
                 Ok(_) => {
-                    tracing::info!(actor=self.key.value,"called on_before_stop_async for");
+                    tracing::info!(actor = self.key.value, "called on_before_stop_async for");
                 }
                 Err(e) => {
                     tracing::error!("on_before_stop_async timed out or failed: {:?}", e);
@@ -252,6 +185,78 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         // Call the on_stop setup function
         (self.setup.on_stop)(self);
         tracing::trace!(actor=self.key.value,"called on_stop for");
+    }
+
+    #[instrument(skip(self,reactors))]
+    async fn handle_message(&mut self, reactors: ReactorMap<State>, mut envelope: Envelope, type_id: &TypeId) {
+        if let Some(ref pool_id) = &envelope.pool_id {
+            event!(Level::TRACE, "Pool message received");
+            // Event: Processing Envelope
+            // Description: Processing an envelope for a specific pool.
+            // Context: Pool ID and envelope details.
+            // trace!(pool_id = ?pool_id, envelope = ?envelope, "Processing envelope for pool.");
+            if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
+                // First, clone or copy the data needed for the immutable borrow.
+                // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
+                let pool_clone = pool_def.pool.clone();
+
+                // Now perform the selection outside the mutable borrowed variable's scope.
+                if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
+                    // Access the original data using the index now that we're outside the conflicting borrow.
+                    let context = &pool_def.pool[index];
+                    trace!(pool_item=context.key.value,index = index, "Emitting to pool item");
+                    context.emit_message_async(envelope.message, None).await;
+                }
+            }
+        } else if let Some(reactor) = reactors.get(type_id) {
+            tracing::debug!(actor=self.key.value, "Found reactor for type_id {:?}", type_id);
+            match reactor.value() {
+                ReactorItem::Message(reactor) => {
+                    debug!(handling_actor=self.key.value,"Awaiting NON-future-based reactor for type_id {:?}", type_id);
+                    (*reactor)(self, &mut envelope);
+                }
+                ReactorItem::Future(fut) => {
+                    debug!(handling_actor=self.key.value,"Awaiting future-based reactor for type_id {:?}", type_id);
+                    let _ = (*fut)(self, &mut envelope).await;
+                    trace!("Message handled by reactor for type_id {:?}", type_id);
+                }
+                _ => {
+                    tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id);
+                }
+            }
+        } else if let Some(SystemSignal::Terminate) =
+            envelope.message.as_any().downcast_ref::<SystemSignal>()
+        {
+            self.suspend_self().await;
+        }
+    }
+
+    async fn suspend_self(&mut self) {
+        tracing::warn!(actor=self.key.value, "Received SystemSignal::Terminate for");
+
+        tracing::trace!(
+                    "Terminating {} children",
+                    &self.context.children.len()
+                );
+        for item in &self.context.children {
+            let context = item.value();
+            let _ = context.suspend().await;
+        }
+        tracing::trace!(
+                    "Terminating {} actor managed pools", &self.pool_supervisor.len()
+                );
+        for pool in &self.pool_supervisor {
+            tracing::trace!(
+                    "Terminating pool with id \"{}\".", pool.id
+                );
+            for item_context in &pool.pool {
+                trace!(item=item_context.key.value,"Terminating pool item.");
+                let _ = item_context.suspend().await;
+            }
+        }
+
+        trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
+        self.mailbox.close();
     }
 }
 
@@ -273,7 +278,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-        let mut context : Context = Default::default();
+        let mut context: Context = Default::default();
         context.outbox = Some(outbox.clone());
 
         let mut key = Default::default();
@@ -287,6 +292,11 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 key = parent.key.clone();
                 key.append_part(&*config.name());
                 context.parent = Some(Box::new(parent.clone()));
+
+                // Event: Parent Context Set
+                // Description: Triggered when a parent context is set for the actor.
+                // Context: Includes the parent key value.
+                debug!(parent_key=?parent.key.value, "Parent context set for actor.");
             } else {
                 key = ArnBuilder::new()
                     .add::<Domain>("akton")
@@ -294,17 +304,33 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                     .add::<Company>("framework")
                     .add::<Part>(&*config.name())
                     .build();
+
+                // Event: Default Key Built
+                // Description: Triggered when a default key is built for the actor.
+                // Context: Includes the key value.
+                debug!(key=?key.value, "Default key built for actor.");
             }
             if let Some(config_broker) = config.broker() {
                 broker = Some(config_broker.clone());
                 context.broker = Box::new(Some(config_broker.clone()));
+
+                // Event: Broker Configured
+                // Description: Triggered when a broker is configured for the actor.
+                // Context: Includes the broker details.
+                debug!(broker=?config_broker, "Broker configured for actor.");
             }
+        } else {
+            warn!("No config provided for actor")
         }
         context.key = key.clone();
+
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
+        // Event: New Actor Created
+        // Description: Triggered when a new actor is created.
+        // Context: Includes the actor's key value.
         trace!("NEW ACTOR: {}", &key.value);
 
         // Create and return the new actor instance
@@ -321,7 +347,6 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             pool_supervisor: Default::default(),
         }
     }
-
     /// Activates the actor, optionally with a pool builder.
     ///
     /// # Parameters
@@ -340,12 +365,18 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             let reactors = mem::take(&mut actor.setup.reactors);
             let context = actor.context.clone();
 
-
-            // If a pool builder is provided, spawn the supervisor
+            // Event: PoolBuilder Provided
+            // Description: Triggered when a PoolBuilder is provided for actor activation.
+            // Context: Includes the actor's key value.
             if let Some(builder) = builder {
                 trace!(id = actor.key.value, "PoolBuilder provided.");
                 let moved_context = actor.context.clone();
+
+                // Event: Pool Supervisor Spawned
+                // Description: Triggered when the PoolSupervisor is spawned.
+                // Context: Includes the actor's key value.
                 actor.pool_supervisor = builder.spawn(&moved_context).await?;
+                trace!(id = actor.key.value, "PoolSupervisor spawned.");
             }
 
             // here we transition from an Actor<Idle> to an Actor<Awake>
@@ -357,12 +388,20 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
                 !actor.mailbox.is_closed(),
                 "Actor mailbox is closed in spawn"
             );
-
+            let key = &actor.key.value.clone();
+            // Event: Actor Wake Task Spawned
+            // Description: Triggered when the actor's wake task is spawned.
+            // Context: Includes the actor's key value.
             // TODO: we need to store this join handle
-            // Spawn the actor's wake task
             let _ = &context.task_tracker.spawn(actor.wake(reactors));
+            trace!(id = &key, "Actor wake task spawned.");
 
             context.task_tracker.close();
+
+            // Event: Actor Activated
+            // Description: Triggered when the actor is successfully activated.
+            // Context: Includes the actor's key value.
+            trace!(id = &key, "Actor activated.");
 
             Ok(context.clone())
         })

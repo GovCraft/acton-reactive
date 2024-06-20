@@ -44,18 +44,6 @@ pub enum SupervisorSignal<T: Any + Send + Debug> {
     Inspect(Option<Sender<T>>),
 }
 
-impl<T: Any + Send + Debug> AktonMessage for SupervisorSignal<T> {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
 /// System-wide signals used to control actor lifecycle events.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -72,14 +60,4 @@ pub(crate) enum SystemSignal {
     // Failed,
 }
 
-impl AktonMessage for SystemSignal {
-    /// Returns a reference to the signal as `Any`.
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 
-    /// Returns a mutable reference to the signal as `Any`.
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}

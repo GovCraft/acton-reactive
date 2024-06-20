@@ -43,6 +43,7 @@ use akton::prelude::*;
 use crate::setup::*;
 
 mod setup;
+mod broker_tests;
 
 // #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 // async fn test_broker_subscription() -> anyhow::Result<()> {
