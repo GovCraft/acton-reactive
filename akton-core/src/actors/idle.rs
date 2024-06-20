@@ -112,19 +112,18 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<Arc<M>>)
+        message_reactor: impl Fn(&mut Actor<Awake<State>, State>, &mut EventRecord<M>)
         + Send
         + Sync
         + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
-        info!(type_name=std::any::type_name::<M>(),type_id=?type_id);
+        trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| {
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    // let cloned_message = concrete_msg.clone(); // Clone the message.
-                    let message = Arc::new(concrete_msg.clone());
+                    let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
                     let return_address = OutboundEnvelope::new(
                         envelope.return_address.clone(),
@@ -163,7 +162,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a mut EventRecord<Arc<M>>) -> Fut
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a mut EventRecord<M>) -> Fut
         + Send
         + Sync
         + 'static,
@@ -172,19 +171,19 @@ impl<State: Default + Send + Debug> Idle<State> {
         M: AktonMessage + Clone + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
-        info!(type_name=std::any::type_name::<M>(),type_id=?type_id);
+        trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| -> Fut {
                 let envelope_type_id = envelope.message.as_any().type_id();
-                info!(
+                trace!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
                 type_id, envelope_type_id
             );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    info!("Message successfully downcasted to concrete type: {:?}", type_id);
+                    debug!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
 
-                    let message = Arc::new(concrete_msg.clone());
+                    let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
                     let mut event_record = {
                         if let Some(parent) = &actor.parent {
