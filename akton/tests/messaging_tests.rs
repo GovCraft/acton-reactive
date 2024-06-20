@@ -58,3 +58,26 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
     context.suspend().await?;
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_async_messaging_behavior() -> anyhow::Result<()> {
+    init_tracing();
+    let mut actor = Akton::<PoolItem>::create();
+    actor
+        .setup
+        .act_on_async::<Ping>(|actor, event| {
+            let message = event.message.clone();
+            let type_id = TypeId::of::<Ping>();
+            let type_name = std::any::type_name::<Ping>();
+            info!(type_name=type_name,type_id=?type_id, "Received in async handler");
+            actor.state.receive_count += 1;
+            Box::pin(async move {})
+        })
+        .on_before_stop(|actor| {
+            info!("Processed {} Pings", actor.state.receive_count);
+        });
+    let context = actor.activate(None).await?;
+    context.emit_async(Ping, None).await;
+    context.suspend().await?;
+    Ok(())
+}

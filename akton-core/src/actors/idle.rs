@@ -158,29 +158,30 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `message_processor`: The function to handle the message.
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a EventRecord<&'a M>) -> Fut
+        message_processor: impl for<'a> Fn(&'a mut Actor<Awake<State>, State>, &'a mut EventRecord<M>) -> Fut
         + Send
         + Sync
         + 'static,
     ) -> &mut Self
         where
-            M: AktonMessage + Send + Sync + 'static,
+            M: AktonMessage + Clone + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
 
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut Actor<Awake<State>, State>, envelope: &Envelope| -> Fut {
-                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
-                    let event_record = {
+            move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| -> Fut {
+                if let Some(concrete_msg) = envelope.message.as_any_mut().downcast_mut::<M>() {
+                    let mut event_record = {
+                        let concrete_msg = concrete_msg.clone();
                         if let Some(parent) = &actor.parent {
-                            EventRecord {
+                          EventRecord {
                                 message: concrete_msg,
                                 sent_time: envelope.sent_time,
                                 return_address: parent.return_address(),
                             }
                         } else {
-                            EventRecord {
+                          EventRecord {
                                 message: concrete_msg,
                                 sent_time: envelope.sent_time,
                                 return_address: actor.context.return_address(),
@@ -188,7 +189,7 @@ impl<State: Default + Send + Debug> Idle<State> {
                         }
                     };
                     // Call the user-provided function and get the future.
-                    let user_future = message_processor(actor, &event_record);
+                    let user_future = message_processor(actor, &mut event_record);
 
                     // Automatically box and pin the user future.
                     Box::pin(user_future)

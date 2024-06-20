@@ -190,7 +190,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     }
                     ReactorItem::Future(fut) => {
                         event!(Level::TRACE, "Awaiting future-based reactor");
-                        fut(self, &envelope).await;
+                        fut(self, &mut envelope).await;
                     }
                     _ => {
                         tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone());

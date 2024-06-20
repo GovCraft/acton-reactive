@@ -68,7 +68,7 @@ pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, Stat
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut
+pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b mut Envelope) -> Fut
     + Send
     + Sync
     + 'static;
