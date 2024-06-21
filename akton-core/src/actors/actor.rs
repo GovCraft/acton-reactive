@@ -45,10 +45,10 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level, trace, warn};
+use tracing::*;
 
-use crate::common::{BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
-use crate::message::{Envelope, OutboundEnvelope};
+use crate::common::{BrokerContextType, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::traits::{ActorContext};
 
@@ -70,7 +70,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub parent: Option<ParentContext>,
 
     /// The actor's optional context ref to a broker actor.
-    pub broker: Option<BrokerContext>,
+    pub broker: Option<BrokerContextType>,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
@@ -154,7 +154,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
-//            tracing::debug!(actor=self.key.value, "Mailbox received {:?} for", &envelope.message);
+           trace!(actor=self.key.value, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
 
             // Handle SystemSignal::Terminate to stop the actor
 
@@ -273,7 +273,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-        let mut context : Context = Default::default();
+        let mut context: Context = Default::default();
         context.outbox = Some(outbox.clone());
 
         let mut key = Default::default();

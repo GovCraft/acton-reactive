@@ -32,17 +32,17 @@
  */
 
 use std::fmt::Display;
-use crate::common::{BrokerContext, ParentContext};
+use crate::common::{BrokerContextType, ParentContext};
 
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
     name: String,
-    broker: Option<BrokerContext>,
+    broker: Option<BrokerContextType>,
     parent: Option<ParentContext>,
 }
 
 impl ActorConfig {
-    pub fn new(name: impl AsRef<str> + Display, parent: Option<ParentContext>, broker: Option<BrokerContext>) -> ActorConfig {
+    pub fn new(name: impl AsRef<str> + Display, parent: Option<ParentContext>, broker: Option<BrokerContextType>) -> ActorConfig {
         ActorConfig {
             name: name.to_string(),
             broker,
@@ -52,7 +52,7 @@ impl ActorConfig {
     pub(crate) fn name(&self) -> &String {
         &self.name
     }
-    pub(crate) fn broker(&self) -> &Option<BrokerContext> {
+    pub(crate) fn broker(&self) -> &Option<BrokerContextType> {
         &self.broker
     }
     pub(crate) fn parent(&self) -> &Option<ParentContext> {

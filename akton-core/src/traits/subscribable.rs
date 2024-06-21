@@ -33,6 +33,7 @@
 
 use std::any::TypeId;
 use std::future::Future;
+use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::*;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
@@ -61,9 +62,12 @@ where
         Self: ActorContext + Subscriber + 'static,
     {
         let subscriber_id = self.key();
+        let message_type_id = TypeId::of::<M>();
+        let message_type_name = std::any::type_name::<M>().to_string();
         let subscription = SubscribeBroker {
             subscriber_id,
-            message_type_id: TypeId::of::<M>(),
+            message_type_id,
+            message_type_name: message_type_name.clone(),
             subscriber_context: self.clone_self(),
         };
         let broker = self.broker();
@@ -73,10 +77,10 @@ where
             if let Some(broker) = broker {
                 let broker_key = broker.key();
                 debug!(
-                          type_id=?TypeId::of::<M>(),
+                          type_id=?message_type_id,
                           subscribing_actor = key,
                           "Subscribing to type_name {} with broker {}",
-                          std::any::type_name::<M>(),
+                          message_type_name,
                           broker_key
                       );
                 broker.emit_async(subscription, None).await;

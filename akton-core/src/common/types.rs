@@ -91,5 +91,5 @@ pub(crate) type LifecycleReactorAsync<State> =
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
-pub type BrokerContext = Context;
+pub type BrokerContextType = Context;
 pub type ParentContext = Context;

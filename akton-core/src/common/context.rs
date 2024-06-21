@@ -42,9 +42,9 @@ use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{Actor, Idle};
-use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
+use crate::common::{BrokerContextType, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
 
-use crate::traits::{ActorContext, Subscriber};
+use crate::traits::{ActorContext, BrokerContext, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -57,12 +57,12 @@ pub struct Context {
     pub(crate) task_tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentContext>>,
-    pub broker: Box<Option<BrokerContext>>,
+    pub broker: Box<Option<BrokerContextType>>,
     pub(crate) children: DashMap<String, Context>,
 }
 
 impl Subscriber for Context {
-    fn broker(&self) -> Option<BrokerContext> {
+    fn broker(&self) -> Option<BrokerContextType> {
         *self.broker.clone()
     }
 }
@@ -94,6 +94,8 @@ impl Context {
         Ok(())
     }
 }
+
+impl BrokerContext for Context {}
 
 #[async_trait]
 impl ActorContext for Context {

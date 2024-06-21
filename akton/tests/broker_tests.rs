@@ -62,7 +62,7 @@ async fn test_broker() -> anyhow::Result<()> {
 
     let comedian = comedy_show.activate(None).await?;
     comedian.subscribe::<Ping>().await;
-    let broadcast_message = BroadcastEnvelope::new(Ping);
+    let broadcast_message = BrokerRequest::new(Ping);
 
     broker.emit_async(broadcast_message, None).await;
 

@@ -36,32 +36,43 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use static_assertions::assert_impl_all;
-use tracing::{debug, instrument};
+use tracing::*;
 
 use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
-#[derive(Debug,Clone)]
-pub struct BroadcastEnvelope {
-    /// The message contained in the envelope.
+#[derive(Debug, Clone)]
+pub struct BrokerRequest {
     pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub any_message: Arc<dyn Any + Send + Sync + 'static>,
+    pub message_type_name: String,
     pub message_type_id: TypeId,
 }
 
-impl BroadcastEnvelope {
-
-    #[instrument]
-    pub fn new(
-        message: impl AktonMessage + Send + Sync + 'static,
-    ) -> Self {
+impl BrokerRequest {
+    pub fn new<M: AktonMessage + Send + Sync + 'static>(message: M) -> Self {
+        let message_type_name = std::any::type_name_of_val(&message).to_string();
         let message_type_id = message.type_id();
-        debug!(message_type_id=?message_type_id);
         let message = Arc::new(message);
-        BroadcastEnvelope {
+        let any_message = message.clone() as Arc<dyn Any + Send + Sync + 'static>;
+        trace!(message_type_name=message_type_name,"BroadcastEnvelope::new() message_type_id: {:?}", message_type_id);
+        Self {
             message,
-            message_type_id
+             any_message,
+            message_type_id,
+            message_type_name,
         }
     }
+
+    // pub fn downcast_message<T: AktonMessage + Send + Sync + 'static>(&self) -> Option<Arc<T>> {
+    //     if self.message_type_id == TypeId::of::<T>() {
+    //         let cloned: Arc<dyn Any + Send + Sync + 'static> = self.any_message.clone();
+    //         let downcasted: Result<Arc<T>, _> = Arc::downcast(cloned);
+    //         downcasted.ok()
+    //     } else {
+    //         None
+    //     }
+    // }
 }
 
