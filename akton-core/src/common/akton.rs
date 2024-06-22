@@ -43,10 +43,10 @@ use crate::common::{Broker, BrokerContextType};
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Akton<State: Default + Send + Debug> {
     /// The root state of the actor.
-    root_actor: PhantomData<State>,
+    _phantom: PhantomData<State>,
 }
 
 impl<State: Default + Send + Debug> Akton<State> {
@@ -64,20 +64,7 @@ impl<State: Default + Send + Debug> Akton<State> {
         Actor::new(Some(config), State::default())
     }
 }
-/// Provides a default implementation for the `Akton` struct.
-///
-/// This implementation creates a new `Akton` instance with the default root state.
-impl<State: Default + Send + Debug> Default for Akton<State> {
-    /// Creates a new `Akton` instance with the default root state.
-    ///
-    /// # Returns
-    /// A new `Akton` instance.
-    fn default() -> Self {
-        Akton {
-            root_actor: PhantomData,
-        }
-    }
-}
+
 // Separate implementation block for `Broker`
 impl Akton<Broker> {
     #[instrument]
@@ -85,3 +72,5 @@ impl Akton<Broker> {
         Broker::init().await
     }
 }
+
+
