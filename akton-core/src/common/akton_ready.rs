@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::future::Future;
+use std::pin::Pin;
 
 use crate::actors::{Actor, ActorConfig, Idle};
 use crate::common::{Akton, Broker, BrokerContextType, Context};
@@ -21,20 +22,16 @@ impl AktonReady {
     pub fn broker(&self) -> BrokerContextType {
         self.0.broker.clone()
     }
-    pub async fn spawn_actor<State, F, Fut>(&mut self, setup: F) -> Context
+    pub async fn spawn_actor<State>(&mut self, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> Context
     where
         State: Default + Send + Debug + 'static,
-        F: FnOnce(Actor<Idle<State>, State>) -> Fut + Send + 'static,
-        Fut: Future<Output=Actor<Idle<State>, State>> + Send + 'static,
     {
-        // Create the initial actor
-        let actor = Actor::new(None, State::default());
+        let broker = self.broker();
 
-        // Call the setup closure to allow customization
-        let configured_actor = setup(actor).await;
+        let actor = Actor::new(Some(ActorConfig::new("default", None, Some(broker))), State::default());
 
-        // Activate the actor
-        configured_actor.activate(None)
+        setup(actor).await
+        // configured_actor.activate(None)
     }
     fn get_pool_size_from_config() -> usize {
         // TODO: Logic to read from env or config file
