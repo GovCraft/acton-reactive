@@ -43,7 +43,6 @@ use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{Actor, Idle};
 use crate::common::{BrokerContextType, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
-
 use crate::traits::{ActorContext, BrokerContext, Subscriber};
 
 /// Represents the context in which an actor operates.
@@ -87,7 +86,7 @@ impl Context {
         &self,
         child: Actor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
-        let context = child.activate(None).await?;
+        let context = child.activate(None);
         let id = context.key.value.clone();
         self.children.insert(id, context);
 

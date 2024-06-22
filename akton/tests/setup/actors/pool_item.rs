@@ -30,12 +30,15 @@
  *
  *
  */
-use crate::setup::*;
-use akton_core::prelude::*;
-use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
+
+use async_trait::async_trait;
 use tracing::error;
+
+use akton_core::prelude::*;
+
+use crate::setup::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct PoolItem {
@@ -46,8 +49,18 @@ pub struct PoolItem {
 impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> Context {
+        let mut akton: AktonReady = Akton::launch().into();
 
-        let mut actor = Akton::<PoolItem>::create_with_config(config.clone());;
+        let broker = akton.broker();
+
+        let actor_config = ActorConfig::new(
+            "improve_show",
+            None,
+            Some(broker.clone()),
+        );
+
+        let mut actor = akton.create::<PoolItem>(); //::<Comedian>::create_with_config(actor_config);
+        // let mut actor = Akton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
@@ -84,6 +97,6 @@ impl PooledActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        actor.activate(None).await.expect("")
+        actor.activate(None)
     }
 }

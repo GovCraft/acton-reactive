@@ -50,7 +50,7 @@ use tracing::*;
 use crate::common::{BrokerContextType, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
-use crate::traits::{ActorContext};
+use crate::traits::ActorContext;
 
 use super::{ActorConfig, Awake, Idle};
 
@@ -155,7 +155,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                 envelope = Envelope::new(
                     broker_request_envelope.message.clone(),
                     incoming_envelope.return_address.clone(),
-                    incoming_envelope.pool_id.clone()
+                    incoming_envelope.pool_id.clone(),
                 );
                 type_id = broker_request_envelope.message.as_any().type_id().clone();
             } else {
@@ -287,39 +287,39 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub fn activate(
         self,
         builder: Option<PoolBuilder>,
-    ) -> Pin<Box<dyn Future<Output=anyhow::Result<Context>> + Send + 'static>> {
-        Box::pin(async move {
-            // Store and activate all supervised children if a builder is provided
-            let mut actor = self;
-            let reactors = mem::take(&mut actor.setup.reactors);
-            let context = actor.context.clone();
+    ) -> Context {
+        // Box::pin(async move {
+        // Store and activate all supervised children if a builder is provided
+        let mut actor = self;
+        let reactors = mem::take(&mut actor.setup.reactors);
+        let context = actor.context.clone();
 
 
-            // If a pool builder is provided, spawn the supervisor
-            if let Some(builder) = builder {
-                trace!(id = actor.key.value, "PoolBuilder provided.");
-                let moved_context = actor.context.clone();
-                actor.pool_supervisor = builder.spawn(&moved_context).await?;
-            }
+        // If a pool builder is provided, spawn the supervisor
+        // if let Some(builder) = builder {
+        //     trace!(id = actor.key.value, "PoolBuilder provided.");
+        //     let moved_context = actor.context.clone();
+        //     actor.pool_supervisor = builder.spawn(&moved_context).await?;
+        // }
 
-            // here we transition from an Actor<Idle> to an Actor<Awake>
-            let active_actor: Actor<Awake<State>, State> = actor.into();
+        // here we transition from an Actor<Idle> to an Actor<Awake>
+        let active_actor: Actor<Awake<State>, State> = actor.into();
 
-            // makes actor live for static, required for the `wake` function
-            let actor = Box::leak(Box::new(active_actor));
-            debug_assert!(
-                !actor.mailbox.is_closed(),
-                "Actor mailbox is closed in spawn"
-            );
+        // makes actor live for static, required for the `wake` function
+        let actor = Box::leak(Box::new(active_actor));
+        debug_assert!(
+            !actor.mailbox.is_closed(),
+            "Actor mailbox is closed in spawn"
+        );
 
-            // TODO: we need to store this join handle
-            // Spawn the actor's wake task
-            let _ = &context.task_tracker.spawn(actor.wake(reactors));
+        // TODO: we need to store this join handle
+        // Spawn the actor's wake task
+        let _ = &context.task_tracker.spawn(actor.wake(reactors));
 
-            context.task_tracker.close();
+        context.task_tracker.close();
 
-            Ok(context.clone())
-        })
+        context.clone()
+        // })
     }
 }
 

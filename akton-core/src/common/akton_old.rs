@@ -30,22 +30,41 @@
  *
  *
  */
-pub use akton::Akton;
-pub use akton_ready::AktonReady;
-pub use broker::Broker;
-pub use context::Context;
-pub(crate) use types::*;
 
-pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
-pub(crate) use crate::message::signal::SystemSignal;
-pub use crate::pool::LoadBalanceStrategy;
+use std::fmt::Debug;
 
-mod akton_old;
+// /// Represents an actor with a root state.
+// ///
+// /// # Type Parameters
+// /// - `State`: The type representing the state of the actor.
+// #[derive(Debug, Default)]
+// pub struct Akton<State: Default + Send + Debug> {
+//     /// The root state of the actor.
+//     _phantom: PhantomData<State>,
+// }
+//
+// impl<State: Default + Send + Debug> Akton<State> {
+//     /// Creates a new root actor in the idle state.
+//     ///
+//     /// # Returns
+//     /// A new `Actor` instance in the idle state with the root state.
+//     #[instrument]
+//     pub fn create() -> Actor<Idle<State>, State> {
+//         Actor::new(None, State::default())
+//     }
+//
+//     #[instrument]
+//     pub fn create_with_config(config: ActorConfig) -> Actor<Idle<State>, State> {
+//         Actor::new(Some(config), State::default())
+//     }
+// }
+//
+// // Separate implementation block for `Broker`
+// impl Akton<Broker> {
+//     #[instrument]
+//     pub async fn spawn_broker() -> BrokerContextType {
+//         Broker::init()
+//     }
+// }
 
-mod types;
 
-mod context;
-mod broker;
-mod akton;
-mod akton_ready;
-mod akton_inner;
