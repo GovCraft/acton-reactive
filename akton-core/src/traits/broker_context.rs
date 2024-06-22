@@ -26,10 +26,10 @@ pub(crate) trait BrokerContext: ActorContext {
         async move {
             let envelope = self.return_address();
             let type_id= broker_request_envelope.type_id();
-            error!("BEFORE: {type_id:?}");
+            trace!("BEFORE: {type_id:?}");
             let message = broker_request_envelope.message;
             let type_id= message.type_id();
-            error!("AFTER: {type_id:?}");
+            trace!("AFTER: {type_id:?}");
             envelope.reply_async(message, pool_name).await;
         }
     }

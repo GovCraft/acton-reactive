@@ -48,4 +48,4 @@ mod unsubscribe_broker;
 mod broker_request;
 mod broker_request_envelope;
 
-pub(crate) use broker_request_envelope::BrokerRequestEnvelope;
+pub use broker_request_envelope::BrokerRequestEnvelope;

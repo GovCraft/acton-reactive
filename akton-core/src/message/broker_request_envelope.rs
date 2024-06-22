@@ -51,7 +51,7 @@ pub struct BrokerRequestEnvelope {
 
 impl From<BrokerRequest> for BrokerRequestEnvelope {
     fn from(value: BrokerRequest) -> Self {
-        error!("{:?}", value);
+        debug!("{:?}", value);
         Self {
             message: value.message,
             any_message: value.any_message,

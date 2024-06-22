@@ -142,116 +142,56 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         }
     }
 
-    /// Wakes the actor and processes incoming messages using the provided reactors.
-    ///
-    /// # Parameters
-    /// - `reactors`: A map of reactors to handle different message types.
     #[instrument(skip(reactors, self))]
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
-        // Call the on_wake setup function
         (self.setup.on_wake)(self);
 
-        let mut yield_counter = 0;
         while let Some(mut envelope) = self.mailbox.recv().await {
             let type_id = &envelope.message.as_any().type_id().clone();
-           trace!(actor=self.key.value, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
-
-            // Handle SystemSignal::Terminate to stop the actor
 
             if let Some(ref pool_id) = &envelope.pool_id {
-                // Event: Processing Envelope
-                // Description: Processing an envelope for a specific pool.
-                // Context: Pool ID and envelope details.
-                // trace!(pool_id = ?pool_id, envelope = ?envelope, "Processing envelope for pool.");
                 if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
-                    // First, clone or copy the data needed for the immutable borrow.
-                    // NOTE: Cloning the whole pool may be expensive, so consider alternatives if performance is a concern.
                     let pool_clone = pool_def.pool.clone();
-
-                    // Now perform the selection outside the mutable borrowed variable's scope.
                     if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
-                        // Access the original data using the index now that we're outside the conflicting borrow.
                         let context = &pool_def.pool[index];
                         trace!(pool_item=context.key.value,index = index, "Emitting to pool item");
                         context.emit_message_async(envelope.message, None).await;
                     }
                 }
             } else if let Some(reactor) = reactors.get(type_id) {
-                event!(Level::TRACE, "Message reactor found");
-
                 match reactor.value() {
-                    ReactorItem::Message(reactor) => {
-                        event!(
-                            Level::TRACE,
-                            "Executing non-future reactor with {} children",
-                            &self.context.children().len()
-                        );
-                        (*reactor)(self, &mut envelope);
-                    }
-                    ReactorItem::Future(fut) => {
-                        event!(Level::TRACE, "Awaiting future-based reactor");
-                        fut(self, &mut envelope).await;
-                    }
-                    _ => {
-                        tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone());
-                    }
+                    ReactorItem::Message(reactor) => (*reactor)(self, &mut envelope),
+                    ReactorItem::Future(fut) => fut(self, &mut envelope).await,
+                    _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
-
-                trace!("Message handled by reactor");
-            } else if let Some(SystemSignal::Terminate) =
-                envelope.message.as_any().downcast_ref::<SystemSignal>()
-            {
-                tracing::warn!(actor=self.key.value, "Received SystemSignal::Terminate for");
-
-                tracing::trace!(
-                    "Terminating {} children",
-                    &self.context.children.len()
-                );
-                for item in &self.context.children {
-                    let context = item.value();
-                    let _ = context.suspend().await;
-                }
-                tracing::trace!(
-                    "Terminating {} actor managed pools", &self.pool_supervisor.len()
-                );
-                for pool in &self.pool_supervisor {
-                    tracing::trace!(
-                    "Terminating pool with id \"{}\".", pool.id
-                );
-                    for item_context in &pool.pool {
-                        trace!(item=item_context.key.value,"Terminating pool item.");
-                        let _ = item_context.suspend().await;
-                    }
-                }
-
-                trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
-                self.mailbox.close();
-            }
-
-            // Yield less frequently to reduce context switching
-            yield_counter += 1;
-            if yield_counter % 100 == 0 {
-                tokio::task::yield_now().await;
+            } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                trace!(actor=self.key.value, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
+                self.terminate_actor().await;
             }
         }
-        // Call the on_before_stop setup function
         (self.setup.on_before_stop)(self);
-        tracing::trace!(actor=self.key.value,"called on_before_stop for");
         if let Some(ref on_before_stop_async) = self.setup.on_before_stop_async {
-            // Add a timeout to prevent hanging indefinitely
-            match timeout(Duration::from_secs(5), on_before_stop_async(self)).await {
-                Ok(_) => {
-                    tracing::info!(actor=self.key.value,"called on_before_stop_async for");
-                }
-                Err(e) => {
-                    tracing::error!("on_before_stop_async timed out or failed: {:?}", e);
-                }
+            if timeout(Duration::from_secs(5), on_before_stop_async(self)).await.is_err() {
+                tracing::error!("on_before_stop_async timed out or failed");
             }
         }
-
-        // Call the on_stop setup function
         (self.setup.on_stop)(self);
-        tracing::trace!(actor=self.key.value,"called on_stop for");
+    }
+    #[instrument(skip(self))]
+    async fn terminate_actor(&mut self) {
+        tracing::trace!(actor=self.key.value, "Received SystemSignal::Terminate for");
+        for item in &self.context.children {
+            let context = item.value();
+            let _ = context.suspend().await;
+        }
+        for pool in &self.pool_supervisor {
+            for item_context in &pool.pool {
+                trace!(item=item_context.key.value,"Terminating pool item.");
+                let _ = item_context.suspend().await;
+            }
+        }
+        trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
+        self.mailbox.close();
     }
 }
 

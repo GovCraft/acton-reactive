@@ -30,6 +30,7 @@
  *
  *
  */
+use std::sync::Arc;
 use akton::prelude::*;
 use tracing::*;
 use crate::setup::*;
@@ -53,10 +54,14 @@ async fn test_broker() -> anyhow::Result<()> {
 
     comedy_show
         .setup
-        .act_on_async::<Ping>(|actor, event| {
-
-            info!("SUCCESS! PING!");
-            Box::pin(async move {  })
+        .act_on_async::<BrokerRequestEnvelope>(|actor, event| {
+            let msg = event.message.message.clone();
+            if let Some(_) = Arc::clone(&msg).as_any().downcast_ref::<Ping>() {
+                info!("SUCCESS! PING!");
+            } else {
+                error!("No PING!");
+            }
+            Box::pin(async move {})
         });
 
 

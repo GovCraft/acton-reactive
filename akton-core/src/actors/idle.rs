@@ -122,6 +122,11 @@ impl<State: Default + Send + Debug> Idle<State> {
         // Create a boxed handler for the message type.
         let handler_box: Box<MessageReactor<State>> = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| {
+                let envelope_type_id = envelope.message.as_any().type_id();
+                info!(
+                "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
+                type_id, envelope_type_id
+            );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
@@ -176,12 +181,12 @@ impl<State: Default + Send + Debug> Idle<State> {
         let handler_box = Box::new(
             move |actor: &mut Actor<Awake<State>, State>, envelope: &mut Envelope| -> Fut {
                 let envelope_type_id = envelope.message.as_any().type_id();
-                trace!(
+                info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
                 type_id, envelope_type_id
             );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    debug!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
+                    info!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
 
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;

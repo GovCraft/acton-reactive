@@ -88,7 +88,7 @@ impl Broker {
                         .entry(message_type_id)
                         .or_insert_with(HashSet::new)
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
-                    error!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key.value, "Subscriber added");
+                    trace!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key.value, "Subscriber added");
                 })
             });
 
@@ -112,14 +112,14 @@ impl Broker {
     #[instrument(skip(subscribers))]
     pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, request: BrokerRequest) {
         let message_type_id = &request.message.as_ref().type_id();
-        error!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
+        debug!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
                 let subscriber_context = subscriber_context.clone();
 
                 let message: BrokerRequestEnvelope = request.clone().into();
                 debug!(type_id=?message_type_id,message=?message,"emitting message");
-                subscriber_context.broker_emit_async(message, None).await;
+                subscriber_context.emit_async(message, None).await;
             }
         }
     }
