@@ -51,27 +51,40 @@ async fn test_broker() -> anyhow::Result<()> {
 
     let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
 
+    let actor_config = ActorConfig::new(
+        "counter",
+        None,
+        Some(broker.clone()),
+    );
+    let mut counter_actor = Akton::<Counter>::create_with_config(actor_config);
+    counter_actor
+        .setup
+        .act_on::<Pong>(|actor, event| {
+            info!("Also SUCCESS! PONG!");
+        });
 
     comedy_show
         .setup
-        .act_on_async::<BrokerRequestEnvelope>(|actor, event| {
-            let msg = event.message.message.clone();
-            if let Some(_) = Arc::clone(&msg).as_any().downcast_ref::<Ping>() {
-                info!("SUCCESS! PING!");
-            } else {
-                error!("No PING!");
-            }
+        .act_on_async::<Ping>(|actor, event| {
+            info!("SUCCESS! PING!");
             Box::pin(async move {})
-        });
+        })
+        .act_on::<Pong>(|actor, event| {
+        info!("SUCCESS! PONG!");
+    });
 
+    counter_actor.context.subscribe::<Pong>().await;
+    comedy_show.context.subscribe::<Ping>().await;
+    comedy_show.context.subscribe::<Pong>().await;
 
     let comedian = comedy_show.activate(None).await?;
-    comedian.subscribe::<Ping>().await;
-    let broadcast_message = BrokerRequest::new(Ping);
+    let counter = counter_actor.activate(None).await?;
 
-    broker.emit_async(broadcast_message, None).await;
+    broker.emit_async(BrokerRequest::new(Ping), None).await;
+    broker.emit_async(BrokerRequest::new(Pong), None).await;
 
     let _ = comedian.suspend().await?;
+    let _ = counter.suspend().await?;
     let _ = broker.suspend().await?;
 
     Ok(())

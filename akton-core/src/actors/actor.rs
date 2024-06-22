@@ -146,8 +146,22 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
         (self.setup.on_wake)(self);
 
-        while let Some(mut envelope) = self.mailbox.recv().await {
-            let type_id = &envelope.message.as_any().type_id().clone();
+        while let Some(mut incoming_envelope) = self.mailbox.recv().await {
+            let type_id;
+            let mut envelope;
+
+            // Special case for BrokerRequestEnvelope
+            if let Some(broker_request_envelope) = incoming_envelope.message.as_any().downcast_ref::<BrokerRequestEnvelope>() {
+                envelope = Envelope::new(
+                    broker_request_envelope.message.clone(),
+                    incoming_envelope.return_address.clone(),
+                    incoming_envelope.pool_id.clone()
+                );
+                type_id = broker_request_envelope.message.as_any().type_id().clone();
+            } else {
+                envelope = incoming_envelope;
+                type_id = envelope.message.as_any().type_id().clone();
+            }
 
             if let Some(ref pool_id) = &envelope.pool_id {
                 if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
@@ -158,7 +172,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                         context.emit_message_async(envelope.message, None).await;
                     }
                 }
-            } else if let Some(reactor) = reactors.get(type_id) {
+            } else if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
                     ReactorItem::Message(reactor) => (*reactor)(self, &mut envelope),
                     ReactorItem::Future(fut) => fut(self, &mut envelope).await,
