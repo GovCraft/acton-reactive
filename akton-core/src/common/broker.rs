@@ -54,7 +54,7 @@ pub struct Broker {
 
 impl Broker {
     #[instrument]
-    pub async fn init() -> anyhow::Result<Context> {
+    pub(crate) async fn init() -> anyhow::Result<Context> {
         let actor_config = ActorConfig::new("broker", None, None);
         let mut actor = Akton::<Broker>::create_with_config(actor_config);
 
