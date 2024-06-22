@@ -35,12 +35,14 @@ pub use actor_context::ActorContext;
 pub use akton_message::AktonMessage;
 pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 pub use pooled_actor::PooledActor;
-pub (crate) use subscriber::Subscriber;
-
+pub use subscriber::Subscriber;
+pub use subscribable::Subscribable;
+pub(crate) use broker_context::BrokerContext;
 mod actor_context;
 mod akton_message;
 mod load_balancer_strategy;
 mod pooled_actor;
 mod subscribable;
 mod subscriber;
+mod broker_context;
 

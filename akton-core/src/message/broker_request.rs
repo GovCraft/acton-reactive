@@ -32,25 +32,47 @@
  */
 
 use std::any::{Any, TypeId};
-use std::fmt::Debug;
-use crate::common::Context;
+use std::sync::Arc;
+use std::time::SystemTime;
+
+use static_assertions::assert_impl_all;
+use tracing::*;
+
+use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
 
-#[derive(Debug,Clone)]
-pub(crate) struct SubscribeBroker {
-    pub(crate) subscriber_id: String,
-    pub(crate) message_type_id: TypeId,
-    pub(crate) message_type_name: String,
-    pub(crate) subscriber_context: Context
+/// Represents an envelope that carries a message within the actor system.
+#[derive(Debug, Clone)]
+pub struct BrokerRequest {
+    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub any_message: Arc<dyn Any + Send + Sync + 'static>,
+    pub message_type_name: String,
+    pub message_type_id: TypeId,
 }
-// impl AktonMessage for SubscribeBroker {
-//     /// Returns a reference to the signal as `Any`.
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-//
-//     /// Returns a mutable reference to the signal as `Any`.
-//     fn as_any_mut(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
+
+impl BrokerRequest {
+    pub fn new<M: AktonMessage + Send + Sync + 'static>(message: M) -> Self {
+        let message_type_name = std::any::type_name_of_val(&message).to_string();
+        let message_type_id = message.type_id();
+        let message = Arc::new(message);
+        let any_message = message.clone() as Arc<dyn Any + Send + Sync + 'static>;
+        trace!(message_type_name=message_type_name,"BroadcastEnvelope::new() message_type_id: {:?}", message_type_id);
+        Self {
+            message,
+             any_message,
+            message_type_id,
+            message_type_name,
+        }
+    }
+
+    // pub fn downcast_message<T: AktonMessage + Send + Sync + 'static>(&self) -> Option<Arc<T>> {
+    //     if self.message_type_id == TypeId::of::<T>() {
+    //         let cloned: Arc<dyn Any + Send + Sync + 'static> = self.any_message.clone();
+    //         let downcasted: Result<Arc<T>, _> = Arc::downcast(cloned);
+    //         downcasted.ok()
+    //     } else {
+    //         None
+    //     }
+    // }
+}
+

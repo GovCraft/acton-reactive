@@ -30,20 +30,44 @@
  *
  *
  */
-
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
+use dyn_clone::DynClone;
 
 /// Trait for Akton messages, providing methods for type erasure.
-pub trait AktonMessage: Any + Send + Debug {
+pub trait AktonMessage: DynClone + Any + Send + Sync + Debug {
     /// Returns a reference to the message as `Any`.
     fn as_any(&self) -> &dyn Any;
-
-    /// Returns the `TypeId` of the message.
-    fn type_id(&self) -> TypeId {
-        TypeId::of::<Self>()
-    }
 
     /// Returns a mutable reference to the message as `Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+impl<T> AktonMessage for T
+where
+    T: Any + Send + Sync + Debug + DynClone + 'static,
+{
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+// impl Clone for Box<dyn AktonMessage + Send + Sync + '_> {
+//     fn clone(&self) -> Self {
+//         dyn_clone::clone_box(&*self)
+//     }
+// }
+
+// Function to downcast the message to the original type.
+pub fn downcast_message<T: 'static>(msg: &dyn AktonMessage) -> Option<&T> {
+    msg.as_any().downcast_ref::<T>()
+}
+
+pub fn downcast_message_mut<T: 'static>(msg: &mut dyn AktonMessage) -> Option<&mut T> {
+    msg.as_any_mut().downcast_mut::<T>()
+}
+

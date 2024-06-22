@@ -30,27 +30,63 @@
  *
  *
  */
+use std::sync::Arc;
+use akton::prelude::*;
+use tracing::*;
+use crate::setup::*;
 
-use std::any::{Any, TypeId};
-use std::fmt::Debug;
-use crate::common::Context;
-use crate::traits::AktonMessage;
+mod setup;
 
-#[derive(Debug,Clone)]
-pub(crate) struct SubscribeBroker {
-    pub(crate) subscriber_id: String,
-    pub(crate) message_type_id: TypeId,
-    pub(crate) message_type_name: String,
-    pub(crate) subscriber_context: Context
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_broker() -> anyhow::Result<()> {
+    init_tracing();
+
+    let broker = Akton::spawn_broker().await?;
+
+    let actor_config = ActorConfig::new(
+        "improve_show",
+        None,
+        Some(broker.clone()),
+    );
+
+    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+
+    let actor_config = ActorConfig::new(
+        "counter",
+        None,
+        Some(broker.clone()),
+    );
+    let mut counter_actor = Akton::<Counter>::create_with_config(actor_config);
+    counter_actor
+        .setup
+        .act_on::<Pong>(|actor, event| {
+            info!("Also SUCCESS! PONG!");
+        });
+
+    comedy_show
+        .setup
+        .act_on_async::<Ping>(|actor, event| {
+            info!("SUCCESS! PING!");
+            Box::pin(async move {})
+        })
+        .act_on::<Pong>(|actor, event| {
+        info!("SUCCESS! PONG!");
+    });
+
+    counter_actor.context.subscribe::<Pong>().await;
+    comedy_show.context.subscribe::<Ping>().await;
+    comedy_show.context.subscribe::<Pong>().await;
+
+    let comedian = comedy_show.activate(None).await?;
+    let counter = counter_actor.activate(None).await?;
+
+    broker.emit_async(BrokerRequest::new(Ping), None).await;
+    broker.emit_async(BrokerRequest::new(Pong), None).await;
+
+    let _ = comedian.suspend().await?;
+    let _ = counter.suspend().await?;
+    let _ = broker.suspend().await?;
+
+    Ok(())
 }
-// impl AktonMessage for SubscribeBroker {
-//     /// Returns a reference to the signal as `Any`.
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-//
-//     /// Returns a mutable reference to the signal as `Any`.
-//     fn as_any_mut(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
+

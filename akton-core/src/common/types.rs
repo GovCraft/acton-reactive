@@ -61,14 +61,14 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 
 /// A type alias for a message reactor function.
 pub(crate) type MessageReactor<State> =
-    dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) + Send + Sync + 'static;
+    dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
 pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b Envelope) -> Fut
+pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b mut Envelope) -> Fut
     + Send
     + Sync
     + 'static;
@@ -91,5 +91,5 @@ pub(crate) type LifecycleReactorAsync<State> =
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
-pub type BrokerContext = Context;
+pub type BrokerContextType = Context;
 pub type ParentContext = Context;

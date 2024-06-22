@@ -32,25 +32,41 @@
  */
 
 use std::any::{Any, TypeId};
-use std::fmt::Debug;
-use crate::common::Context;
+use std::sync::Arc;
+use std::time::SystemTime;
+
+use static_assertions::assert_impl_all;
+use tracing::*;
+
+use crate::common::OutboundChannel;
+use crate::message::BrokerRequest;
 use crate::traits::AktonMessage;
 
-#[derive(Debug,Clone)]
-pub(crate) struct SubscribeBroker {
-    pub(crate) subscriber_id: String,
-    pub(crate) message_type_id: TypeId,
-    pub(crate) message_type_name: String,
-    pub(crate) subscriber_context: Context
+/// Represents an envelope that carries a message within the actor system.
+#[derive(Debug, Clone)]
+pub struct BrokerRequestEnvelope {
+    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub any_message: Arc<dyn Any + Send + Sync + 'static>,
 }
-// impl AktonMessage for SubscribeBroker {
-//     /// Returns a reference to the signal as `Any`.
-//     fn as_any(&self) -> &dyn Any {
-//         self
-//     }
-//
-//     /// Returns a mutable reference to the signal as `Any`.
-//     fn as_any_mut(&mut self) -> &mut dyn Any {
-//         self
-//     }
-// }
+
+impl From<BrokerRequest> for BrokerRequestEnvelope {
+    fn from(value: BrokerRequest) -> Self {
+        debug!("{:?}", value);
+        Self {
+            message: value.message,
+            any_message: value.any_message,
+        }
+    }
+}
+
+impl BrokerRequestEnvelope {
+    pub fn new<M: AktonMessage + Send + Sync + 'static>(request: M) -> Self {
+        let message = Arc::new(request);
+        let any_message = message.clone() as Arc<dyn Any + Send + Sync + 'static>;
+        Self {
+            message,
+            any_message,
+        }
+    }
+}
+

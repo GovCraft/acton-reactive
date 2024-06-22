@@ -31,6 +31,8 @@
  *
  */
 
+use std::any::Any;
+use std::sync::Arc;
 use akton_arn::Arn;
 use tokio::runtime::Runtime;
 
@@ -120,11 +122,11 @@ trace!("*");
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     async fn reply_message_async(
         &self,
-        message: Box<dyn AktonMessage + Send + Sync>,
+        message: Arc<dyn AktonMessage + Send + Sync>,
         pool_id: Option<String>,
     ) {
         if let Some(reply_to) = &self.reply_to {
-            let type_id = AktonMessage::type_id(&*message);
+            let type_id = (&*message).type_id();
             if !reply_to.is_closed() {
                 // Reserve capacity
                 match reply_to.reserve().await {
@@ -161,7 +163,7 @@ trace!("*");
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) {
-        self.reply_message_async(Box::new(message), pool_id).await;
+        self.reply_message_async(Arc::new(message), pool_id).await;
     }
 
     /// Sends a reply message asynchronously.
@@ -175,7 +177,7 @@ trace!("*");
     #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
     pub async fn reply_async_boxed(
         &self,
-        message: Box<dyn AktonMessage + Send + Sync>,
+        message: Arc<dyn AktonMessage + Send + Sync>,
         pool_id: Option<String>,
     ) {
         self.reply_message_async(message, pool_id).await;

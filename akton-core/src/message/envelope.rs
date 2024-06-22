@@ -31,18 +31,19 @@
  *
  */
 
+use std::sync::Arc;
 use std::time::SystemTime;
+use dyn_clone::DynClone;
 
 use static_assertions::assert_impl_all;
 
 use crate::common::OutboundChannel;
 use crate::traits::AktonMessage;
-
 /// Represents an envelope that carries a message within the actor system.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Envelope {
     /// The message contained in the envelope.
-    pub message: Box<dyn AktonMessage + Send + Sync + 'static>,
+    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
     /// The identifier of the pool, if any, to which this envelope belongs.
     pub pool_id: Option<String>,
     /// The time when the message was sent.
@@ -62,7 +63,7 @@ impl Envelope {
     /// # Returns
     /// A new `Envelope` instance.
     pub fn new(
-        message: Box<dyn AktonMessage + Send + Sync + 'static>,
+        message: Arc<dyn AktonMessage + Send + Sync + 'static>,
         return_address: Option<OutboundChannel>,
         pool_id: Option<String>,
     ) -> Self {
