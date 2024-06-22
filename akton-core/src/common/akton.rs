@@ -63,10 +63,6 @@ impl<State: Default + Send + Debug> Akton<State> {
     pub fn create_with_config(config: ActorConfig) -> Actor<Idle<State>, State> {
         Actor::new(Some(config), State::default())
     }
-    #[instrument]
-    pub async fn spawn_broker() -> anyhow::Result<BrokerContextType> {
-        Broker::init().await
-    }
 }
 /// Provides a default implementation for the `Akton` struct.
 ///
@@ -80,5 +76,12 @@ impl<State: Default + Send + Debug> Default for Akton<State> {
         Akton {
             root_actor: PhantomData,
         }
+    }
+}
+// Separate implementation block for `Broker`
+impl Akton<Broker> {
+    #[instrument]
+    pub async fn spawn_broker() -> anyhow::Result<BrokerContextType> {
+        Broker::init().await
     }
 }

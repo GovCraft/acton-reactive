@@ -41,7 +41,7 @@ mod setup;
 async fn test_broker() -> anyhow::Result<()> {
     init_tracing();
 
-    let broker = Akton::<Broker>::spawn_broker().await?;
+    let broker = Akton::spawn_broker().await?;
 
     let actor_config = ActorConfig::new(
         "improve_show",
