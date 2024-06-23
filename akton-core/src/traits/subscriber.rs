@@ -31,8 +31,8 @@
  *
  */
 
-use crate::common::BrokerContextType;
+use crate::common::BrokerContext;
 
 pub trait Subscriber {
-    fn broker(&self) -> Option<BrokerContextType>;
+    fn get_broker(&self) -> Option<BrokerContext>;
 }

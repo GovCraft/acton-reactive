@@ -48,7 +48,7 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
 
-use crate::common::{Akton, AktonInner, BrokerContextType, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{Akton, AktonInner, BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
@@ -72,7 +72,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub parent: Option<ParentContext>,
 
     /// The actor's optional context ref to a broker actor.
-    pub broker: BrokerContextType,
+    pub broker: BrokerContext,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
@@ -139,7 +139,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     /// A clone of the parent's return envelope.
     pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(parent) = &self.parent {
-            Some(parent.return_address().clone())
+            Some(parent.get_return_address().clone())
         } else {
             None
         }
@@ -199,12 +199,12 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
         tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
         for item in &self.context.children {
             let context = item.value();
-            let _ = context.suspend().await;
+            let _ = context.suspend_actor().await;
         }
         for pool in &self.pool_supervisor {
             for item_context in &pool.pool {
                 trace!(item=item_context.key,"Terminating pool item.");
-                let _ = item_context.suspend().await;
+                let _ = item_context.suspend_actor().await;
             }
         }
         trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
@@ -258,7 +258,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         if let Some(config) = config {
             key = config.name().clone();
             parent = config.parent().clone();
-            if let Some(config_broker) = config.broker() {
+            if let Some(config_broker) = config.get_broker() {
                 broker = config_broker.clone();
                 context.broker = Box::new(Some(config_broker.clone()));
             } else {
@@ -274,7 +274,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
         trace!("NEW ACTOR: {}", &key);
         let akton = {
-            if let Some(akton) = akton {
+            if let Some(akton) = akton.clone() {
 akton.clone()
             } else {
              AktonReady{

@@ -56,18 +56,3 @@ where
     }
 }
 
-// impl Clone for Box<dyn AktonMessage + Send + Sync + '_> {
-//     fn clone(&self) -> Self {
-//         dyn_clone::clone_box(&*self)
-//     }
-// }
-
-// Function to downcast the message to the original type.
-pub fn downcast_message<T: 'static>(msg: &dyn AktonMessage) -> Option<&T> {
-    msg.as_any().downcast_ref::<T>()
-}
-
-pub fn downcast_message_mut<T: 'static>(msg: &mut dyn AktonMessage) -> Option<&mut T> {
-    msg.as_any_mut().downcast_mut::<T>()
-}
-

@@ -61,7 +61,7 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     /// Reactor called when the actor stops.
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     /// Asynchronous reactor called just before the actor stops.
-    pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
+    pub(crate) on_before_stop_async: Option<AsyncLifecycleReactor<State>>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<State>,
 }
@@ -176,14 +176,14 @@ impl<State: Default + Send + Debug> Idle<State> {
                     let sent_time = envelope.sent_time;
                     let mut event_record = {
                         if let Some(parent) = &actor.parent {
-                            let return_address = parent.return_address();
+                            let return_address = parent.get_return_address();
                             EventRecord {
                                 message,
                                 sent_time,
                                 return_address,
                             }
                         } else {
-                            let return_address = actor.context.return_address();
+                            let return_address = actor.context.get_return_address();
                             EventRecord {
                                 message,
                                 sent_time,

@@ -61,21 +61,21 @@ where
     where
         Self: ActorContext + Subscriber + 'static,
     {
-        let subscriber_id = self.key();
+        let subscriber_id = self.get_id();
         let message_type_id = TypeId::of::<M>();
         let message_type_name = std::any::type_name::<M>().to_string();
         let subscription = SubscribeBroker {
             subscriber_id,
             message_type_id,
             message_type_name: message_type_name.clone(),
-            subscriber_context: self.clone_self(),
+            subscriber_context: self.clone_context(),
         };
-        let broker = self.broker();
-        let key = self.key().clone();
+        let broker = self.get_broker();
+        let key = self.get_id().clone();
 
         async move {
             if let Some(emit_broker) = broker {
-                let broker_key = emit_broker.key();
+                let broker_key = emit_broker.get_id();
                 debug!(
                           type_id=?message_type_id,
                           subscribing_actor = key,
@@ -91,13 +91,13 @@ where
     where
         Self: ActorContext + Subscriber,
     {
-        let subscriber_id = self.key();
+        let subscriber_id = self.get_id();
         let subscription = UnsubscribeBroker {
             subscriber_id,
             message_type_id: TypeId::of::<M>(),
-            subscriber_context: self.clone_self(),
+            subscriber_context: self.clone_context(),
         };
-        let broker = self.broker();
+        let broker = self.get_broker();
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
@@ -106,7 +106,7 @@ where
         }
         trace!(
             type_id = ?TypeId::of::<M>(),
-            repository_actor = self.key(),
+            repository_actor = self.get_id(),
             "Unsubscribed to {}",
             std::any::type_name::<M>()
         );

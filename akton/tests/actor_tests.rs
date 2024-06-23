@@ -74,7 +74,7 @@ mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_async_reactor() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
 
     let mut akton: AktonReady = Akton::launch().into();
 
@@ -128,11 +128,11 @@ async fn test_async_reactor() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
-    init_tracing();
+    initialize_tracing();
 
     let mut akton:AktonReady = Akton::launch().into();
     // Create an actor for counting
-    let mut counter_actor = akton.create::<Counter>();
+    let mut counter_actor = akton.create_actor::<Counter>();
     counter_actor
         .setup
         .act_on::<Tally>(|actor, _event| {
@@ -153,7 +153,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = akton.create::<Messenger>();
+    let mut messenger_actor = akton.create_actor::<Messenger>();
     messenger_actor
         .setup
         .on_before_wake(|_actor| {
@@ -179,7 +179,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
-    init_tracing();
+    initialize_tracing();
 let mut akton: AktonReady = Akton::launch().into();
 
     let actor_config = ActorConfig::new(
@@ -252,10 +252,10 @@ let mut akton: AktonReady = Akton::launch().into();
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
-    init_tracing();
+    initialize_tracing();
 let mut akton: AktonReady = Akton::launch().into();
     // Create the parent actor
-    let mut parent_actor = akton.create::<PoolItem>();
+    let mut parent_actor = akton.create_actor::<PoolItem>();
     parent_actor.setup.on_before_wake(|actor| {
         assert_eq!(actor.context.children().len(), 1);
     });
@@ -296,7 +296,7 @@ let mut akton: AktonReady = Akton::launch().into();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_mutation() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
 let mut akton:AktonReady = Akton::launch().into();
     let actor_config = ActorConfig::new(
         Arn::with_root("test_actor_mutation").unwrap(),
@@ -353,7 +353,7 @@ let mut akton:AktonReady = Akton::launch().into();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
     let mut akton: AktonReady = Akton::launch().into();
     let actor_config = ActorConfig::new(
         Arn::with_root("test_child_count_in_reactor").unwrap(),
@@ -361,7 +361,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
         None,
     )?;
 
-    let mut comedy_show = akton.create::<Comedian>();
+    let mut comedy_show = akton.create_actor::<Comedian>();
     comedy_show
         .setup
         .act_on::<FunnyJokeFor>(|actor, event_record| {

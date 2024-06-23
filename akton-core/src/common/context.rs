@@ -42,8 +42,8 @@ use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{Actor, Idle};
-use crate::common::{BrokerContextType, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
-use crate::traits::{ActorContext, BrokerContext, Subscriber};
+use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
+use crate::traits::{ActorContext, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -56,12 +56,12 @@ pub struct Context {
     pub(crate) task_tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentContext>>,
-    pub broker: Box<Option<BrokerContextType>>,
+    pub broker: Box<Option<BrokerContext>>,
     pub(crate) children: DashMap<String, Context>,
 }
 
 impl Subscriber for Context {
-    fn broker(&self) -> Option<BrokerContextType> {
+    fn get_broker(&self) -> Option<BrokerContext> {
         *self.broker.clone()
     }
 }
@@ -94,55 +94,55 @@ impl Context {
     }
 }
 
-impl BrokerContext for Context {}
+
 
 #[async_trait]
 impl ActorContext for Context {
     /// Returns the return address for the actor.
     #[instrument(skip(self))]
-    fn return_address(&self) -> OutboundEnvelope {
+    fn get_return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
         OutboundEnvelope::new(outbox, self.key.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
-    fn children(&self) -> DashMap<String, Context> {
+    fn get_children(&self) -> DashMap<String, Context> {
         // event!(Level::TRACE,child_count= self.children.len());
         self.children.clone()
     }
 
-    fn find_child(&self, arn: &str) -> Option<Context> {
+    fn find_child_by_arn(&self, arn: &str) -> Option<Context> {
         self.children.get(arn).map(|item| item.value().clone())
     }
 
     /// Returns the task tracker for the actor.
-    fn task_tracker(&self) -> TaskTracker {
+    fn get_task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
     }
 
-    fn key(&self) -> String {
+    fn get_id(&self) -> String {
         self.key.clone()
     }
 
-    fn clone_self(&self) -> Context {
+    fn clone_context(&self) -> Context {
         self.clone()
     }
 
     /// Wakes the actor.
-    async fn wake(&mut self) -> anyhow::Result<()> {
+    async fn wake_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Recreates the actor.
-    async fn recreate(&mut self) -> anyhow::Result<()> {
+    async fn recreate_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Suspends the actor.
-    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
+    fn suspend_actor(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
-            let tracker = self.task_tracker().clone();
+            let tracker = self.get_task_tracker().clone();
 
-            let actor = self.return_address().clone();
+            let actor = self.get_return_address().clone();
 
 
             // Event: Sending Terminate Signal
@@ -166,27 +166,27 @@ impl ActorContext for Context {
     }
 
     /// Resumes the actor.
-    async fn resume(&mut self) -> anyhow::Result<()> {
+    async fn resume_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Supervises the actor.
-    async fn supervise(&mut self) -> anyhow::Result<()> {
+    async fn supervise_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Watches the actor.
-    async fn watch(&mut self) -> anyhow::Result<()> {
+    async fn watch_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Stops watching the actor.
-    async fn unwatch(&mut self) -> anyhow::Result<()> {
+    async fn unwatch_actor(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Marks the actor as failed.
-    async fn fail(&mut self) -> anyhow::Result<()> {
+    async fn mark_as_failed(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 }

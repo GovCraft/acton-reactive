@@ -44,7 +44,7 @@ mod messages;
 
 static INIT: Once = Once::new();
 
-pub fn init_tracing() {
+pub fn initialize_tracing() {
     INIT.call_once(|| {
         // Define an environment filter to suppress logs from the specific function
 
@@ -82,7 +82,7 @@ pub fn init_tracing() {
             .add_directive("akton_core::traits::subscribable=error".parse().unwrap())
             .add_directive("supervisor_tests=info".parse().unwrap())
             .add_directive("broker_tests=trace".parse().unwrap())
-            .add_directive("launchpad_tests=trace".parse().unwrap())
+            .add_directive("launchpad_tests=info".parse().unwrap())
             .add_directive("lifecycle_tests=info".parse().unwrap())
             .add_directive("actor_tests=info".parse().unwrap())
             .add_directive("load_balancer_tests=info".parse().unwrap())

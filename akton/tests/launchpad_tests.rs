@@ -1,6 +1,7 @@
 use std::any::TypeId;
-
+use akton_test::prelude::*;
 use tokio::runtime::Runtime;
+use tokio::task;
 use tracing::*;
 use tracing::field::debug;
 
@@ -11,11 +12,14 @@ use crate::setup::*;
 
 mod setup;
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+use tokio;
+use std::time::Duration;
+
+#[akton_test]
 async fn test_launch_passing_akton() -> anyhow::Result<()> {
-    init_tracing();
-    let mut akton: AktonReady = Akton::launch().into();
-    let broker = akton.broker();
+    initialize_tracing();
+    let mut akton_ready: AktonReady = Akton::launch().into();
+    let broker = akton_ready.get_broker();
 
     let actor_config = ActorConfig::new(
         Arn::with_root("parent")?,
@@ -23,12 +27,32 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
         Some(broker.clone()),
     )?;
 
-    let parent = akton.spawn_actor_with_config::<Parent>(actor_config, |mut actor| Box::pin(async move {
+    let broker_clone = broker.clone();
+    let parent_actor = akton_ready.clone().spawn_actor_with_setup::<Parent>(actor_config, |mut actor| Box::pin(async move {
+        let child_actor_config = ActorConfig::new(
+            Arn::with_root("child").expect("Could not create child ARN root"),
+            None,
+            Some(broker.clone()),
+        ).expect("Couldn't create child config");
+
+        let mut akton = akton_ready.clone();
+
+        let child_context = akton.spawn_actor_with_setup::<Parent>(child_actor_config, |mut child| Box::pin(async move {
+            child.setup
+                .act_on::<Pong>(|_actor, _msg| {
+                    info!("CHILD SUCCESS! PONG!");
+                });
+
+            let child_context = &child.context.clone();
+            child_context.subscribe::<Pong>().await;
+            child.activate(None).await
+        })).await.expect("Couldn't create child actor");
+
         actor.setup
-            .act_on::<Ping>(|actor, msg| {
+            .act_on::<Ping>(|_actor, _msg| {
                 info!("SUCCESS! PING!");
             })
-            .act_on_async::<Pong>(|actor, msg| {
+            .act_on_async::<Pong>(|_actor, _msg| {
                 Box::pin(async move {
                     info!("SUCCESS! PONG!");
                 })
@@ -41,23 +65,20 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
         actor.activate(None).await
     })).await?;
 
+    broker_clone.emit_async(BrokerRequest::new(Ping), None).await;
+    broker_clone.emit_async(BrokerRequest::new(Pong), None).await;
 
-    broker.emit_async(BrokerRequest::new(Ping), None).await;
-    broker.emit_async(BrokerRequest::new(Pong), None).await;
-
-    let _ = parent.suspend().await?;
-
-    let _ = broker.suspend().await?;
+    parent_actor.suspend_actor().await?;
+    broker_clone.suspend_actor().await?;
     Ok(())
 }
 
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[akton_test]
 async fn test_launchpad() -> anyhow::Result<()> {
-    init_tracing();
-    let mut akton: AktonReady = Akton::launch().into();
+    initialize_tracing();
+    let mut akton_ready: AktonReady = Akton::launch().into();
 
-    let broker = akton.broker();
+    let broker = akton_ready.get_broker();
 
     let actor_config = ActorConfig::new(
         Arn::with_root("improve_show")?,
@@ -65,44 +86,41 @@ async fn test_launchpad() -> anyhow::Result<()> {
         Some(broker.clone()),
     )?;
 
-    // let mut comedy_show = akton.create::<Comedian>(); //::<Comedian>::create_with_config(actor_config);
-    let comedian = akton.spawn_actor::<Comedian>(|mut actor| Box::pin(async move {
+    let comedian_actor = akton_ready.spawn_actor::<Comedian>(|mut actor| Box::pin(async move {
         actor.setup
-            .act_on::<Ping>(|actor, msg| {
+            .act_on::<Ping>(|_actor, _msg| {
                 info!("SUCCESS! PING!");
             })
-            .act_on_async::<Pong>(|actor, msg| {
+            .act_on_async::<Pong>(|_actor, _msg| {
                 Box::pin(async move {
                     info!("SUCCESS! PONG!");
                 })
             });
 
-        // Subscribe to broker events
         actor.context.subscribe::<Ping>().await;
         actor.context.subscribe::<Pong>().await;
 
-        actor.activate(None).await // Return the configured actor
+        actor.activate(None).await
     })).await?;
 
-    let counter = akton.spawn_actor::<Counter>(|mut actor| Box::pin(async move {
+    let counter_actor = akton_ready.spawn_actor::<Counter>(|mut actor| Box::pin(async move {
         actor.setup
-            .act_on_async::<Pong>(|actor, msg| {
+            .act_on_async::<Pong>(|_actor, _msg| {
                 Box::pin(async move {
                     info!("SUCCESS! PONG!");
                 })
             });
 
-        // Subscribe to broker events
         actor.context.subscribe::<Pong>().await;
 
-        actor.activate(None).await // Return the configured actor
+        actor.activate(None).await
     })).await?;
 
     broker.emit_async(BrokerRequest::new(Ping), None).await;
     broker.emit_async(BrokerRequest::new(Pong), None).await;
 
-    let _ = broker.suspend().await?;
-    let _ = comedian.suspend().await?;
-    let _ = counter.suspend().await?;
+    broker.suspend_actor().await?;
+    comedian_actor.suspend_actor().await?;
+    counter_actor.suspend_actor().await?;
     Ok(())
 }

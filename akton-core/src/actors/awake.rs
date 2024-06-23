@@ -39,7 +39,7 @@ use tracing::{instrument, warn};
 
 use crate::actors::actor::Actor;
 use crate::actors::Idle;
-use crate::common::{LifecycleReactor, LifecycleReactorAsync};
+use crate::common::{LifecycleReactor, AsyncLifecycleReactor};
 
 /// Represents the lifecycle state of an actor when it is awake.
 ///
@@ -51,7 +51,7 @@ pub struct Awake<State: Default + Send + Debug + 'static> {
     /// Reactor called just before the actor stops.
     pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
     /// Asynchronous reactor called just before the actor stops.
-    pub(crate) on_before_stop_async: Option<LifecycleReactorAsync<State>>,
+    pub(crate) on_before_stop_async: Option<AsyncLifecycleReactor<State>>,
     /// Reactor called when the actor stops.
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
 }

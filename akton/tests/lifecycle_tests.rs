@@ -31,17 +31,16 @@
  *
  */
 use akton::prelude::*;
-
 use crate::setup::*;
-
 mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn test_lifecycle_events() -> anyhow::Result<()> {
-    init_tracing();
-    let mut akton: AktonReady = Akton::launch().into();
-    let mut actor = akton.create::<PoolItem>();
-    actor
+async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
+    initialize_tracing();
+    let mut akton_ready: AktonReady = Akton::launch().into();
+    let mut pool_item_actor = akton_ready.create::<PoolItem>().await;
+
+    pool_item_actor
         .setup
         .on_before_wake(|_actor| {
             tracing::info!("Actor waking up");
@@ -52,7 +51,8 @@ async fn test_lifecycle_events() -> anyhow::Result<()> {
         .on_stop(|actor| {
             tracing::info!("Actor stopping with key: {}", actor.key);
         });
-    let context = actor.activate(None);
-    context.suspend().await?;
+
+    let actor_context = pool_item_actor.activate(None);
+    actor_context.suspend().await?;
     Ok(())
 }

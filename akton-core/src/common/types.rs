@@ -86,10 +86,10 @@ pub(crate) type StopSignal = AtomicBool;
 pub(crate) type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
-pub(crate) type LifecycleReactorAsync<State> =
+pub(crate) type AsyncLifecycleReactor<State> =
     Box<dyn Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
-pub type BrokerContextType = Context;
+pub type BrokerContext = Context;
 pub type ParentContext = Context;
