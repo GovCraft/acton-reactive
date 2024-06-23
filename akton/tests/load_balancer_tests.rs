@@ -40,11 +40,11 @@ use akton::prelude::*;
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
-
+let mut akton: AktonReady = Akton::launch().into();
     let pool_name = "pool";
 
     // Create the main actor
-    let mut main_actor = Akton::<PoolItem>::create();
+    let mut main_actor = akton.create::<PoolItem>();
     main_actor
         .setup
         .act_on::<StatusReport>(|actor, event| {
@@ -52,7 +52,7 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 
             match event.message {
                 StatusReport::Complete(total) => {
-                    tracing::info!("{} reported {}", sender.value, total);
+                    tracing::info!("{} reported {}", sender, total);
                     actor.state.receive_count += total; // Increment receive_count based on StatusReport
                 }
             };
@@ -66,7 +66,7 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
         PoolBuilder::default().add_pool::<PoolItem>(pool_name, 5, LoadBalanceStrategy::RoundRobin);
 
     // Activate the main actor with the pool builder
-    let main_context = main_actor.activate(Some(pool_builder)).await?;
+    let main_context = main_actor.activate(Some(pool_builder));
 
     // Emit PING events to the pool 22 times
     for _ in 0..22 {
@@ -85,15 +85,17 @@ async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
 async fn test_actor_pool_random() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
+
+    let mut akton: AktonReady = Akton::launch().into();
     // Create the main actor
-    let mut main_actor = Akton::<PoolItem>::create();
+    let mut main_actor = akton.create::<PoolItem>();
     main_actor
         .setup
         .act_on::<StatusReport>(|actor, event| {
             let sender = &event.return_address.sender;
             match event.message {
                 StatusReport::Complete(total) => {
-                    tracing::debug!("{} reported {}", sender.value, total);
+                    tracing::debug!("{} reported {}", sender, total);
                     actor.state.receive_count += total; // Increment receive_count based on StatusReport
                 }
             };
@@ -110,7 +112,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
         PoolBuilder::default().add_pool::<PoolItem>("pool", 5, LoadBalanceStrategy::Random);
 
     // Activate the main actor with the pool builder
-    let main_context = main_actor.activate(Some(pool_builder)).await?;
+    let main_context = main_actor.activate(Some(pool_builder));
 
     // Emit PING events to the pool 22 times
     for _ in 0..20 {

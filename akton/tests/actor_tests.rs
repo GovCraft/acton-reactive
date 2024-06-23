@@ -76,12 +76,14 @@ mod setup;
 async fn test_async_reactor() -> anyhow::Result<()> {
     init_tracing();
 
+    let mut akton: AktonReady = Akton::launch().into();
+
     let actor_config = ActorConfig::new(
-        "improve_show",
+        Arn::with_root("improve_show").unwrap(),
         None,
         None,
-    );
-    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+    )?;
+    let mut comedy_show = akton.create_with_config::<Comedian>(actor_config);
 
     comedy_show
         .setup
@@ -106,7 +108,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
         .on_stop(|actor| {
             tracing::info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.key.value,
+                actor.key,
                 actor.state.jokes_told,
                 actor.state.funny,
                 actor.state.bombers
@@ -114,7 +116,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
             assert_eq!(actor.state.jokes_told, 2);
         });
 
-    let comedian = comedy_show.activate(None).await?;
+    let comedian = comedy_show.activate(None);
 
     comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
     comedian.emit_async(FunnyJoke::Pun, None).await;
@@ -128,8 +130,9 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
 
+    let mut akton:AktonReady = Akton::launch().into();
     // Create an actor for counting
-    let mut counter_actor = Akton::<Counter>::create();
+    let mut counter_actor = akton.create::<Counter>();
     counter_actor
         .setup
         .act_on::<Tally>(|actor, _event| {
@@ -142,7 +145,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
 
     // Activate the counter actor
-    let counter_actor = counter_actor.activate(None).await?;
+    let counter_actor = counter_actor.activate(None);
 
     // Emit AddCount event four times
     for _ in 0..4 {
@@ -150,7 +153,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = Akton::<Messenger>::create();
+    let mut messenger_actor = akton.create::<Messenger>();
     messenger_actor
         .setup
         .on_before_wake(|_actor| {
@@ -164,7 +167,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
 
     // Activate the messenger actor
-    let messenger_actor = messenger_actor.activate(None).await?;
+    let messenger_actor = messenger_actor.activate(None);
 
     // Terminate both actors
     counter_actor.suspend().await?;
@@ -177,24 +180,24 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
-
+let mut akton: AktonReady = Akton::launch().into();
 
     let actor_config = ActorConfig::new(
-        "test_child_actor",
+        Arn::with_root("test_child_actor").unwrap(),
         None,
         None,
-    );
+    )?;
 
     // Create the parent actor
-    let parent_actor = Akton::<PoolItem>::create_with_config(actor_config);
+    let parent_actor = akton.create_with_config::<PoolItem>(actor_config);
 
     let actor_config = ActorConfig::new(
-        "test_child_actor_chile",
+        Arn::with_root("test_child_actor_chile").unwrap(),
         None,
         None,
-    );
+    )?;
 
-    let mut child_actor = Akton::<PoolItem>::create_with_config(actor_config);
+    let mut child_actor = akton.create_with_config::<PoolItem>(actor_config);
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
@@ -215,9 +218,9 @@ async fn test_child_actor() -> anyhow::Result<()> {
             );
         });
 
-    let child_id = child_actor.key.value.clone();
+    let child_id = child_actor.key.clone();
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None).await?;
+    let parent_context = parent_actor.activate(None);
     parent_context.supervise(child_actor).await?;
     assert_eq!(
         parent_context.children().len(),
@@ -232,7 +235,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
         child_id
     );
     let child = found_child.unwrap();
-    tracing::info!(child=child.key.value, "Found child");
+    tracing::info!(child=child.key, "Found child");
 
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
@@ -250,24 +253,24 @@ async fn test_child_actor() -> anyhow::Result<()> {
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     init_tracing();
-
+let mut akton: AktonReady = Akton::launch().into();
     // Create the parent actor
-    let mut parent_actor = Akton::<PoolItem>::create();
+    let mut parent_actor = akton.create::<PoolItem>();
     parent_actor.setup.on_before_wake(|actor| {
         assert_eq!(actor.context.children().len(), 1);
     });
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None).await?;
+    let parent_context = parent_actor.activate(None);
 
     let actor_config = ActorConfig::new(
-        "test_find_child_actor",
+        Arn::with_root("test_find_child_actor").unwrap(),
         None,
         None,
-    );
+    )?;
 
-    let mut child_actor = Akton::<PoolItem>::create_with_config(actor_config);
+    let mut child_actor = akton.create_with_config::<PoolItem>(actor_config);
     // Set up the child actor with handlers
-    let child_id = child_actor.key.value.clone();
+    let child_id = child_actor.key.clone();
     // Activate the child actor
     parent_context.supervise(child_actor).await?;
     assert_eq!(
@@ -283,7 +286,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
         child_id
     );
     let child = found_child.unwrap();
-    tracing::info!(child=child.key.value, "Found child");
+    tracing::info!(child=child.key, "Found child");
 
 
     parent_context.suspend().await?;
@@ -294,14 +297,14 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     init_tracing();
-
+let mut akton:AktonReady = Akton::launch().into();
     let actor_config = ActorConfig::new(
-        "test_actor_mutation",
+        Arn::with_root("test_actor_mutation").unwrap(),
         None,
         None,
-    );
+    )?;
 
-    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+    let mut comedy_show = akton.create_with_config::<Comedian>(actor_config);
 
     comedy_show
         .setup
@@ -331,7 +334,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         .on_stop(|actor| {
             tracing::info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.key.value,
+                actor.key,
                 actor.state.jokes_told,
                 actor.state.funny,
                 actor.state.bombers
@@ -339,7 +342,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             assert_eq!(actor.state.jokes_told, 2);
         });
 
-    let comedian = comedy_show.activate(None).await?;
+    let comedian = comedy_show.activate(None);
 
     comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
     comedian.emit_async(FunnyJoke::Pun, None).await;
@@ -351,13 +354,14 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     init_tracing();
+    let mut akton: AktonReady = Akton::launch().into();
     let actor_config = ActorConfig::new(
-        "test_child_count_in_reactor",
+        Arn::with_root("test_child_count_in_reactor").unwrap(),
         None,
         None,
-    );
+    )?;
 
-    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+    let mut comedy_show = akton.create::<Comedian>();
     comedy_show
         .setup
         .act_on::<FunnyJokeFor>(|actor, event_record| {
@@ -378,18 +382,18 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
             }
         });
     let actor_config = ActorConfig::new(
-        "child",
+        Arn::with_root("child").unwrap(),
         None,
         None,
-    );
+    )?;
 
-    let mut child = Akton::<Counter>::create_with_config(actor_config);
+    let mut child = akton.create_with_config::<Counter>(actor_config);
     child.setup.act_on::<Ping>(|actor, event| {
         tracing::info!("Received Ping from parent actor");
     });
-    let child_id = child.key.value.clone();
+    let child_id = child.key.clone();
     comedy_show.context.supervise(child).await?;
-    let comedian = comedy_show.activate(None).await?;
+    let comedian = comedy_show.activate(None);
     assert_eq!(comedian.children().len(), 1);
     comedian
         .emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id), None)

@@ -33,9 +33,9 @@
 
 use std::any::Any;
 use std::sync::Arc;
+
 use akton_arn::Arn;
 use tokio::runtime::Runtime;
-
 use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, OutboundChannel};
@@ -45,7 +45,7 @@ use crate::traits::AktonMessage;
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
     /// The sender's ARN (Akton Resource Name).
-    pub sender: Arn,
+    pub sender: String,
     /// The optional channel for sending replies.
     pub(crate) reply_to: Option<OutboundChannel>,
 }
@@ -63,7 +63,7 @@ impl Eq for OutboundEnvelope {}
 // Implement Hash for OutboundEnvelope as it is required for HashSet
 impl std::hash::Hash for OutboundEnvelope {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.sender.value.hash(state);
+        self.sender.hash(state);
         self.reply_to.is_some().hash(state);
     }
 }
@@ -78,7 +78,7 @@ impl OutboundEnvelope {
     /// # Returns
     /// A new `OutboundEnvelope` instance.
     #[instrument(skip(reply_to))]
-    pub fn new(reply_to: Option<OutboundChannel>, sender: Arn) -> Self {
+    pub fn new(reply_to: Option<OutboundChannel>, sender: String) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
 
@@ -90,14 +90,14 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
     pub fn reply(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
-trace!("*");
+        trace!("*");
         // Event: Replying to Message
         // Description: Replying to a message with an optional pool ID.
         // Context: Message details and pool ID.
@@ -119,7 +119,7 @@ trace!("*");
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
     async fn reply_message_async(
         &self,
         message: Arc<dyn AktonMessage + Send + Sync>,
@@ -133,18 +133,18 @@ trace!("*");
                     Ok(permit) => {
                         let envelope = Envelope::new(message, self.reply_to.clone(), pool_id);
                         permit.send(envelope);
-                        trace!("Reply to {} from OutboundEnvelope", &self.sender.value)
+                        trace!("Reply to {} from OutboundEnvelope", &self.sender)
                     }
                     Err(_) => {
                         error!(
                         "Failed to reply to {} from OutboundEnvelope with message type {:?}",
-                        &self.sender.value,
+                        &self.sender,
                         &type_id
                     )
                     }
                 }
             } else {
-                error!("reply_message_async to is closed for {} with message {:?}", self.sender.value, message);
+                error!("reply_message_async to is closed for {} with message {:?}", self.sender, message);
             }
         }
     }
@@ -157,7 +157,7 @@ trace!("*");
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
@@ -174,7 +174,7 @@ trace!("*");
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender.value))]
+    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
     pub async fn reply_async_boxed(
         &self,
         message: Arc<dyn AktonMessage + Send + Sync>,

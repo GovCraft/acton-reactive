@@ -72,7 +72,7 @@ pub trait ActorContext {
         };
         async move {
             let envelope = self.return_address();
-            event!(Level::TRACE, return_address = envelope.sender.value);
+            event!(Level::TRACE, return_address = envelope.sender);
             envelope.reply_async(message, pool_name).await;
         }
     }
@@ -106,7 +106,7 @@ pub trait ActorContext {
         Self: Sync,
     {
         let envelope = self.return_address();
-        event!(Level::TRACE, addressed_to = envelope.sender.value);
+        event!(Level::TRACE, addressed_to = envelope.sender);
         envelope.reply(message, None)?;
         Ok(())
     }

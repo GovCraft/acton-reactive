@@ -33,6 +33,7 @@
 
 use std::collections::HashMap;
 use std::fmt::Debug;
+use akton_arn::Arn;
 
 use dashmap::DashMap;
 use tracing::{info, instrument, trace};
@@ -82,7 +83,7 @@ impl PoolBuilder {
     ///
     /// # Returns
     /// A new `Supervisor` instance.
-    #[instrument(skip(self, parent), fields(id=parent.key.value))]
+    #[instrument(skip(self, parent), fields(id=parent.key))]
     pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<DashMap<String, PoolItem>> {
         let subordinates = DashMap::new();
 
@@ -93,10 +94,10 @@ impl PoolBuilder {
             for i in 0..pool_def.size {
                 let item_name = format!("{}{}", pool_name, i);
                 let actor_config = ActorConfig::new (
-                    item_name.clone(),
+                    Arn::with_root(item_name.clone())?,
                     None,
                     None,
-                                                         );
+                                                         )?;
                 let context = pool_def
                     .actor_type
                     .initialize(actor_config)
@@ -129,7 +130,7 @@ impl PoolBuilder {
         // Event: Supervisor Initialized
         // Description: The supervisor has been initialized with the actor pools.
         // Context: Parent key and number of subordinates.
-        info!(parent_key = %parent.key.value, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
+        info!(parent_key = %parent.key, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
 
         // Return the new supervisor instance.
         Ok(subordinates)

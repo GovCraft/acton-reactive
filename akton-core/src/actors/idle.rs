@@ -101,7 +101,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     ) -> Actor<Idle<State>, State> {
         let actor = Actor::new(Some(config), State::default());
 
-        event!(Level::TRACE, new_actor_key = &actor.key.value);
+        event!(Level::TRACE, new_actor_key = &actor.key);
         actor
     }
 

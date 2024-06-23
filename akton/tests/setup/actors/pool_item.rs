@@ -30,12 +30,15 @@
  *
  *
  */
-use crate::setup::*;
-use akton_core::prelude::*;
-use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
+
+use async_trait::async_trait;
 use tracing::error;
+
+use akton_core::prelude::*;
+
+use crate::setup::*;
 
 #[derive(Default, Debug, Clone)]
 pub struct PoolItem {
@@ -46,13 +49,23 @@ pub struct PoolItem {
 impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> Context {
+        let mut akton: AktonReady = Akton::launch().into();
 
-        let mut actor = Akton::<PoolItem>::create_with_config(config.clone());;
+        let broker = akton.broker();
+
+        let actor_config = ActorConfig::new(
+            Arn::with_root("improve_show").expect("Couldn't create pool item Arn"),
+            None,
+            Some(broker.clone()),
+        );
+
+        let mut actor = akton.create::<PoolItem>(); //::<Comedian>::create_with_config(actor_config);
+        // let mut actor = Akton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
             "Actor initialized with key: {}, mailbox closed: {}",
-            actor.key.value,
+            actor.key,
             actor.mailbox.is_closed()
         );
 
@@ -60,15 +73,15 @@ impl PooledActor for PoolItem {
         actor
             .setup
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor=actor.key.value,"Received Ping event for");
+                tracing::debug!(actor=actor.key,"Received Ping event for");
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
             })
             .on_before_stop_async(|actor| {
                 let parent = &actor.parent.clone().unwrap();
                 let final_count = actor.state.receive_count;
-                // let parent_envelope = parent.key.value.clone();
-                let parent_address = parent.key.value.clone();
-                let actor_address = actor.key.value.clone();
+                // let parent_envelope = parent.key.clone();
+                let parent_address = parent.key.clone();
+                let actor_address = actor.key.clone();
 
 
                 let parent = parent.clone();
@@ -84,6 +97,6 @@ impl PooledActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        actor.activate(None).await.expect("")
+        actor.activate(None)
     }
 }

@@ -35,14 +35,18 @@
 // They will randomly react to the jokes after which the Comedian will report on how many
 // jokes landed and didn't land
 
-use crate::setup::*;
-use akton_core::prelude::*;
-use akton_macro::akton_actor;
-use async_trait::async_trait;
-use rand::Rng;
 use std::future::Future;
 use std::pin::Pin;
+
+use async_trait::async_trait;
+use rand::Rng;
 use tracing::{debug, error, info, trace};
+
+use akton_core::prelude::*;
+
+use akton_macro::akton_actor;
+
+use crate::setup::*;
 
 #[akton_actor]
 pub struct AudienceMember {
@@ -56,14 +60,24 @@ impl PooledActor for AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, config: ActorConfig) -> Context {
+        let mut akton: AktonReady = Akton::launch().into();
 
-        let mut actor =
-            Akton::<AudienceMember>::create_with_config(config.clone());
+        let broker = akton.broker();
+
+        let actor_config = ActorConfig::new(
+            Arn::with_root("improve_show").expect("Couldn't create pool member Arn"),
+            None,
+            Some(broker.clone()),
+        );
+
+        let mut actor = akton.create::<AudienceMember>(); //::<Comedian>::create_with_config(actor_config);
+        // let mut actor =
+        //     Akton::<AudienceMember>::create_with_config(config.clone());
 
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
-        trace!(id=actor.key.value, "Setting up actor to handle the `Joke` event.");
+        trace!(id=actor.key, "Setting up actor to handle the `Joke` event.");
         actor.setup.act_on_async::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;
@@ -89,7 +103,5 @@ impl PooledActor for AudienceMember {
         trace!("Activating the AudienceMember actor.");
         actor
             .activate(None)
-            .await
-            .expect("Failed to activate AudienceMember")
     }
 }

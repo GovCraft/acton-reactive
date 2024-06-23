@@ -31,21 +31,23 @@
  *
  */
 
-use dashmap::DashMap;
-use futures::future::join_all;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use akton_arn::Arn;
+
+use dashmap::DashMap;
+use futures::future::join_all;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use tracing::*;
-use crate::actors::ActorConfig;
-use crate::common::{Akton, Context};
+
+use crate::actors::{Actor, ActorConfig};
+use crate::common::{Akton, AktonReady, Context};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage, BrokerContext};
-
 
 #[derive(Default, Debug)]
 pub struct Broker {
@@ -54,9 +56,12 @@ pub struct Broker {
 
 impl Broker {
     #[instrument]
-    pub(crate) async fn init() -> anyhow::Result<Context> {
-        let actor_config = ActorConfig::new("broker", None, None);
-        let mut actor = Akton::<Broker>::create_with_config(actor_config);
+    pub(crate) fn init() -> Context {
+        let actor_config = ActorConfig::new(Arn::default(), None, None);
+
+        let mut actor = Actor::new(None, Broker::default()); //::<Comedian>::create_with_config(actor_config);
+
+        // let mut actor = Akton::<Broker>::create_with_config(actor_config);
 
         actor.setup
             .act_on_async::<BrokerRequest>(|actor, event| {
@@ -88,7 +93,7 @@ impl Broker {
                         .entry(message_type_id)
                         .or_insert_with(HashSet::new)
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
-                    trace!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key.value, "Subscriber added");
+                    trace!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key, "Subscriber added");
                 })
             });
 
@@ -96,7 +101,7 @@ impl Broker {
         // Description: Triggered when the BrokerActor is activated.
         // Context: None.
         trace!("Activating the BrokerActor.");
-        Ok(actor.activate(None).await?)
+        actor.activate(None)
     }
     // async fn emit_message_internal<M>(
     //     &self,
@@ -112,30 +117,15 @@ impl Broker {
     #[instrument(skip(subscribers))]
     pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, request: BrokerRequest) {
         let message_type_id = &request.message.as_ref().type_id();
-        debug!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
+        // debug!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
                 let subscriber_context = subscriber_context.clone();
 
                 let message: BrokerRequestEnvelope = request.clone().into();
-                debug!(type_id=?message_type_id,message=?message,"emitting message");
+                warn!(subscriber_count=subscribers.len(),type_id=?message_type_id,message=?message,"emitting message");
                 subscriber_context.emit_async(message, None).await;
             }
         }
-    }
-
-    #[instrument]
-    fn broadcast_futures<T>(
-        mut futures: FuturesUnordered<impl Future<Output=T> + Sized>,
-    ) -> Pin<Box<impl Future<Output=()> + Sized>> {
-        debug!(
-             futures_count = futures.len(),
-             "Broadcasting futures to be processed."
-         );
-
-        Box::pin(async move {
-            while futures.next().await.is_some() {}
-            debug!("Future processed.");
-        })
     }
 }
