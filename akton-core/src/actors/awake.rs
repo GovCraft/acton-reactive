@@ -79,7 +79,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
 impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
-    for Actor<Awake<State>, State>
+for Actor<Awake<State>, State>
 {
     /// Converts an `Actor` from the idle state to the awake state.
     ///
@@ -88,7 +88,9 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
     ///
     /// # Returns
     /// A new `Actor` instance in the awake state.
-    #[instrument("from idle to awake", skip(value), fields(key=value.key.value,children_in=value.context.children.len()))]
+    #[instrument("from idle to awake", skip(value), fields(
+        key = value.key, children_in = value.context.children.len()
+    ))]
     fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State>
     where
         State: Send + 'static,
@@ -151,7 +153,7 @@ impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
             task_tracker,
             mailbox,
             pool_supervisor,
-            broker
+            broker,
         }
     }
 }

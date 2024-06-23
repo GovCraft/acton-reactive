@@ -40,23 +40,23 @@ mod setup;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_broker() -> anyhow::Result<()> {
     init_tracing();
-
-    let broker = Akton::spawn_broker().await?;
-
-    let actor_config = ActorConfig::new(
-        "improve_show",
-        None,
-        Some(broker.clone()),
-    );
-
-    let mut comedy_show = Akton::<Comedian>::create_with_config(actor_config);
+let mut akton:AktonReady = Akton::launch().into();
+    let broker = akton.broker();
 
     let actor_config = ActorConfig::new(
-        "counter",
+        Arn::with_root("improve_show").unwrap(),
         None,
         Some(broker.clone()),
-    );
-    let mut counter_actor = Akton::<Counter>::create_with_config(actor_config);
+    )?;
+
+    let mut comedy_show = akton.create_with_config::<Comedian>(actor_config);
+
+    let actor_config = ActorConfig::new(
+        Arn::with_root("counter").unwrap(),
+        None,
+        Some(broker.clone()),
+    )?;
+    let mut counter_actor = akton.create_with_config::<Counter>(actor_config);
     counter_actor
         .setup
         .act_on::<Pong>(|actor, event| {
@@ -77,8 +77,8 @@ async fn test_broker() -> anyhow::Result<()> {
     comedy_show.context.subscribe::<Ping>().await;
     comedy_show.context.subscribe::<Pong>().await;
 
-    let comedian = comedy_show.activate(None).await?;
-    let counter = counter_actor.activate(None).await?;
+    let comedian = comedy_show.activate(None);
+    let counter = counter_actor.activate(None);
 
     broker.emit_async(BrokerRequest::new(Ping), None).await;
     broker.emit_async(BrokerRequest::new(Pong), None).await;

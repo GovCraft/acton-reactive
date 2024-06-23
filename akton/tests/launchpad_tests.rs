@@ -17,10 +17,10 @@ async fn test_launchpad() -> anyhow::Result<()> {
     let broker = akton.broker();
 
     let actor_config = ActorConfig::new(
-        "improve_show",
+        Arn::with_root("improve_show")?,
         None,
         Some(broker.clone()),
-    );
+    )?;
 
     // let mut comedy_show = akton.create::<Comedian>(); //::<Comedian>::create_with_config(actor_config);
     let comedian = akton.spawn_actor::<Comedian>(|mut actor| Box::pin(async move {
@@ -39,25 +39,27 @@ async fn test_launchpad() -> anyhow::Result<()> {
         actor.context.subscribe::<Pong>().await;
 
         actor.activate(None) // Return the configured actor
-    })).await;
+    })).await?;
 
     let counter = akton.spawn_actor::<Counter>(|mut actor| Box::pin(async move {
         actor.setup
-            .act_on::<Pong>(|actor, event| {
-                info!("Also SUCCESS! PONG!");
+            .act_on_async::<Pong>(|actor, msg| {
+                Box::pin(async move {
+                    info!("SUCCESS! PONG!");
+                })
             });
 
         // Subscribe to broker events
         actor.context.subscribe::<Pong>().await;
 
         actor.activate(None) // Return the configured actor
-    })).await;
+    })).await?;
 
     broker.emit_async(BrokerRequest::new(Ping), None).await;
     broker.emit_async(BrokerRequest::new(Pong), None).await;
 
+    let _ = broker.suspend().await?;
     let _ = comedian.suspend().await?;
     let _ = counter.suspend().await?;
-    let _ = broker.suspend().await?;
     Ok(())
 }

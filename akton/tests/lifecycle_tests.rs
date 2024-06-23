@@ -39,19 +39,20 @@ mod setup;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_lifecycle_events() -> anyhow::Result<()> {
     init_tracing();
-    let mut actor = Akton::<PoolItem>::create();
+    let mut akton: AktonReady = Akton::launch().into();
+    let mut actor = akton.create::<PoolItem>();
     actor
         .setup
         .on_before_wake(|_actor| {
             tracing::info!("Actor waking up");
         })
         .on_wake(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.key.value);
+            tracing::info!("Actor woke up with key: {}", actor.key);
         })
         .on_stop(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.key.value);
+            tracing::info!("Actor stopping with key: {}", actor.key);
         });
-    let context = actor.activate(None).await?;
+    let context = actor.activate(None);
     context.suspend().await?;
     Ok(())
 }

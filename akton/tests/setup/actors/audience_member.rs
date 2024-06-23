@@ -43,6 +43,7 @@ use rand::Rng;
 use tracing::{debug, error, info, trace};
 
 use akton_core::prelude::*;
+
 use akton_macro::akton_actor;
 
 use crate::setup::*;
@@ -64,7 +65,7 @@ impl PooledActor for AudienceMember {
         let broker = akton.broker();
 
         let actor_config = ActorConfig::new(
-            "improve_show",
+            Arn::with_root("improve_show").expect("Couldn't create pool member Arn"),
             None,
             Some(broker.clone()),
         );
@@ -76,7 +77,7 @@ impl PooledActor for AudienceMember {
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
-        trace!(id=actor.key.value, "Setting up actor to handle the `Joke` event.");
+        trace!(id=actor.key, "Setting up actor to handle the `Joke` event.");
         actor.setup.act_on_async::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;

@@ -2,6 +2,8 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 
+use akton_arn::Arn;
+
 use crate::actors::{Actor, ActorConfig, Idle};
 use crate::common::{Akton, Broker, BrokerContextType, Context};
 use crate::common::akton_inner::AktonInner;
@@ -12,7 +14,10 @@ impl AktonReady {
     pub fn create<State: Default + Send + Debug>(&mut self) -> Actor<Idle<State>, State> {
         let broker = self.0.broker.clone();
 
-        let config = ActorConfig::new("default", None, Some(broker));
+        let config = ActorConfig::new(Arn::default(), None, Some(broker)).unwrap_or_default();
+        Actor::new(Some(config), State::default())
+    }
+    pub fn create_with_config<State: Default + Send + Debug>(&mut self, config: ActorConfig) -> Actor<Idle<State>, State> {
         Actor::new(Some(config), State::default())
     }
 
@@ -22,15 +27,27 @@ impl AktonReady {
     pub fn broker(&self) -> BrokerContextType {
         self.0.broker.clone()
     }
-    pub async fn spawn_actor<State>(&mut self, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> Context
+
+    pub async fn spawn_actor_with_config<State>(&mut self, config:ActorConfig, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> anyhow::Result<Context>
+    where
+        State: Default + Send + Debug + 'static,
+    {
+        let actor = Actor::new(Some(config), State::default());
+
+
+        Ok(setup(actor).await)
+    }
+
+    pub async fn spawn_actor<State>(&mut self, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> anyhow::Result<Context>
     where
         State: Default + Send + Debug + 'static,
     {
         let broker = self.broker();
 
-        let actor = Actor::new(Some(ActorConfig::new("default", None, Some(broker))), State::default());
+        let actor = Actor::new(Some(ActorConfig::new(Arn::default(), None, Some(broker))?), State::default());
 
-        setup(actor).await
+
+        Ok(setup(actor).await)
         // configured_actor.activate(None)
     }
     fn get_pool_size_from_config() -> usize {

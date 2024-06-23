@@ -41,7 +41,10 @@ use tracing::{info, trace};
 async fn test_audience_pool() -> anyhow::Result<()> {
     init_tracing();
 
-    let mut audience = Akton::<AudienceMember>::create();
+    let mut akton: AktonReady = Akton::launch().into();
+
+
+    let mut audience = akton.create::<AudienceMember>();
     let pool_name = "audience";
     audience
         .setup
@@ -76,7 +79,7 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     // Description: Initializing the pool with audience members.
     // Context: Pool name and size.
     info!("Initializing the pool with audience members.");
-    let context = audience.activate(Some(pool)).await?;
+    let context = audience.activate(Some(pool));
 
     for _ in 0..5 {
         // Event: Emitting Joke to Pool

@@ -36,6 +36,7 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use akton_arn::Arn;
 
 use dashmap::DashMap;
 use futures::future::join_all;
@@ -56,7 +57,7 @@ pub struct Broker {
 impl Broker {
     #[instrument]
     pub(crate) fn init() -> Context {
-        let actor_config = ActorConfig::new("broker", None, None);
+        let actor_config = ActorConfig::new(Arn::default(), None, None);
 
         let mut actor = Actor::new(None, Broker::default()); //::<Comedian>::create_with_config(actor_config);
 
@@ -92,7 +93,7 @@ impl Broker {
                         .entry(message_type_id)
                         .or_insert_with(HashSet::new)
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
-                    trace!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key.value, "Subscriber added");
+                    trace!(message_type_name=message_type_name,message_type_id=?message_type_id, subscriber=subscriber_context.key, "Subscriber added");
                 })
             });
 
@@ -116,30 +117,15 @@ impl Broker {
     #[instrument(skip(subscribers))]
     pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, request: BrokerRequest) {
         let message_type_id = &request.message.as_ref().type_id();
-        debug!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
+        // debug!(message_type_id=?message_type_id,subscriber_count=subscribers.len());
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
                 let subscriber_context = subscriber_context.clone();
 
                 let message: BrokerRequestEnvelope = request.clone().into();
-                debug!(type_id=?message_type_id,message=?message,"emitting message");
+                warn!(subscriber_count=subscribers.len(),type_id=?message_type_id,message=?message,"emitting message");
                 subscriber_context.emit_async(message, None).await;
             }
         }
-    }
-
-    #[instrument]
-    fn broadcast_futures<T>(
-        mut futures: FuturesUnordered<impl Future<Output=T> + Sized>,
-    ) -> Pin<Box<impl Future<Output=()> + Sized>> {
-        debug!(
-             futures_count = futures.len(),
-             "Broadcasting futures to be processed."
-         );
-
-        Box::pin(async move {
-            while futures.next().await.is_some() {}
-            debug!("Future processed.");
-        })
     }
 }

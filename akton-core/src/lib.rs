@@ -54,7 +54,7 @@ pub(crate) mod traits;
 /// as well as the `async_trait` crate.
 pub mod prelude {
     pub use async_trait;
-
+    pub use akton_arn::*;
     pub use crate::actors::ActorConfig;
     pub use crate::common::{Akton, AktonReady, Broker, Context};
     pub use crate::message::{BrokerRequest, BrokerRequestEnvelope};

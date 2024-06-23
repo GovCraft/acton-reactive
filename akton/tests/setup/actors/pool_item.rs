@@ -54,7 +54,7 @@ impl PooledActor for PoolItem {
         let broker = akton.broker();
 
         let actor_config = ActorConfig::new(
-            "improve_show",
+            Arn::with_root("improve_show").expect("Couldn't create pool item Arn"),
             None,
             Some(broker.clone()),
         );
@@ -65,7 +65,7 @@ impl PooledActor for PoolItem {
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
             "Actor initialized with key: {}, mailbox closed: {}",
-            actor.key.value,
+            actor.key,
             actor.mailbox.is_closed()
         );
 
@@ -73,15 +73,15 @@ impl PooledActor for PoolItem {
         actor
             .setup
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor=actor.key.value,"Received Ping event for");
+                tracing::debug!(actor=actor.key,"Received Ping event for");
                 actor.state.receive_count += 1; // Increment receive_count on Ping event
             })
             .on_before_stop_async(|actor| {
                 let parent = &actor.parent.clone().unwrap();
                 let final_count = actor.state.receive_count;
-                // let parent_envelope = parent.key.value.clone();
-                let parent_address = parent.key.value.clone();
-                let actor_address = actor.key.value.clone();
+                // let parent_envelope = parent.key.clone();
+                let parent_address = parent.key.clone();
+                let actor_address = actor.key.clone();
 
 
                 let parent = parent.clone();

@@ -49,7 +49,7 @@ use crate::traits::{ActorContext, BrokerContext, Subscriber};
 #[derive(Debug, Clone, Default)]
 pub struct Context {
     /// The unique identifier (ARN) for the context.
-    pub key: Arn,
+    pub key: String,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Option<OutboundChannel>,
     /// The task tracker for the actor.
@@ -76,7 +76,7 @@ impl Eq for Context {}
 
 impl Hash for Context {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.value.hash(state);
+        self.key.hash(state);
     }
 }
 
@@ -87,7 +87,7 @@ impl Context {
         child: Actor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
         let context = child.activate(None);
-        let id = context.key.value.clone();
+        let id = context.key.clone();
         self.children.insert(id, context);
 
         Ok(())
@@ -120,7 +120,7 @@ impl ActorContext for Context {
     }
 
     fn key(&self) -> String {
-        self.key.value.clone()
+        self.key.clone()
     }
 
     fn clone_self(&self) -> Context {
@@ -148,7 +148,7 @@ impl ActorContext for Context {
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor=self.key.value, "Sending Terminate to");
+            warn!(actor=self.key, "Sending Terminate to");
             actor.reply(SystemSignal::Terminate, None)?;
 
             // Event: Waiting for Actor Tasks
@@ -160,7 +160,7 @@ impl ActorContext for Context {
             // Event: Actor Terminated
             // Description: The actor and its subordinates have been terminated.
             // Context: None
-            info!(actor=self.key.value, "The actor and its subordinates have been terminated.");
+            info!(actor=self.key, "The actor and its subordinates have been terminated.");
             Ok(())
         }
     }

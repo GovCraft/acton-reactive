@@ -40,7 +40,7 @@ use std::pin::Pin;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use akton_arn::{Arn, ArnBuilder, Category, Company, Domain, Part};
+use akton_arn::Arn;
 use dashmap::DashMap;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::time::timeout;
@@ -76,7 +76,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub halt_signal: StopSignal,
 
     /// The unique identifier (ARN) for the actor.
-    pub key: Arn,
+    pub key: String,
 
     /// The state of the actor.
     pub state: State,
@@ -105,7 +105,7 @@ for Actor<RefType, State>
     /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Actor")
-            .field("key", &self.key.value) // Only the key field is included in the debug output
+            .field("key", &self.key) // Only the key field is included in the debug output
             .finish()
     }
 }
@@ -168,7 +168,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     let pool_clone = pool_def.pool.clone();
                     if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
                         let context = &pool_def.pool[index];
-                        trace!(pool_item=context.key.value,index = index, "Emitting to pool item");
+                        trace!(pool_item=context.key,index = index, "Emitting to pool item");
                         context.emit_message_async(envelope.message, None).await;
                     }
                 }
@@ -179,7 +179,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
             } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                trace!(actor=self.key.value, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
+                trace!(actor=self.key, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
                 self.terminate_actor().await;
             }
         }
@@ -193,18 +193,18 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
     }
     #[instrument(skip(self))]
     async fn terminate_actor(&mut self) {
-        tracing::trace!(actor=self.key.value, "Received SystemSignal::Terminate for");
+        tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
         for item in &self.context.children {
             let context = item.value();
             let _ = context.suspend().await;
         }
         for pool in &self.pool_supervisor {
             for item_context in &pool.pool {
-                trace!(item=item_context.key.value,"Terminating pool item.");
+                trace!(item=item_context.key,"Terminating pool item.");
                 let _ = item_context.suspend().await;
             }
         }
-        trace!(actor=self.key.value,"All subordinates terminated. Closing mailbox for");
+        trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
         self.mailbox.close();
     }
 }
@@ -236,30 +236,20 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         let task_tracker = Default::default();
 
         if let Some(config) = config {
+            key = config.name().clone();
             parent = config.parent().clone();
-            if let Some(parent) = config.parent() {
-                key = parent.key.clone();
-                key.append_part(&*config.name());
-                context.parent = Some(Box::new(parent.clone()));
-            } else {
-                key = ArnBuilder::new()
-                    .add::<Domain>("akton")
-                    .add::<Category>("system")
-                    .add::<Company>("framework")
-                    .add::<Part>(&*config.name())
-                    .build();
-            }
-            if let Some(config_broker) = config.broker() {
-                broker = Some(config_broker.clone());
-                context.broker = Box::new(Some(config_broker.clone()));
-            }
+            broker = config.broker().clone();
+            // if let Some(config_broker) = config.broker() {
+            //     broker = Some(config_broker.clone());
+            //     context.broker = Box::new(Some(config_broker.clone()));
+            // }
         }
         context.key = key.clone();
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
-        trace!("NEW ACTOR: {}", &key.value);
+        trace!("NEW ACTOR: {}", &key);
 
         // Create and return the new actor instance
         Actor {
@@ -283,7 +273,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     ///
     /// # Returns
     /// The actor's context after activation.
-    #[instrument(skip(self), fields(key = self.key.value))]
+    #[instrument(skip(self), fields(key = self.key))]
     pub fn activate(
         self,
         builder: Option<PoolBuilder>,
@@ -297,7 +287,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
 
         // If a pool builder is provided, spawn the supervisor
         // if let Some(builder) = builder {
-        //     trace!(id = actor.key.value, "PoolBuilder provided.");
+        //     trace!(id = actor.key, "PoolBuilder provided.");
         //     let moved_context = actor.context.clone();
         //     actor.pool_supervisor = builder.spawn(&moved_context).await?;
         // }
