@@ -1,38 +1,47 @@
 use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use akton_arn::Arn;
+use tokio::runtime::Runtime;
+use tokio::sync::oneshot;
+use tokio::task::JoinHandle;
 
 use crate::actors::{Actor, ActorConfig, Idle};
 use crate::common::{Akton, Broker, BrokerContextType, Context};
 use crate::common::akton_inner::AktonInner;
 
-pub struct AktonReady(AktonInner);
+#[derive(Debug, Clone)]
+pub struct AktonReady(pub(crate) AktonInner);
 
 impl AktonReady {
-    pub fn create<State: Default + Send + Debug>(&mut self) -> Actor<Idle<State>, State> {
+    pub async fn create<State: Default + Send + Debug + 'static>(&mut self) -> Actor<Idle<State>, State> {
         let broker = self.0.broker.clone();
-
+        let akton = self.clone();
         let config = ActorConfig::new(Arn::default(), None, Some(broker)).unwrap_or_default();
-        Actor::new(Some(config), State::default())
+        Actor::new(&Some(akton), Some(config), State::default()).await
     }
-    pub fn create_with_config<State: Default + Send + Debug>(&mut self, config: ActorConfig) -> Actor<Idle<State>, State> {
-        Actor::new(Some(config), State::default())
+    pub async fn create_with_config<State: Default + Send + Debug + 'static>(&mut self, config: ActorConfig) -> Actor<Idle<State>, State> {
+        let akton = self.clone();
+        Actor::new(&Some(akton), Some(config), State::default()).await
     }
 
-    fn spawn_broker() -> BrokerContextType {
-        Broker::init()
-    }
     pub fn broker(&self) -> BrokerContextType {
+
         self.0.broker.clone()
     }
+    // fn spawn_broker(&self) -> BrokerContextType {
+    //
+    //     self.0.broker.clone()
+    // }
 
-    pub async fn spawn_actor_with_config<State>(&mut self, config:ActorConfig, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> anyhow::Result<Context>
+    pub async fn spawn_actor_with_config<State>(&mut self, config: ActorConfig, setup: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output=Context> + Send + 'static>>) -> anyhow::Result<Context>
     where
         State: Default + Send + Debug + 'static,
     {
-        let actor = Actor::new(Some(config), State::default());
+        let akton = self.clone();
+        let actor = Actor::new(&Some(akton), Some(config), State::default()).await;
 
 
         Ok(setup(actor).await)
@@ -43,8 +52,10 @@ impl AktonReady {
         State: Default + Send + Debug + 'static,
     {
         let broker = self.broker();
+        let broker = broker.clone();
+        let akton = self.clone();
 
-        let actor = Actor::new(Some(ActorConfig::new(Arn::default(), None, Some(broker))?), State::default());
+        let actor = Actor::new(&Some(akton), Some(ActorConfig::new(Arn::default(), None, Some(broker))?), State::default()).await;
 
 
         Ok(setup(actor).await)
@@ -61,10 +72,27 @@ impl AktonReady {
 
 impl From<Akton> for AktonReady {
     fn from(launch: Akton) -> Self {
+        // TODO: This will be a broker pool in a future release
         let _pool_size = AktonReady::get_pool_size_from_config();
 
+        // Create a channel for receiving the initialized broker
+        let (tx, rx) = oneshot::channel();
+
+        // Spawn the broker initialization task
+        tokio::spawn(async move {
+            let broker = Broker::init().await;
+            let _ = tx.send(broker);
+        });
+
+        // Wait for the broker to be initialized
+        let broker = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                rx.await.expect("Broker initialization failed")
+            })
+        });
+
         AktonReady(AktonInner {
-            broker: AktonReady::spawn_broker(),
+            broker
         })
     }
 }

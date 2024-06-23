@@ -77,28 +77,28 @@ pub trait ActorContext {
         }
     }
 
-    /// Emit a message from the actor.
-    #[instrument(skip(self), fields(children = self.children().len()))]
-    fn emit_message_async(
-        &self,
-        message: Arc<dyn AktonMessage + Send + Sync>,
-        pool_name: Option<&str>,
-    ) -> impl Future<Output=()> + Send + Sync + '_
-    where
-        Self: Sync,
-    {
-        let pool_name = {
-            if let Some(pool_id) = pool_name {
-                Some(String::from(pool_id))
-            } else {
-                None
-            }
-        };
-        async move {
-            let envelope = self.return_address();
-            envelope.reply_async_boxed(message, pool_name).await;
-        }
-    }
+    // /// Emit a message from the actor.
+    // #[instrument(skip(self), fields(children = self.children().len()))]
+    // fn emit_message_async(
+    //     &self,
+    //     message: Arc<dyn AktonMessage + Send + Sync>,
+    //     pool_name: Option<&str>,
+    // ) -> impl Future<Output=()> + Send + Sync + '_
+    // where
+    //     Self: Sync,
+    // {
+    //     let pool_name = {
+    //         if let Some(pool_id) = pool_name {
+    //             Some(String::from(pool_id))
+    //         } else {
+    //             None
+    //         }
+    //     };
+    //     async move {
+    //         let envelope = self.return_address();
+    //         envelope.reply_async_boxed(message, pool_name).await;
+    //     }
+    // }
     #[instrument(skip(self), fields(self.key.value))]
     fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>

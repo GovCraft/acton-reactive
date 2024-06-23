@@ -59,7 +59,7 @@ impl PooledActor for PoolItem {
             Some(broker.clone()),
         );
 
-        let mut actor = akton.create::<PoolItem>(); //::<Comedian>::create_with_config(actor_config);
+        let mut actor = akton.create::<PoolItem>().await;
         // let mut actor = Akton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation
@@ -97,6 +97,6 @@ impl PooledActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        actor.activate(None)
+        actor.activate(None).await
     }
 }

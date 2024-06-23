@@ -74,8 +74,8 @@ where
         let key = self.key().clone();
 
         async move {
-            if let Some(broker) = broker {
-                let broker_key = broker.key();
+            if let Some(emit_broker) = broker {
+                let broker_key = emit_broker.key();
                 debug!(
                           type_id=?message_type_id,
                           subscribing_actor = key,
@@ -83,7 +83,7 @@ where
                           message_type_name,
                           broker_key
                       );
-                broker.emit_async(subscription, None).await;
+                emit_broker.emit_async(subscription, None).await;
             }
         }
     }

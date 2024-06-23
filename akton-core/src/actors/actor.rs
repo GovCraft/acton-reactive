@@ -37,6 +37,7 @@ use std::fmt::Formatter;
 use std::future::Future;
 use std::mem;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -47,9 +48,10 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
 
-use crate::common::{BrokerContextType, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{Akton, AktonInner, BrokerContextType, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
+use crate::prelude::AktonReady;
 use crate::traits::ActorContext;
 
 use super::{ActorConfig, Awake, Idle};
@@ -70,13 +72,14 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
     pub parent: Option<ParentContext>,
 
     /// The actor's optional context ref to a broker actor.
-    pub broker: Option<BrokerContextType>,
+    pub broker: BrokerContextType,
 
     /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
 
     /// The unique identifier (ARN) for the actor.
     pub key: String,
+    pub akton: AktonReady,
 
     /// The state of the actor.
     pub state: State,
@@ -169,7 +172,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
                     if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
                         let context = &pool_def.pool[index];
                         trace!(pool_item=context.key,index = index, "Emitting to pool item");
-                        context.emit_message_async(envelope.message, None).await;
+                        context.emit_async(envelope.message, None).await;
                     }
                 }
             } else if let Some(reactor) = reactors.get(&type_id) {
@@ -214,6 +217,23 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
 impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
+    /// Creates and supervises a new actor with the given ID and state.
+    ///
+    /// # Parameters
+    /// - `id`: The identifier for the new actor.
+    ///
+    /// # Returns
+    /// A new `Actor` instance in the idle state.
+    #[instrument(skip(self))]
+    pub async fn create_child(
+        &self,
+        config: ActorConfig,
+    ) -> Actor<Idle<State>, State> {
+        let actor = Actor::new(&Some(self.akton.clone()), None, State::default()).await;
+
+        event!(Level::TRACE, new_actor_key = &actor.key);
+        actor
+    }
     /// Creates a new actor with the given ID, state, and optional parent context.
     ///
     /// # Parameters
@@ -224,13 +244,13 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     /// # Returns
     /// A new `Actor` instance.
     #[instrument(skip(state))]
-    pub(crate) fn new(config: Option<ActorConfig>, state: State) -> Self {
+    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
         let mut context: Context = Default::default();
         context.outbox = Some(outbox.clone());
 
-        let mut key = Default::default();
+        let mut key = Arn::default().to_string();
         let mut parent = Default::default();
         let mut broker = Default::default();
         let task_tracker = Default::default();
@@ -238,11 +258,14 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         if let Some(config) = config {
             key = config.name().clone();
             parent = config.parent().clone();
-            broker = config.broker().clone();
-            // if let Some(config_broker) = config.broker() {
-            //     broker = Some(config_broker.clone());
-            //     context.broker = Box::new(Some(config_broker.clone()));
-            // }
+            if let Some(config_broker) = config.broker() {
+                broker = config_broker.clone();
+                context.broker = Box::new(Some(config_broker.clone()));
+            } else {
+                broker = context.clone();
+            }
+        } else {
+            broker = context.clone();
         }
         context.key = key.clone();
         // Ensure the mailbox and outbox are not closed
@@ -250,7 +273,15 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
         trace!("NEW ACTOR: {}", &key);
-
+        let akton = {
+            if let Some(akton) = akton {
+akton.clone()
+            } else {
+             AktonReady{
+                 0: AktonInner { broker: broker.clone() },
+             }
+            }
+        };
         // Create and return the new actor instance
         Actor {
             setup: Idle::default(),
@@ -262,6 +293,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
             broker,
             task_tracker,
             mailbox,
+            akton,
             pool_supervisor: Default::default(),
         }
     }
@@ -274,7 +306,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     /// # Returns
     /// The actor's context after activation.
     #[instrument(skip(self), fields(key = self.key))]
-    pub fn activate(
+    pub async fn activate(
         self,
         builder: Option<PoolBuilder>,
     ) -> Context {

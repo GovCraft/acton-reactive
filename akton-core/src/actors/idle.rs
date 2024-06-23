@@ -87,23 +87,7 @@ impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
 impl<State: Default + Send + Debug> Idle<State> {
-    /// Creates and supervises a new actor with the given ID and state.
-    ///
-    /// # Parameters
-    /// - `id`: The identifier for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance in the idle state.
-    #[instrument(skip(self))]
-    pub fn create_child(
-        &self,
-        config: ActorConfig,
-    ) -> Actor<Idle<State>, State> {
-        let actor = Actor::new(Some(config), State::default());
 
-        event!(Level::TRACE, new_actor_key = &actor.key);
-        actor
-    }
 
     /// Adds a synchronous message handler for a specific message type.
     ///

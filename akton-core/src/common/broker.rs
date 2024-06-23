@@ -44,7 +44,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use tracing::*;
 
-use crate::actors::{Actor, ActorConfig};
+use crate::actors::{Actor, ActorConfig, Idle};
 use crate::common::{Akton, AktonReady, Context};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage, BrokerContext};
@@ -56,10 +56,10 @@ pub struct Broker {
 
 impl Broker {
     #[instrument]
-    pub(crate) fn init() -> Context {
-        let actor_config = ActorConfig::new(Arn::default(), None, None);
+    pub(crate) async fn init() -> Context {
+        let actor_config = ActorConfig::new(Arn::with_root("broker_main").unwrap(), None, None).expect("Couldn't create initial broker config");
 
-        let mut actor = Actor::new(None, Broker::default()); //::<Comedian>::create_with_config(actor_config);
+        let mut actor = Actor::new(&None, Some(actor_config), Broker::default()).await;
 
         // let mut actor = Akton::<Broker>::create_with_config(actor_config);
 
@@ -101,7 +101,9 @@ impl Broker {
         // Description: Triggered when the BrokerActor is activated.
         // Context: None.
         trace!("Activating the BrokerActor.");
-        actor.activate(None)
+        let mut context = actor.activate(None).await;
+        context.broker = Box::from(Some(context.clone()));
+        context
     }
     // async fn emit_message_internal<M>(
     //     &self,

@@ -32,6 +32,7 @@
  */
 pub use akton::Akton;
 pub use akton_ready::AktonReady;
+pub(crate) use akton_inner::AktonInner;
 pub use broker::Broker;
 pub use context::Context;
 pub(crate) use types::*;
@@ -39,6 +40,7 @@ pub(crate) use types::*;
 pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub(crate) use crate::message::signal::SystemSignal;
 pub use crate::pool::LoadBalanceStrategy;
+
 
 mod akton_old;
 

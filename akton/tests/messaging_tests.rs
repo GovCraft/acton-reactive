@@ -41,7 +41,7 @@ use tracing::*;
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     init_tracing();
     let mut akton: AktonReady = Akton::launch().into();
-    let mut actor = akton.create::<PoolItem>();
+    let mut actor = akton.create::<PoolItem>().await;
     actor
         .setup
         .act_on::<Ping>(|actor, event| {
@@ -54,7 +54,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
         .on_before_stop(|actor| {
             info!("Processed {} Pings", actor.state.receive_count);
         });
-    let context = actor.activate(None);
+    let context = actor.activate(None).await;
     context.emit_async(Ping, None).await;
     context.suspend().await?;
     Ok(())
@@ -64,7 +64,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     init_tracing();
     let mut akton: AktonReady = Akton::launch().into();
-    let mut actor = akton.create::<PoolItem>();
+    let mut actor = akton.create::<PoolItem>().await;
     actor
         .setup
         .act_on_async::<Ping>(|actor, event| {
@@ -78,7 +78,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
         .on_before_stop(|actor| {
             info!("Processed {} Pings", actor.state.receive_count);
         });
-    let context = actor.activate(None);
+    let context = actor.activate(None).await;
     context.emit_async(Ping, None).await;
     context.suspend().await?;
     Ok(())

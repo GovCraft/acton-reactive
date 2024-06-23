@@ -86,7 +86,7 @@ impl Context {
         &self,
         child: Actor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
-        let context = child.activate(None);
+        let context = child.activate(None).await;
         let id = context.key.clone();
         self.children.insert(id, context);
 

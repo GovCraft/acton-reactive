@@ -105,6 +105,7 @@ for Actor<Awake<State>, State>
         let parent_return_envelope = value.parent;
         let key = value.key;
         let task_tracker = value.task_tracker;
+        let akton = value.akton;
 
         // Trace the process and check if the mailbox is closed before conversion
         tracing::trace!("Checking if mailbox is closed before conversion");
@@ -149,6 +150,7 @@ for Actor<Awake<State>, State>
             parent: parent_return_envelope,
             halt_signal,
             key,
+            akton,
             state,
             task_tracker,
             mailbox,

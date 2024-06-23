@@ -59,8 +59,8 @@ dependencies = [
 
 [[package]]
 name = "akton-arn"
-version = "1.0.0"
-source = "git+ssh://git@github.com/GovCraft/akton-arn.git#039b7008347fd762e6d5edb6eadd8aaa3364b451"
+version = "1.0.1"
+source = "git+ssh://git@github.com/GovCraft/akton-arn.git#91813c541931462619ad2f8bc604b187d4e7155b"
 dependencies = [
  "derive-new",
  "derive_more",
@@ -261,9 +261,9 @@ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
 
 [[package]]
 name = "cc"
-version = "1.0.99"
+version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96c51067fd44124faa7f870b4b1c969379ad32b2ba805aa959430ceaa384f695"
+checksum = "c891175c3fb232128f48de6590095e59198bbeb8620c310be349bfc3afd12c7b"
 
 [[package]]
 name = "cfg-if"
@@ -1183,9 +1183,9 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "syn"
-version = "2.0.67"
+version = "2.0.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff8655ed1d86f3af4ee3fd3263786bc14245ad17c4c7e85ba7187fb3ae028c90"
+checksum = "901fa70d88b9d6c98022e23b4136f9f3e54e4662c3bc1bd1d84a42a9a0f0c1e9"
 dependencies = [
  "proc-macro2",
  "quote",
