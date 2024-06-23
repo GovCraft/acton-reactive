@@ -46,15 +46,15 @@ use crate::traits::akton_message::AktonMessage;
 #[async_trait]
 pub trait ActorContext {
     /// Returns the actor's return address.
-    fn return_address(&self) -> OutboundEnvelope;
-    fn children(&self) -> DashMap<String, Context>;
-    fn find_child(&self, arn: &str) -> Option<Context>;
+    fn get_return_address(&self) -> OutboundEnvelope;
+    fn get_children(&self) -> DashMap<String, Context>;
+    fn find_child_by_arn(&self, arn: &str) -> Option<Context>;
     /// Returns the actor's task tracker.
-    fn task_tracker(&self) -> TaskTracker;
-    fn key(&self) -> String;
-    fn clone_self(&self) -> Context;
+    fn get_task_tracker(&self) -> TaskTracker;
+    fn get_id(&self) -> String;
+    fn clone_context(&self) -> Context;
     /// Emit a message from the actor, possibly to a pool item.
-    #[instrument(skip(self), fields(children = self.children().len()))]
+    #[instrument(skip(self), fields(children = self.get_children().len()))]
     fn emit_async(
         &self,
         message: impl AktonMessage + Sync + Send,
@@ -71,67 +71,45 @@ pub trait ActorContext {
             }
         };
         async move {
-            let envelope = self.return_address();
+            let envelope = self.get_return_address();
             event!(Level::TRACE, return_address = envelope.sender);
             envelope.reply_async(message, pool_name).await;
         }
     }
 
-    // /// Emit a message from the actor.
-    // #[instrument(skip(self), fields(children = self.children().len()))]
-    // fn emit_message_async(
-    //     &self,
-    //     message: Arc<dyn AktonMessage + Send + Sync>,
-    //     pool_name: Option<&str>,
-    // ) -> impl Future<Output=()> + Send + Sync + '_
-    // where
-    //     Self: Sync,
-    // {
-    //     let pool_name = {
-    //         if let Some(pool_id) = pool_name {
-    //             Some(String::from(pool_id))
-    //         } else {
-    //             None
-    //         }
-    //     };
-    //     async move {
-    //         let envelope = self.return_address();
-    //         envelope.reply_async_boxed(message, pool_name).await;
-    //     }
-    // }
-    #[instrument(skip(self), fields(self.key.value))]
-    fn emit(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
+    #[instrument(skip(self), fields(context_key = %self.get_id()))]
+    fn send_message(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
     {
-        let envelope = self.return_address();
-        event!(Level::TRACE, addressed_to = envelope.sender);
-        envelope.reply(message, None)?;
+        let envelope = self.get_return_address();
+        event!(Level::TRACE, addressed_to = %envelope.sender);
+        envelope.reply(message, pool_name)?;
         Ok(())
     }
 
     /// Wakes the actor.
-    async fn wake(&mut self) -> anyhow::Result<()>;
+    async fn wake_actor(&mut self) -> anyhow::Result<()>;
 
     /// Recreates the actor.
-    async fn recreate(&mut self) -> anyhow::Result<()>;
+    async fn recreate_actor(&mut self) -> anyhow::Result<()>;
 
     /// Suspends the actor.
-    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
+    fn suspend_actor(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
     /// Resumes the actor.
-    async fn resume(&mut self) -> anyhow::Result<()>;
+    async fn resume_actor(&mut self) -> anyhow::Result<()>;
 
     /// Supervises the actor.
-    async fn supervise(&mut self) -> anyhow::Result<()>;
+    async fn supervise_actor(&mut self) -> anyhow::Result<()>;
 
     /// Watches the actor.
-    async fn watch(&mut self) -> anyhow::Result<()>;
+    async fn watch_actor(&mut self) -> anyhow::Result<()>;
 
     /// Stops watching the actor.
-    async fn unwatch(&mut self) -> anyhow::Result<()>;
+    async fn unwatch_actor(&mut self) -> anyhow::Result<()>;
 
     /// Marks the actor as failed.
-    async fn fail(&mut self) -> anyhow::Result<()>;
+    async fn mark_as_failed(&mut self) -> anyhow::Result<()>;
 }

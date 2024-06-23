@@ -5,6 +5,7 @@ members = [
     "akton-core",
     "akton-macro",
     "akton",
+    "akton_test",
 ]
 
 

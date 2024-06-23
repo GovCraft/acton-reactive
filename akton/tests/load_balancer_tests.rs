@@ -39,12 +39,12 @@ use akton::prelude::*;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
-    init_tracing();
+    initialize_tracing();
 let mut akton: AktonReady = Akton::launch().into();
     let pool_name = "pool";
 
     // Create the main actor
-    let mut main_actor = akton.create::<PoolItem>();
+    let mut main_actor = akton.create_actor::<PoolItem>();
     main_actor
         .setup
         .act_on::<StatusReport>(|actor, event| {
@@ -84,11 +84,11 @@ let mut akton: AktonReady = Akton::launch().into();
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_random() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
-    init_tracing();
+    initialize_tracing();
 
     let mut akton: AktonReady = Akton::launch().into();
     // Create the main actor
-    let mut main_actor = akton.create::<PoolItem>();
+    let mut main_actor = akton.create_actor::<PoolItem>();
     main_actor
         .setup
         .act_on::<StatusReport>(|actor, event| {

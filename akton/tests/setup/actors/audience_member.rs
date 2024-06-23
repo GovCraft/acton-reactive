@@ -62,7 +62,7 @@ impl PooledActor for AudienceMember {
     async fn initialize(&self, config: ActorConfig) -> Context {
         let mut akton: AktonReady = Akton::launch().into();
 
-        let broker = akton.broker();
+        let broker = akton.get_broker();
 
         let actor_config = ActorConfig::new(
             Arn::with_root("improve_show").expect("Couldn't create pool member Arn"),
@@ -70,7 +70,7 @@ impl PooledActor for AudienceMember {
             Some(broker.clone()),
         );
 
-        let mut actor = akton.create::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config);
+        let mut actor = akton.create_actor::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config);
         // let mut actor =
         //     Akton::<AudienceMember>::create_with_config(config.clone());
 

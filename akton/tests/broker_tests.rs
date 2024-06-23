@@ -39,9 +39,9 @@ mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_broker() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
 let mut akton:AktonReady = Akton::launch().into();
-    let broker = akton.broker();
+    let broker = akton.get_broker();
 
     let actor_config = ActorConfig::new(
         Arn::with_root("improve_show").unwrap(),
@@ -85,7 +85,7 @@ let mut akton:AktonReady = Akton::launch().into();
 
     let _ = comedian.suspend().await?;
     let _ = counter.suspend().await?;
-    let _ = broker.suspend().await?;
+    let _ = broker.suspend_actor().await?;
 
     Ok(())
 }

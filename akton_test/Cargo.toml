@@ -1,0 +1,16 @@
+[package]
+name = "akton_test"
+version = "1.0.0"
+edition = "2021"
+description = "Testing utilities for Akton actors"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/GovCraft/akton-framework/akton_test"
+authors = ["Roland Rodriguez <roland@govcraft.ai>"]
+keywords = ["actor", "async", "testing"]
+categories = ["asynchronous", "development-tools::testing"]
+
+[dependencies]
+akton_test_macro = { path = "./akton_test_macro", version = "1.0.0" }
+parking_lot = "0.12.3"
+tokio = { version = "1.0", features = ["full"] }
+tracing = "0.1.40"

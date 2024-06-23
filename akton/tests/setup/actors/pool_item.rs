@@ -51,7 +51,7 @@ impl PooledActor for PoolItem {
     async fn initialize(&self, config: ActorConfig) -> Context {
         let mut akton: AktonReady = Akton::launch().into();
 
-        let broker = akton.broker();
+        let broker = akton.get_broker();
 
         let actor_config = ActorConfig::new(
             Arn::with_root("improve_show").expect("Couldn't create pool item Arn"),
@@ -59,7 +59,7 @@ impl PooledActor for PoolItem {
             Some(broker.clone()),
         );
 
-        let mut actor = akton.create::<PoolItem>().await;
+        let mut actor = akton.create_actor::<PoolItem>().await;
         // let mut actor = Akton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation

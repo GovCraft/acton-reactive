@@ -39,12 +39,12 @@ use tracing::{info, trace};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_audience_pool() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
 
     let mut akton: AktonReady = Akton::launch().into();
 
 
-    let mut audience = akton.create::<AudienceMember>();
+    let mut audience = akton.create_actor::<AudienceMember>();
     let pool_name = "audience";
     audience
         .setup

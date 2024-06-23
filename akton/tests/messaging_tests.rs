@@ -39,9 +39,9 @@ use akton::prelude::*;
 use tracing::*;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
     let mut akton: AktonReady = Akton::launch().into();
-    let mut actor = akton.create::<PoolItem>().await;
+    let mut actor = akton.create_actor::<PoolItem>().await;
     actor
         .setup
         .act_on::<Ping>(|actor, event| {
@@ -50,21 +50,22 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name=type_name,type_id=?type_id, "Received");
             actor.state.receive_count += 1;
+            assert!(false);
         })
         .on_before_stop(|actor| {
             info!("Processed {} Pings", actor.state.receive_count);
         });
     let context = actor.activate(None).await;
     context.emit_async(Ping, None).await;
-    context.suspend().await?;
+    context.suspend_actor().await?;
     Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
-    init_tracing();
+    initialize_tracing();
     let mut akton: AktonReady = Akton::launch().into();
-    let mut actor = akton.create::<PoolItem>().await;
+    let mut actor = akton.create_actor::<PoolItem>().await;
     actor
         .setup
         .act_on_async::<Ping>(|actor, event| {
@@ -80,6 +81,6 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
         });
     let context = actor.activate(None).await;
     context.emit_async(Ping, None).await;
-    context.suspend().await?;
+    context.suspend_actor().await?;
     Ok(())
 }

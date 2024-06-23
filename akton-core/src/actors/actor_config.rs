@@ -35,17 +35,17 @@ use std::fmt::Display;
 
 use akton_arn::{Arn, ArnParser};
 
-use crate::common::{BrokerContextType, ParentContext};
+use crate::common::{BrokerContext, ParentContext};
 
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
     id: String,
-    broker: Option<BrokerContextType>,
+    broker: Option<BrokerContext>,
     parent: Option<ParentContext>,
 }
 
 impl ActorConfig {
-    pub fn new(name: Arn<'_>, parent: Option<ParentContext>, broker: Option<BrokerContextType>) -> anyhow::Result<ActorConfig> {
+    pub fn new(name: Arn<'_>, parent: Option<ParentContext>, broker: Option<BrokerContext>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
             let parent_arn = ArnParser::new(&parent.key).parse()?;
@@ -66,7 +66,7 @@ impl ActorConfig {
     pub(crate) fn name(&self) -> &String {
         &self.id
     }
-    pub(crate) fn broker(&self) -> &Option<BrokerContextType> {
+    pub(crate) fn get_broker(&self) -> &Option<BrokerContext> {
         &self.broker
     }
     pub(crate) fn parent(&self) -> &Option<ParentContext> {

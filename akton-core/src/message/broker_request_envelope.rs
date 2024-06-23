@@ -46,7 +46,6 @@ use crate::traits::AktonMessage;
 #[derive(Debug, Clone)]
 pub struct BrokerRequestEnvelope {
     pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
-    pub any_message: Arc<dyn Any + Send + Sync + 'static>,
 }
 
 impl From<BrokerRequest> for BrokerRequestEnvelope {
@@ -54,7 +53,6 @@ impl From<BrokerRequest> for BrokerRequestEnvelope {
         debug!("{:?}", value);
         Self {
             message: value.message,
-            any_message: value.any_message,
         }
     }
 }
@@ -62,10 +60,8 @@ impl From<BrokerRequest> for BrokerRequestEnvelope {
 impl BrokerRequestEnvelope {
     pub fn new<M: AktonMessage + Send + Sync + 'static>(request: M) -> Self {
         let message = Arc::new(request);
-        let any_message = message.clone() as Arc<dyn Any + Send + Sync + 'static>;
         Self {
             message,
-            any_message,
         }
     }
 }
