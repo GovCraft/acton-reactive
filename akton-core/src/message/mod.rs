@@ -34,7 +34,7 @@
 pub(crate) use envelope::Envelope;
 pub(crate) use event_record::EventRecord;
 pub(crate) use message_error::MessageError;
-pub(crate) use outbound_envelope::OutboundEnvelope;
+pub use outbound_envelope::OutboundEnvelope;
 pub(crate) use subscribe_broker::SubscribeBroker;
 pub(crate) use unsubscribe_broker::UnsubscribeBroker;
 pub use broker_request::BrokerRequest;
