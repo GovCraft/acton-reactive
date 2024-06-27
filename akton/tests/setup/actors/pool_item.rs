@@ -85,7 +85,7 @@ impl PooledActor for PoolItem {
 
 
                 let parent = parent.clone();
-                actor.context.wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
+                Context::wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
             });
 
         // Activate the actor and return the context

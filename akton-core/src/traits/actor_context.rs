@@ -113,15 +113,43 @@ pub trait ActorContext {
 
     /// Marks the actor as failed.
     async fn mark_as_failed(&mut self) -> anyhow::Result<()>;
-    fn wrap_future<F>(&self,future: F) -> Pin<Box<F>>
+    fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
         F: Future<Output = ()> + Sized + 'static,
     {
         Box::pin(future)
     }
 
-    fn noop(&self
+    fn noop(
     ) -> Pin<Box<impl Future<Output=()> + Sized>> {
+        Box::pin(async move {})
+    }
+}
+
+
+pub trait FutureWrapper {
+    fn wrap_future<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
+    where
+        F: Future<Output=()> + 'static;
+
+    fn noop() -> Pin<Box<dyn Future<Output=()> + 'static>>;
+}
+
+
+
+// Blanket implementation for all types that implement ActorContext
+impl<T> FutureWrapper for T
+where
+    T: ActorContext,
+{
+    fn wrap_future<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
+    where
+        F: Future<Output=()> + 'static
+    {
+        Box::pin(future)
+    }
+
+    fn noop() -> Pin<Box<dyn Future<Output=()> + 'static>> {
         Box::pin(async move {})
     }
 }

@@ -53,7 +53,7 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
                 info!("SUCCESS! PING!");
             })
             .act_on_async::<Pong>(|actor, _msg| {
-                actor.context.wrap_future(wait_and_respond())
+                Context::wrap_future(wait_and_respond())
             });
         let context = &actor.context.clone();
 
