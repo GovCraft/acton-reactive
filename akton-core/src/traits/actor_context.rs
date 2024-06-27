@@ -32,6 +32,7 @@
  */
 
 use std::future::Future;
+use std::pin::Pin;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -112,4 +113,15 @@ pub trait ActorContext {
 
     /// Marks the actor as failed.
     async fn mark_as_failed(&mut self) -> anyhow::Result<()>;
+    fn wrap_future<F>(&self,future: F) -> Pin<Box<F>>
+    where
+        F: Future<Output = ()> + Sized + 'static,
+    {
+        Box::pin(future)
+    }
+
+    fn noop(&self
+    ) -> Pin<Box<impl Future<Output=()> + Sized>> {
+        Box::pin(async move {})
+    }
 }

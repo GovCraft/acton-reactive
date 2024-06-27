@@ -85,18 +85,22 @@ impl PooledActor for PoolItem {
 
 
                 let parent = parent.clone();
-                Box::pin(async move {
-                    tracing::debug!(
+                actor.context.wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
+            });
+
+        // Activate the actor and return the context
+        actor.activate(None).await
+    }
+}
+
+impl PoolItem {
+    async fn output_results(final_count: usize, parent_address: String, actor_address: String, parent: Context) {
+        tracing::debug!(
                     "Reporting {} complete to {} from {}.",
                     final_count,
                     parent_address,
                     actor_address,
                 );
-                    parent.emit_async(StatusReport::Complete(final_count), None).await
-                })
-            });
-
-        // Activate the actor and return the context
-        actor.activate(None).await
+        parent.emit_async(StatusReport::Complete(final_count), None).await
     }
 }

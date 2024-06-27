@@ -52,10 +52,8 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
             .act_on::<Ping>(|_actor, _msg| {
                 info!("SUCCESS! PING!");
             })
-            .act_on_async::<Pong>(|_actor, _msg| {
-                Box::pin(async move {
-                    info!("SUCCESS! PONG!");
-                })
+            .act_on_async::<Pong>(|actor, _msg| {
+                actor.context.wrap_future(wait_and_respond())
             });
         let context = &actor.context.clone();
 
@@ -71,6 +69,11 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
     parent_actor.suspend_actor().await?;
     broker_clone.suspend_actor().await?;
     Ok(())
+}
+
+async fn wait_and_respond(){
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    info!("Waited, then...SUCCESS! PONG!");
 }
 
 #[akton_test]
