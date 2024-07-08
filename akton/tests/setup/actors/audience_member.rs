@@ -93,7 +93,7 @@ impl PooledActor for AudienceMember {
                 }
             };
             Box::pin(async move {
-                sender.reply_async(reaction, None).await
+                sender.reply_async(reaction).await
             })
         });
 
