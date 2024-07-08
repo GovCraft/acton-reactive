@@ -131,7 +131,7 @@ impl OutboundEnvelope {
                 // Reserve capacity
                 match reply_to.reserve().await {
                     Ok(permit) => {
-                        let envelope = Envelope::new(message, self.reply_to.clone(), pool_id);
+                        let envelope = Envelope::new(message, self.reply_to.clone());
                         permit.send(envelope);
                         trace!("Reply to {} from OutboundEnvelope", &self.sender)
                     }
