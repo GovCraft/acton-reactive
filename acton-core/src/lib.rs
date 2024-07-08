@@ -42,7 +42,7 @@
 /// Common utilities and structures used throughout the Akton framework.
 pub(crate) mod common;
 
-pub(crate) mod actors;
+pub(crate) mod actor;
 pub(crate) mod message;
 /// Trait definitions used in the Akton framework.
 pub(crate) mod traits;
@@ -54,7 +54,7 @@ pub(crate) mod traits;
 pub mod prelude {
     pub use async_trait;
     pub use akton_arn::*;
-    pub use crate::actors::ActorConfig;
+    pub use crate::actor::ActorConfig;
     pub use crate::common::{Acton, SystemReady, Broker, ActorRef};
     pub use crate::message::{BrokerRequest, BrokerRequestEnvelope, OutboundEnvelope};
     pub use crate::traits::{Actor, ActonMessage, PooledActor, Subscribable, Subscriber};
