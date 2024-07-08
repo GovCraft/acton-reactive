@@ -31,7 +31,7 @@
  *
  */
 
-// We'll create pool of audience member actors who will hear a joke told by the comedian
+// We'll create pool of audience member actor who will hear a joke told by the comedian
 // They will randomly react to the jokes after which the Comedian will report on how many
 // jokes landed and didn't land
 
