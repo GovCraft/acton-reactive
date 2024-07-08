@@ -100,7 +100,7 @@ impl ActorRef {
 impl Actor for ActorRef {
     /// Returns the return address for the actor.
     #[instrument(skip(self))]
-    fn get_return_address(&self) -> OutboundEnvelope {
+    fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
         OutboundEnvelope::new(outbox, self.key.clone())
     }
@@ -142,7 +142,7 @@ impl Actor for ActorRef {
         async move {
             let tracker = self.get_task_tracker().clone();
 
-            let actor = self.get_return_address().clone();
+            let actor = self.return_address().clone();
 
 
             // Event: Sending Terminate Signal
