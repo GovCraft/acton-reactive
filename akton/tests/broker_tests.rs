@@ -80,8 +80,8 @@ let mut akton:AktonReady = Akton::launch().into();
     let comedian = comedy_show.activate(None);
     let counter = counter_actor.activate(None);
 
-    broker.emit_async(BrokerRequest::new(Ping), None).await;
-    broker.emit_async(BrokerRequest::new(Pong), None).await;
+    broker.emit(BrokerRequest::new(Ping), None).await;
+    broker.emit(BrokerRequest::new(Pong), None).await;
 
     let _ = comedian.suspend().await?;
     let _ = counter.suspend().await?;
