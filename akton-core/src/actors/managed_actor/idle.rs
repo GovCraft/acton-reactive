@@ -271,7 +271,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     where
         ManagedEntity: Send + 'static,
     {
-        tracing::trace!("*");
         // Extract lifecycle reactors and other properties from the idle actor
         let on_activate = self.on_activate;
         let before_activate = self.before_activate;
@@ -284,8 +283,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let tracker = self.tracker;
         let akton = self.akton;
         let reactors = self.reactors;
-        // Trace the process and check if the mailbox is closed before conversion
-        tracing::trace!("Checking if mailbox is closed before conversion");
+
         debug_assert!(
             !self.inbox.is_closed(),
             "Actor mailbox is closed before conversion in From<Actor<Idle, State>>"
@@ -296,24 +294,11 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let entity = self.entity;
         let broker = self.broker;
 
-        // Trace the conversion process
-        // tracing::trace!(
-        //     "Converting Actor from Idle to Awake with key: {}",
-        //     key.self
-        // );
-        // tracing::trace!("Checking if mailbox is closed before conversion");
         debug_assert!(
             !inbox.is_closed(),
             "Actor mailbox is closed in From<Actor<Idle, State>>"
         );
 
-        // tracing::trace!("Mailbox is not closed, proceeding with conversion");
-        if actor_ref.children().is_empty() {
-            tracing::trace!(
-                    "child count before Actor creation {}",
-                    actor_ref.children().len()
-                );
-        }
         // Create and return the new actor in the awake state
         ManagedActor::<Running, ManagedEntity>{
             actor_ref,
