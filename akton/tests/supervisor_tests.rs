@@ -47,7 +47,7 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     let mut audience = akton.create_actor::<AudienceMember>();
     let pool_name = "audience";
     audience
-        .setup
+
         .act_on::<AudienceReactionMsg>(|actor, event| {
             // Event: Audience Reaction
             // Description: Handling audience reaction message.
