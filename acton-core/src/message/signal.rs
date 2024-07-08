@@ -39,7 +39,7 @@ use crate::traits::ActonMessage;
 /// System-wide signals used to control actor lifecycle events.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub(crate) enum SystemSignal {
+pub enum SystemSignal {
     // Wake,
     // Recreate,
     // Suspend,
