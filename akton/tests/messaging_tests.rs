@@ -38,27 +38,27 @@ use akton::prelude::*;
 use tracing::*;
 use akton_test::prelude::*;
 
-// #[akton_test]
-// async fn test_messaging_behavior() -> anyhow::Result<()> {
-//     initialize_tracing();
-//     let mut akton: AktonReady = Akton::launch().into();
-//     let mut actor = akton.create_actor::<PoolItem>().await;
-//     actor
-//         .act_on::<Ping>(|actor, event| {
-//             let message = event.message.clone();
-//             let type_id = TypeId::of::<Ping>();
-//             let type_name = std::any::type_name::<Ping>();
-//             info!(type_name=type_name,type_id=?type_id, "Received");
-//             actor.entity.receive_count += 1;
-//         })
-//         .before_stop(|actor| {
-//             info!("Processed {} Pings", actor.entity.receive_count);
-//         });
-//     let actor_ref = actor.activate().await;
-//     actor_ref.emit(Ping).await;
-//     actor_ref.suspend().await?;
-//     Ok(())
-// }
+#[akton_test]
+async fn test_messaging_behavior() -> anyhow::Result<()> {
+    initialize_tracing();
+    let mut akton: AktonReady = Akton::launch().into();
+    let mut actor = akton.create_actor::<PoolItem>().await;
+    actor
+        .act_on::<Ping>(|actor, event| {
+            let message = event.message.clone();
+            let type_id = TypeId::of::<Ping>();
+            let type_name = std::any::type_name::<Ping>();
+            info!(type_name=type_name,type_id=?type_id, "Received");
+            actor.entity.receive_count += 1;
+        })
+        .before_stop(|actor| {
+            info!("Processed {} Pings", actor.entity.receive_count);
+        });
+    let actor_ref = actor.activate().await;
+    actor_ref.emit(Ping).await;
+    actor_ref.suspend().await?;
+    Ok(())
+}
 
 #[akton_test]
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
