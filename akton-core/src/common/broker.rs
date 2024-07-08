@@ -14,7 +14,7 @@ use tracing::*;
 use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Acton, SystemReady, ActorRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{Actor, AktonMessage};
+use crate::traits::{Actor, ActonMessage};
 
 #[derive(Default, Debug)]
 pub struct Broker {
