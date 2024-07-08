@@ -1,0 +1,28 @@
+[package]
+name = "acton"
+version = "1.1.0"
+edition = "2021"
+
+[lints.rust]
+unused = "allow"
+
+[dependencies]
+acton-macro = { path = "../acton-macro" }
+acton-core = { path = "../acton-core" }
+rand = "0.8.5"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+tracing-futures = "0.2.5"
+anyhow = "1.0.82"
+async-trait = "0.1.8"
+tokio = "1.37.0"
+petgraph = "0.6.4"
+futures = "0.3.30"
+log = "0.4.21"
+console-subscriber = "0.2.0"
+quote = "1.0.36"
+syn = "2.0.68"
+
+[dev-dependencies]
+acton_test = { path = "../acton_test" }
+

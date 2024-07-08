@@ -2,10 +2,10 @@
 resolver = "2"
 
 members = [
-    "akton-core",
-    "akton-macro",
-    "akton",
-    "akton_test",
+    "acton-core",
+    "acton-macro",
+    "acton",
+    "acton_test",
 ]
 
 
