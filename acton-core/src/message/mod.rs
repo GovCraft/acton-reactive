@@ -42,10 +42,10 @@ mod envelope;
 mod event_record;
 mod message_error;
 mod outbound_envelope;
-pub mod signal;
 mod subscribe_broker;
 mod unsubscribe_broker;
 mod broker_request;
 mod broker_request_envelope;
-
+mod signal;
+pub use signal::SystemSignal;
 pub use broker_request_envelope::BrokerRequestEnvelope;
