@@ -53,7 +53,7 @@ use crate::traits::{Actor, AktonMessage};
 /// - `ManagedEntity`: The type representing the state of the actor.
 pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
-    pub(crate) before_activate: Box<IdleLifecycleHandler<Idle<ManagedEntity>, ManagedEntity>>,
+    before_activate: Box<IdleLifecycleHandler<Idle<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor wakes up.
     pub(crate) on_activate: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called just before the actor stops.
