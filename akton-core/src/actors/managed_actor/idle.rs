@@ -10,7 +10,7 @@ use crate::actors::{ActorConfig, ManagedActor, Running};
 use crate::actors::managed_actor::downcast_message;
 use crate::common::{ActorRef, ActonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
 use crate::message::EventRecord;
-use crate::prelude::{Actor, AktonMessage};
+use crate::prelude::{Actor, ActonMessage};
 
 pub struct Idle;
 
@@ -26,7 +26,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// # Parameters
     /// - `message_reactor`: The function to handle the message.
     #[instrument(skip(self, message_handler))]
-    pub fn act_on<M: AktonMessage + Clone + 'static>(
+    pub fn act_on<M: ActonMessage + Clone + 'static>(
         &mut self,
         message_handler: impl Fn(&mut ManagedActor<Running, ManagedEntity>, &mut EventRecord<M>)
         + Send
@@ -87,7 +87,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         + 'static,
     ) -> &mut Self
     where
-        M: AktonMessage + Clone + Send + Sync + 'static,
+        M: ActonMessage + Clone + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
