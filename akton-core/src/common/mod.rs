@@ -39,7 +39,7 @@ pub(crate) use types::*;
 
 pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
 pub(crate) use crate::message::signal::SystemSignal;
-pub use crate::pool::LoadBalanceStrategy;
+// pub use crate::pool::LoadBalanceStrategy;
 
 
 mod akton_old;
