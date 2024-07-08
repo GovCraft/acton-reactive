@@ -40,7 +40,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
-use crate::actors::{Actor, Awake};
+use crate::actors::{ManagedActor, Awake};
 use crate::common::Context;
 use crate::message::Envelope;
 use crate::traits::AktonMessage;
@@ -61,14 +61,14 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 
 /// A type alias for a message reactor function.
 pub(crate) type MessageReactor<State> =
-    dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
+    dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &dyn AktonMessage) -> Fut
+pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> Fut
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut Actor<Awake<State>, State>, &'b mut Envelope) -> Fut
+pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> Fut
     + Send
     + Sync
     + 'static;
@@ -83,13 +83,13 @@ pub(crate) type OutboundChannel = Sender<Envelope>;
 pub(crate) type StopSignal = AtomicBool;
 
 /// A type alias for a lifecycle reactor function.
-pub(crate) type LifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub(crate) type LifecycleReactor<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleReactor<State> =
-    Box<dyn Fn(&Actor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
+    Box<dyn Fn(&ManagedActor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
-pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&Actor<T, State>) + Send;
+pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
 pub type BrokerContext = Context;
 pub type ParentContext = Context;
