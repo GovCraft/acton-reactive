@@ -173,8 +173,8 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
                 }
             } else if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
-                    ReactorItem::Message(reactor) => (*reactor)(self, &mut envelope),
-                    ReactorItem::Future(fut) => fut(self, &mut envelope).await,
+                    ReactorItem::MessageReactor(reactor) => (*reactor)(self, &mut envelope),
+                    ReactorItem::FutureReactor(fut) => fut(self, &mut envelope).await,
                     _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
             } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
