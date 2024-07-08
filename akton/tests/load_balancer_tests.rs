@@ -46,7 +46,7 @@ let mut akton: AktonReady = Akton::launch().into();
     // Create the main actor
     let mut main_actor = akton.create_actor::<PoolItem>();
     main_actor
-        .setup
+
         .act_on::<StatusReport>(|actor, event| {
             let sender = &event.return_address.sender;
 
@@ -90,7 +90,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
     // Create the main actor
     let mut main_actor = akton.create_actor::<PoolItem>();
     main_actor
-        .setup
+
         .act_on::<StatusReport>(|actor, event| {
             let sender = &event.return_address.sender;
             match event.message {
