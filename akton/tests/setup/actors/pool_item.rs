@@ -74,11 +74,11 @@ impl PooledActor for PoolItem {
             .setup
             .act_on::<Ping>(|actor, _event| {
                 tracing::debug!(actor=actor.key,"Received Ping event for");
-                actor.state.receive_count += 1; // Increment receive_count on Ping event
+                actor.managed_entity.receive_count += 1; // Increment receive_count on Ping event
             })
             .on_before_stop_async(|actor| {
                 let parent = &actor.parent.clone().unwrap();
-                let final_count = actor.state.receive_count;
+                let final_count = actor.managed_entity.receive_count;
                 // let parent_envelope = parent.key.clone();
                 let parent_address = parent.key.clone();
                 let actor_address = actor.key.clone();
