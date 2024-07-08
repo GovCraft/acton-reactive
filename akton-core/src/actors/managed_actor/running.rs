@@ -31,6 +31,96 @@
  *
  */
 
+use std::any::type_name_of_val;
+use std::fmt::Debug;
+use std::time::Duration;
+use tokio::time::timeout;
+use tracing::{debug, instrument, trace};
+use crate::actors::ManagedActor;
+use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap, SystemSignal};
+use crate::message::BrokerRequestEnvelope;
+use crate::traits::Actor;
+
 pub struct Running;
+
+impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, ManagedEntity> {
+    /// Creates a new outbound envelope for the actor.
+    ///
+    /// # Returns
+    /// An optional `OutboundEnvelope` if the context's outbox is available.
+    pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
+        if let Some(envelope) = &self.actor_ref.outbox {
+            Option::from(OutboundEnvelope::new(
+                Some(envelope.clone()),
+                self.key.clone(),
+            ))
+        } else {
+            None
+        }
+    }
+
+    /// Creates a new parent envelope for the actor.
+    ///
+    /// # Returns
+    /// A clone of the parent's return envelope.
+    pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
+        if let Some(parent) = &self.parent {
+            Some(parent.return_address().clone())
+        } else {
+            None
+        }
+    }
+
+    #[instrument(skip(reactors, self))]
+    pub(crate) async fn wake(&mut self, reactors: ReactorMap<ManagedEntity>) {
+        (self.on_activate)(self);
+
+        while let Some(mut incoming_envelope) = self.inbox.recv().await {
+            let type_id;
+            let mut envelope;
+            debug!("{}",type_name_of_val(&incoming_envelope.message));
+            // Special case for BrokerRequestEnvelope
+            if let Some(broker_request_envelope) = incoming_envelope.message.as_any().downcast_ref::<BrokerRequestEnvelope>() {
+                envelope = Envelope::new(
+                    broker_request_envelope.message.clone(),
+                    incoming_envelope.return_address.clone(),
+                );
+                type_id = broker_request_envelope.message.as_any().type_id().clone();
+            } else {
+                envelope = incoming_envelope;
+                type_id = envelope.message.as_any().type_id().clone();
+            }
+            let is_target = reactors.len() > 0;
+
+            if let Some(reactor) = reactors.get(&type_id) {
+                match reactor.value() {
+                    ReactorItem::MessageReactor(reactor) => (*reactor)(self, &mut envelope),
+                    ReactorItem::FutureReactor(fut) => fut(self, &mut envelope).await,
+                    _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
+                }
+            } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
+                trace!(actor=self.key, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
+                self.terminate().await;
+            }
+        }
+        (self.before_stop)(self);
+        if let Some(ref on_before_stop_async) = self.before_stop_async {
+            if timeout(Duration::from_secs(5), on_before_stop_async(self)).await.is_err() {
+                tracing::error!("on_before_stop_async timed out or failed");
+            }
+        }
+        (self.on_stop)(self);
+    }
+    #[instrument(skip(self))]
+    async fn terminate(&mut self) {
+        tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
+        for item in &self.actor_ref.children() {
+            let child_ref = item.value();
+            let _ = child_ref.suspend().await;
+        }
+        trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
+        self.inbox.close();
+    }
+}
 
 
