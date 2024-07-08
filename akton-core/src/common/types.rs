@@ -40,7 +40,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
-use crate::actors::{ManagedActor, Awake};
+use crate::actors::{ManagedActor, Running};
 use crate::common::ActorRef;
 use crate::message::Envelope;
 use crate::traits::AktonMessage;
@@ -61,14 +61,14 @@ pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
 
 /// A type alias for a message reactor function.
 pub(crate) type MessageHandler<ManagedEntity> =
-    dyn for<'a, 'b> Fn(&mut ManagedActor<Awake, ManagedEntity>, &'b mut Envelope) + Send + Sync + 'static;
+    dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake, ManagedEntity>, &dyn AktonMessage) -> FutureBox
+pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &dyn AktonMessage) -> FutureBox
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutureHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake, ManagedEntity>, &'b mut Envelope) -> FutureBox
+pub(crate) type FutureHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &'b mut Envelope) -> FutureBox
     + Send
     + Sync
     + 'static;
@@ -87,7 +87,7 @@ pub(crate) type LifecycleHandler<ActorEntity, ManagedEntity> = dyn Fn(&ManagedAc
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<ManagedEntity> =
-    Box<dyn Fn(&ManagedActor<Awake, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
+    Box<dyn Fn(&ManagedActor<Running, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleHandler<ActorEntity, ManagedEntity> = dyn Fn(&ManagedActor<ActorEntity, ManagedEntity>) + Send;

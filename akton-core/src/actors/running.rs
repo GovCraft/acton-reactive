@@ -31,6 +31,6 @@
  *
  */
 
-pub struct Awake;
+pub struct Running;
 
 
