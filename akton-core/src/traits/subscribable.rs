@@ -37,16 +37,16 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::*;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{Actor, AktonMessage};
+use crate::traits::{Actor, ActonMessage};
 use crate::traits::subscriber::Subscriber;
 use dyn_clone::DynClone;
 #[async_trait]
 pub trait Subscribable {
-    fn subscribe<T: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
+    fn subscribe<T: ActonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
 
         Self: Actor + Subscriber;
-    fn unsubscribe<T: AktonMessage>(&self)
+    fn unsubscribe<T: ActonMessage>(&self)
     where
 
         Self: Actor + Subscriber + Send + Sync + 'static;
@@ -55,9 +55,9 @@ pub trait Subscribable {
 #[async_trait]
 impl<T> Subscribable for T
 where
-    T: AktonMessage + Send + Sync + 'static,
+    T: ActonMessage + Send + Sync + 'static,
 {
-    fn subscribe<M: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
+    fn subscribe<M: ActonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: Actor + Subscriber + 'static,
     {
@@ -87,7 +87,7 @@ where
             }
         }
     }
-    fn unsubscribe<M: AktonMessage>(&self)
+    fn unsubscribe<M: ActonMessage>(&self)
     where
         Self: Actor + Subscriber,
     {
