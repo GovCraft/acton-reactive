@@ -34,7 +34,7 @@ pub use akton::Akton;
 pub use akton_ready::AktonReady;
 pub(crate) use akton_inner::AktonInner;
 pub use broker::Broker;
-pub use context::Context;
+pub use actor_ref::ActorRef;
 pub(crate) use types::*;
 
 pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
@@ -46,7 +46,7 @@ mod akton_old;
 
 mod types;
 
-mod context;
+mod actor_ref;
 mod broker;
 mod akton;
 mod akton_ready;
