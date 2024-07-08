@@ -288,6 +288,9 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
             reactors: DashMap::new(),
         }
     }
+    pub(crate) fn reactors(self) -> ReactorMap<ManagedEntity> {
+        self.reactors
+    }
 }
 
 /// Provides a default implementation for the `Idle` struct.
