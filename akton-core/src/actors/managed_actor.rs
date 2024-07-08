@@ -290,7 +290,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
         };
         // Create and return the new actor instance
         ManagedActor {
-            setup: Idle::default(),
             actor_ref,
             parent,
             key,
