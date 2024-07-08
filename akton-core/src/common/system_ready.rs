@@ -7,7 +7,7 @@ use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Acton, Broker, BrokerRef, ActorRef};
-use crate::common::akton_inner::AktonInner;
+use crate::common::acton_inner::AktonInner;
 
 #[derive(Debug, Clone, Default)]
 pub struct SystemReady(pub(crate) AktonInner);
