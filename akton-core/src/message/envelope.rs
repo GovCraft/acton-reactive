@@ -33,12 +33,12 @@
 
 use std::sync::Arc;
 use std::time::SystemTime;
-use dyn_clone::DynClone;
 
 use static_assertions::assert_impl_all;
 
 use crate::common::Outbox;
 use crate::traits::AktonMessage;
+
 /// Represents an envelope that carries a message within the actor system.
 #[derive(Debug, Clone)]
 pub struct Envelope {
