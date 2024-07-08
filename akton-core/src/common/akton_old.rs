@@ -49,12 +49,12 @@ use std::fmt::Debug;
 //     /// # Returns
 //     /// A new `Actor` instance in the idle state with the root state.
 //     #[instrument]
-//     pub fn create() -> Actor<Idle<State>, State> {
+//     pub fn create() -> Actor<Idle, State> {
 //         Actor::new(None, State::default())
 //     }
 //
 //     #[instrument]
-//     pub fn create_with_config(config: ActorConfig) -> Actor<Idle<State>, State> {
+//     pub fn create_with_config(config: ActorConfig) -> Actor<Idle, State> {
 //         Actor::new(Some(config), State::default())
 //     }
 // }
