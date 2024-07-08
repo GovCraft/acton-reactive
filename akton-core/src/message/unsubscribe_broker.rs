@@ -33,7 +33,7 @@
 
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
-use crate::common::Context;
+use crate::common::ActorRef;
 use crate::traits::AktonMessage;
 
 
@@ -41,7 +41,7 @@ use crate::traits::AktonMessage;
 pub(crate) struct UnsubscribeBroker {
     pub(crate) subscriber_id: String,
     pub(crate) message_type_id: TypeId,
-    pub(crate) subscriber_context: Context,
+    pub(crate) subscriber_context: ActorRef,
 }
 // impl AktonMessage for UnsubscribeBroker {
 //     /// Returns a reference to the signal as `Any`.
