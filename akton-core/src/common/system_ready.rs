@@ -6,7 +6,7 @@ use akton_arn::Arn;
 use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Superpos, Broker, BrokerRef, ActorRef};
+use crate::common::{Acton, Broker, BrokerRef, ActorRef};
 use crate::common::akton_inner::AktonInner;
 
 #[derive(Debug, Clone, Default)]
@@ -70,8 +70,8 @@ impl SystemReady {
     }
 }
 
-impl From<Superpos> for SystemReady {
-    fn from(akton: Superpos) -> Self {
+impl From<Acton> for SystemReady {
+    fn from(akton: Acton) -> Self {
         let pool_size = SystemReady::get_pool_size();
 
         let (sender, receiver) = oneshot::channel();
