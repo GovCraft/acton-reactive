@@ -78,6 +78,20 @@ pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send +
     pub(crate) pool_supervisor: DashMap<String, PoolItem>,
 }
 
+impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<Idle<ManagedEntity>, ManagedEntity> {
+    fn default() -> Self {
+        let (outbox, inbox) = channel(255);
+        let mut actor_ref: ActorRef = Default::default();
+        actor_ref.outbox = Some(outbox.clone());
+
+        ManagedActor {
+            inbox,
+            actor_ref,
+            ..Default::default()
+        }
+    }
+}
+
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
@@ -237,7 +251,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
         let mut key = Arn::default().to_string();
         let mut parent = Default::default();
         let mut broker = Default::default();
-        let tracker = Default::default();
 
         if let Some(config) = config {
             key = config.name().clone();
@@ -271,14 +284,12 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
             setup: Idle::default(),
             actor_ref,
             parent,
-            halt_signal: Default::default(),
             key,
             entity,
             broker,
-            tracker,
             inbox,
             akton,
-            pool_supervisor: Default::default(),
+            ..Default::default()
         }
     }
 
