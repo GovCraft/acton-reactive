@@ -201,7 +201,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
+impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedEntity>, ManagedEntity> {
     /// Creates and supervises a new actor with the given ID and state.
     ///
     /// # Parameters
@@ -213,8 +213,8 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
     pub async fn create_child(
         &self,
         config: ActorConfig,
-    ) -> ManagedActor<Idle<State>, State> {
-        let actor = ManagedActor::new(&Some(self.akton.clone()), None, State::default()).await;
+    ) -> ManagedActor<Idle<ManagedEntity>, ManagedEntity> {
+        let actor = ManagedActor::new(&Some(self.akton.clone()), None, ManagedEntity::default()).await;
 
         event!(Level::TRACE, new_actor_key = &actor.key);
         actor
@@ -228,30 +228,30 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
     ///
     /// # Returns
     /// A new `Actor` instance.
-    #[instrument(skip(state))]
-    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, state: State) -> Self {
+    #[instrument(skip(entity))]
+    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, entity: ManagedEntity) -> Self {
         let (outbox, inbox) = channel(255);
-        let mut context: ActorRef = Default::default();
-        context.outbox = Some(outbox.clone());
+        let mut actor_ref: ActorRef = Default::default();
+        actor_ref.outbox = Some(outbox.clone());
 
         let mut key = Arn::default().to_string();
         let mut parent = Default::default();
         let mut broker = Default::default();
-        let task_tracker = Default::default();
+        let tracker = Default::default();
 
         if let Some(config) = config {
             key = config.name().clone();
             parent = config.parent().clone();
             if let Some(config_broker) = config.get_broker() {
                 broker = config_broker.clone();
-                context.broker = Box::new(Some(config_broker.clone()));
+                actor_ref.broker = Box::new(Some(config_broker.clone()));
             } else {
-                broker = context.clone();
+                broker = actor_ref.clone();
             }
         } else {
-            broker = context.clone();
+            broker = actor_ref.clone();
         }
-        context.key = key.clone();
+        actor_ref.key = key.clone();
         // Ensure the mailbox and outbox are not closed
         debug_assert!(!inbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
@@ -269,13 +269,13 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
         // Create and return the new actor instance
         ManagedActor {
             setup: Idle::default(),
-            actor_ref: context,
+            actor_ref,
             parent,
             halt_signal: Default::default(),
             key,
-            entity: state,
+            entity,
             broker,
-            tracker: task_tracker,
+            tracker,
             inbox,
             akton,
             pool_supervisor: Default::default(),
@@ -287,7 +287,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
         let reactors = mem::take(&mut self.setup.reactors);
         let actor_ref = self.actor_ref.clone();
 
-        let active_actor: ManagedActor<Awake<State>, State> = self.into();
+        let active_actor: ManagedActor<Awake<ManagedEntity>, ManagedEntity> = self.into();
         let actor = Box::leak(Box::new(active_actor));
 
         debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
