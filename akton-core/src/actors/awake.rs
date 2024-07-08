@@ -89,7 +89,7 @@ for ManagedActor<Awake<State>, State>
     /// # Returns
     /// A new `Actor` instance in the awake state.
     #[instrument("from idle to awake", skip(value), fields(
-        key = value.key, children_in = value.context.children.len()
+        key = value.key, children_in = value.actor_ref.children.len()
     ))]
     fn from(value: ManagedActor<Idle<State>, State>) -> ManagedActor<Awake<State>, State>
     where
@@ -115,7 +115,7 @@ for ManagedActor<Awake<State>, State>
         );
 
         let mailbox = value.inbox;
-        let context = value.context;
+        let context = value.actor_ref;
         let state = value.entity;
         let pool_supervisor = value.pool_supervisor;
         let broker = value.broker;
@@ -146,7 +146,7 @@ for ManagedActor<Awake<State>, State>
                 on_before_stop_async,
                 on_stop,
             },
-            context,
+            actor_ref: context,
             parent: parent_return_envelope,
             halt_signal,
             key,
