@@ -183,7 +183,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
     #[instrument(skip(self))]
     async fn terminate(&mut self) {
         tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
-        for item in &self.actor_ref.children {
+        for item in &self.actor_ref.children() {
             let child_ref = item.value();
             let _ = child_ref.suspend().await;
         }
