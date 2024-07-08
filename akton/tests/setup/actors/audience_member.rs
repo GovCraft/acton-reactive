@@ -70,7 +70,7 @@ impl PooledActor for AudienceMember {
             Some(broker.clone()),
         );
 
-        let mut actor = akton.create_actor::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config);
+        let mut actor = akton.act_on::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config);
         // let mut actor =
         //     Akton::<AudienceMember>::create_with_config(config.clone());
 
