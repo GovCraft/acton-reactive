@@ -253,9 +253,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
     /// A new `Actor` instance.
     #[instrument(skip(entity))]
     pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, entity: ManagedEntity) -> Self {
-        let (outbox, inbox) = channel(255);
-        let mut actor_ref: ActorRef = Default::default();
-        actor_ref.outbox = Some(outbox.clone());
+        let mut managed_actor: ManagedActor<Idle<ManagedEntity>, ManagedEntity> = ManagedActor::default();
 
         let mut key = Arn::default().to_string();
         let mut parent = Default::default();
@@ -266,17 +264,16 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
             parent = config.parent().clone();
             if let Some(config_broker) = config.get_broker() {
                 broker = config_broker.clone();
-                actor_ref.broker = Box::new(Some(config_broker.clone()));
+                managed_actor.actor_ref.broker = Box::new(Some(config_broker.clone()));
             } else {
-                broker = actor_ref.clone();
+                broker = managed_actor.actor_ref.clone();
             }
         } else {
-            broker = actor_ref.clone();
+            broker = managed_actor.actor_ref.clone();
         }
-        actor_ref.key = key.clone();
+        managed_actor.actor_ref.key = key.clone();
         // Ensure the mailbox and outbox are not closed
-        debug_assert!(!inbox.is_closed(), "Actor mailbox is closed in new");
-        debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
+        debug_assert!(!managed_actor.inbox.is_closed(), "Actor mailbox is closed in new");
 
         trace!("NEW ACTOR: {}", &key);
         let akton = {
@@ -289,16 +286,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
             }
         };
         // Create and return the new actor instance
-        ManagedActor {
-            actor_ref,
-            parent,
-            key,
-            entity,
-            broker,
-            inbox,
-            akton,
-            ..Default::default()
-        }
+        managed_actor
     }
 
     #[instrument(skip(self), fields(key = self.key))]
