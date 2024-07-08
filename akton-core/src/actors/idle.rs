@@ -53,11 +53,11 @@ use crate::traits::{Actor, AktonMessage};
 /// - `ManagedEntity`: The type representing the state of the actor.
 pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
-    pub(crate) on_before_wake: Box<IdleLifecycleHandler<Idle<ManagedEntity>, ManagedEntity>>,
+    pub(crate) before_wake: Box<IdleLifecycleHandler<Idle<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor wakes up.
-    pub(crate) on_wake: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
+    pub(crate) wake: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called just before the actor stops.
-    pub(crate) on_before_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
+    pub(crate) before_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor stops.
     pub(crate) on_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Asynchronous reactor called just before the actor stops.
@@ -259,7 +259,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         &mut self,
         life_cycle_event_reactor: impl Fn(&ManagedActor<Idle<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
-        self.on_before_wake = Box::new(life_cycle_event_reactor);
+        self.before_wake = Box::new(life_cycle_event_reactor);
         self
     }
 
@@ -272,7 +272,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_wake = Box::new(life_cycle_event_reactor);
+        self.wake = Box::new(life_cycle_event_reactor);
         self
     }
 
@@ -298,7 +298,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_before_stop = Box::new(life_cycle_event_reactor);
+        self.before_stop = Box::new(life_cycle_event_reactor);
         self
     }
 
@@ -323,9 +323,9 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         ManagedEntity: Send + 'static,
     {
         Idle {
-            on_before_wake: Box::new(|_| {}),
-            on_wake: Box::new(|_| {}),
-            on_before_stop: Box::new(|_| {}),
+            before_wake: Box::new(|_| {}),
+            wake: Box::new(|_| {}),
+            before_stop: Box::new(|_| {}),
             on_stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
