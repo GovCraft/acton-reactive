@@ -12,18 +12,18 @@ use futures::StreamExt;
 use tracing::*;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Akton, AktonReady, Context};
+use crate::common::{Akton, AktonReady, ActorRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{Actor, AktonMessage};
 
 #[derive(Default, Debug)]
 pub struct Broker {
-    subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>,
+    subscribers: Arc<DashMap<TypeId, HashSet<(String, ActorRef)>>>,
 }
 
 impl Broker {
     #[instrument]
-    pub(crate) async fn initialize() -> Context {
+    pub(crate) async fn initialize() -> ActorRef {
         let actor_config = ActorConfig::new(Arn::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
@@ -64,7 +64,7 @@ impl Broker {
     }
 
     #[instrument(skip(subscribers))]
-    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, Context)>>>, request: BrokerRequest) {
+    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, ActorRef)>>>, request: BrokerRequest) {
         let message_type_id = &request.message.as_ref().type_id();
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
