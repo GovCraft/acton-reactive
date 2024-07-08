@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use acton_arn::Arn;
+use akton_arn::Arn;
 
 use dashmap::DashMap;
 use futures::future::join_all;
