@@ -172,7 +172,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
                     if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
                         let context = &pool_def.pool[index];
                         trace!(pool_item=context.key,index = index, "Emitting to pool item");
-                        context.emit_async(envelope.message, None).await;
+                        context.emit(envelope.message, None).await;
                     }
                 }
             } else if let Some(reactor) = reactors.get(&type_id) {
