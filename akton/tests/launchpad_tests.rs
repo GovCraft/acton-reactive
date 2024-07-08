@@ -18,7 +18,7 @@ use std::time::Duration;
 #[akton_test]
 async fn test_launch_passing_akton() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton_ready: SystemReady = Superpos::launch().into();
+    let mut akton_ready: SystemReady = Acton::launch().into();
     let broker = akton_ready.get_broker();
 
     let actor_config = ActorConfig::new(
@@ -79,7 +79,7 @@ async fn wait_and_respond(){
 #[akton_test]
 async fn test_launchpad() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton_ready: SystemReady = Superpos::launch().into();
+    let mut akton_ready: SystemReady = Acton::launch().into();
 
     let broker = akton_ready.get_broker();
 
