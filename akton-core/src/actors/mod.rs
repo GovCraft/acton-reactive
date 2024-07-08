@@ -33,8 +33,8 @@
 
 pub(crate) use managed_actor::ManagedActor;
 pub(crate) use awake::Awake;
-pub(crate) use idle::Idle;
 pub use actor_config::ActorConfig;
+pub use managed_actor::Idle;
 mod managed_actor;
 mod awake;
 mod idle;
