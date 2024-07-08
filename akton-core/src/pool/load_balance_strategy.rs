@@ -33,7 +33,7 @@
 
 use rand::{thread_rng, Rng};
 
-use crate::common::Context;
+use crate::common::ActorRef;
 use crate::traits::LoadBalancerStrategy;
 
 /// Implements a round-robin load balancing strategy.
@@ -61,7 +61,7 @@ impl LoadBalancerStrategy for RoundRobinStrategy {
     ///
     /// # Returns
     /// An `Option` containing the selected index, or `None` if the list is empty.
-    fn select_context(&mut self, items: &[Context]) -> Option<usize> {
+    fn select_context(&mut self, items: &[ActorRef]) -> Option<usize> {
         if items.is_empty() {
             None
         } else {
@@ -83,7 +83,7 @@ impl LoadBalancerStrategy for RandomStrategy {
     ///
     /// # Returns
     /// An `Option` containing the selected index, or `None` if the list is empty.
-    fn select_context(&mut self, items: &[Context]) -> Option<usize> {
+    fn select_context(&mut self, items: &[ActorRef]) -> Option<usize> {
         if items.is_empty() {
             None
         } else {
