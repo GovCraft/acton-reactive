@@ -1,6 +1,6 @@
-use crate::common::BrokerContext;
+use crate::common::BrokerRef;
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct AktonInner {
-    pub(crate) broker: BrokerContext,
+    pub(crate) broker: BrokerRef,
 }
