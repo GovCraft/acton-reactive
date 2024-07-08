@@ -55,7 +55,7 @@ pub use idle::Idle;
 
 use crate::common::{ActorRef, Acton, ActonInner, AsyncLifecycleHandler, BrokerRef, FutureBox, HaltSignal, IdleLifecycleHandler, LifecycleHandler, MessageHandler, ParentRef, ReactorItem, ReactorMap, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, EventRecord, OutboundEnvelope};
-use crate::prelude::{AktonMessage, SystemReady};
+use crate::prelude::{ActonMessage, SystemReady};
 use crate::traits::Actor;
 
 use super::{ActorConfig, Running};
@@ -104,6 +104,6 @@ impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug for Mana
 }
 
 // Function to downcast the message to the original type.
-pub fn downcast_message<T: 'static>(msg: &dyn AktonMessage) -> Option<&T> {
+pub fn downcast_message<T: 'static>(msg: &dyn ActonMessage) -> Option<&T> {
     msg.as_any().downcast_ref::<T>()
 }
