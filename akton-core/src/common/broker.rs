@@ -27,7 +27,7 @@ impl Broker {
         let actor_config = ActorConfig::new(Arn::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
-        let mut actor = ManagedActor::new(&None, Some(actor_config), Broker::default()).await;
+        let mut actor: ManagedActor<Idle, Broker> = ManagedActor::new(&None, Some(actor_config)).await;
 
         actor
             .act_on_async::<BrokerRequest>(|actor, event| {
