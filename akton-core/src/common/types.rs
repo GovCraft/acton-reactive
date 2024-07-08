@@ -46,17 +46,17 @@ use crate::message::Envelope;
 use crate::traits::AktonMessage;
 
 /// A type alias for a map of reactors, indexed by `TypeId`.
-pub(crate) type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
+pub(crate) type ReactorMap<ActorEntity> = DashMap<TypeId, ReactorItem<ActorEntity>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
 /// An enum representing different types of reactors for handling signals, messages, and futures.
-pub enum ReactorItem<T: Default + Send + Debug + 'static> {
+pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
-    Signal(Box<SignalHandler<T>>),
+    Signal(Box<SignalHandler<ActorEntity>>),
     /// A message reactor, which reacts to messages.
-    Message(Box<MessageHandler<T>>),
+    Message(Box<MessageHandler<ActorEntity>>),
     /// A future reactor, which reacts to futures.
-    Future(Box<FutureHandler<T>>),
+    Future(Box<FutureHandler<ActorEntity>>),
 }
 
 /// A type alias for a message reactor function.
@@ -83,13 +83,13 @@ pub(crate) type Outbox = Sender<Envelope>;
 pub(crate) type HaltSignal = AtomicBool;
 
 /// A type alias for a lifecycle reactor function.
-pub(crate) type LifecycleHandler<T, ManagedEntity> = dyn Fn(&ManagedActor<T, ManagedEntity>) + Send;
+pub(crate) type LifecycleHandler<ActorEntity, ManagedEntity> = dyn Fn(&ManagedActor<ActorEntity, ManagedEntity>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<ManagedEntity> =
     Box<dyn Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
-pub(crate) type IdleLifecycleHandler<T, ManagedEntity> = dyn Fn(&ManagedActor<T, ManagedEntity>) + Send;
+pub(crate) type IdleLifecycleHandler<ActorEntity, ManagedEntity> = dyn Fn(&ManagedActor<ActorEntity, ManagedEntity>) + Send;
 pub type BrokerRef = ActorRef;
 pub type ParentRef = ActorRef;
