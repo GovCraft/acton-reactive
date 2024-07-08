@@ -48,7 +48,7 @@ pub struct PoolItem {
 #[async_trait]
 impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
-    async fn initialize(&self, config: ActorConfig) -> Context {
+    async fn initialize(&self, config: ActorConfig) -> ActorRef {
         let mut akton: AktonReady = Akton::launch().into();
 
         let broker = akton.get_broker();
@@ -85,7 +85,7 @@ impl PooledActor for PoolItem {
 
 
                 let parent = parent.clone();
-                Context::wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
+                ActorRef::wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
             });
 
         // Activate the actor and return the context
@@ -94,7 +94,7 @@ impl PooledActor for PoolItem {
 }
 
 impl PoolItem {
-    async fn output_results(final_count: usize, parent_address: String, actor_address: String, parent: Context) {
+    async fn output_results(final_count: usize, parent_address: String, actor_address: String, parent: ActorRef) {
         tracing::debug!(
                     "Reporting {} complete to {} from {}.",
                     final_count,
