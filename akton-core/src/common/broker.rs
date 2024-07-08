@@ -35,7 +35,7 @@ impl Broker {
                 let message = event.message.clone();
                 let message_type_id = (event.message).message.as_ref().type_id();
                 let message_type_name = event.message.message_type_name.clone();
-                trace!(message_type_name=message_type_name, message_type_id=?message_type_id);
+                debug!(message_type_name=message_type_name, message_type_id=?message_type_id);
 
                 Box::pin(async move {
                     Broker::broadcast(subscribers, message).await;
@@ -53,7 +53,7 @@ impl Broker {
                         .entry(message_type_id)
                         .or_insert_with(HashSet::new)
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
-                    trace!(message_type_name=message_type_name, message_type_id=?message_type_id, subscriber=subscriber_context.arn, "Subscriber added");
+                    debug!(message_type_name=message_type_name, message_type_id=?message_type_id, subscriber=subscriber_context.arn, "Subscriber added");
                 })
             });
 
