@@ -199,12 +199,12 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
         for item in &self.context.children {
             let context = item.value();
-            let _ = context.suspend_actor().await;
+            let _ = context.suspend().await;
         }
         for pool in &self.pool_supervisor {
             for item_context in &pool.pool {
                 trace!(item=item_context.key,"Terminating pool item.");
-                let _ = item_context.suspend_actor().await;
+                let _ = item_context.suspend().await;
             }
         }
         trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
