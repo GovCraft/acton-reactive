@@ -41,7 +41,7 @@ use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
 
-use crate::actors::{Actor, Idle};
+use crate::actors::{ManagedActor, Idle};
 use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
 use crate::traits::{ActorContext, Subscriber};
 
@@ -84,7 +84,7 @@ impl Context {
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
-        child: Actor<Idle<State>, State>,
+        child: ManagedActor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
         let context = child.activate(None).await;
         let id = context.key.clone();
