@@ -31,34 +31,26 @@
  *
  */
 
-mod idle;
-pub mod running;
-
-use std::any::{type_name_of_val, TypeId};
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::future::Future;
-use std::mem;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::sync::atomic::Ordering;
-use std::time::Duration;
 
-use acton_arn::Arn;
-use dashmap::DashMap;
-use tokio::sync::mpsc::{channel, Receiver};
-use tokio::time::timeout;
+use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
 use tracing::*;
+
 pub use idle::Idle;
 
-use crate::common::{ActorRef, Acton, ActonInner, AsyncLifecycleHandler, BrokerRef, FutureBox, HaltSignal, IdleLifecycleHandler, LifecycleHandler, MessageHandler, ParentRef, ReactorItem, ReactorMap, SystemSignal};
-use crate::message::{BrokerRequestEnvelope, Envelope, EventRecord, OutboundEnvelope};
+use crate::common::{ActorRef, AsyncLifecycleHandler, BrokerRef, HaltSignal, IdleLifecycleHandler, LifecycleHandler, ParentRef, ReactorMap};
+use crate::message::Envelope;
 use crate::prelude::{ActonMessage, SystemReady};
 use crate::traits::Actor;
 
-use super::{ActorConfig, Running};
+use super::Running;
+
+mod idle;
+pub mod running;
 
 pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'static> {
     pub actor_ref: ActorRef,
@@ -92,7 +84,6 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
     _actor_state: std::marker::PhantomData<ActorState>,
 
 }
-
 
 
 impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug for ManagedActor<ActorState, ManagedEntity> {
