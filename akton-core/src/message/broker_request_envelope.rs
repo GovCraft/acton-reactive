@@ -38,7 +38,7 @@ use std::time::SystemTime;
 use static_assertions::assert_impl_all;
 use tracing::*;
 
-use crate::common::OutboundChannel;
+use crate::common::Outbox;
 use crate::message::BrokerRequest;
 use crate::traits::AktonMessage;
 
