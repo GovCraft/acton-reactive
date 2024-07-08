@@ -15,15 +15,7 @@ pub struct Idle;
 
 
 
-/// Represents an actor in the idle state.
-///
-/// # Type Parameters
-/// - `State`: The type representing the state of the actor.
 impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, ManagedEntity> {
-    /// Adds a synchronous message handler for a specific message type.
-    ///
-    /// # Parameters
-    /// - `message_reactor`: The function to handle the message.
     #[instrument(skip(self, message_handler))]
     pub fn act_on<M: ActonMessage + Clone + 'static>(
         &mut self,
@@ -214,10 +206,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// # Returns
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
-    pub async fn create_child(
-        &self,
-        config: ActorConfig,
-    ) -> ManagedActor<Idle, ManagedEntity> {
+    pub async fn create_child(&self) -> ManagedActor<Idle, ManagedEntity> {
         let actor = ManagedActor::new(&Some(self.acton.clone()), None).await;
 
         event!(Level::TRACE, new_actor_key = &actor.key);
