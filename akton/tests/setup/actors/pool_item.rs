@@ -71,7 +71,7 @@ impl PooledActor for PoolItem {
 
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
-            .setup
+
             .act_on::<Ping>(|actor, _event| {
                 tracing::debug!(actor=actor.key,"Received Ping event for");
                 actor.entity.receive_count += 1; // Increment receive_count on Ping event
