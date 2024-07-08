@@ -57,5 +57,5 @@ pub mod prelude {
     pub use crate::actors::ActorConfig;
     pub use crate::common::{Acton, SystemReady, Broker, ActorRef};
     pub use crate::message::{BrokerRequest, BrokerRequestEnvelope, OutboundEnvelope};
-    pub use crate::traits::{Actor, AktonMessage, PooledActor, Subscribable, Subscriber};
+    pub use crate::traits::{Actor, ActonMessage, PooledActor, Subscribable, Subscriber};
 }
