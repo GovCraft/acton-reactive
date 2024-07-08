@@ -74,7 +74,7 @@ pub trait Actor {
         async move {
             let envelope = self.return_address();
             event!(Level::TRACE, return_address = envelope.sender);
-            envelope.reply_async(message, pool_name).await;
+            envelope.reply_async(message).await;
         }
     }
 
