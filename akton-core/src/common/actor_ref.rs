@@ -149,7 +149,7 @@ impl Actor for ActorRef {
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
             warn!(actor=self.key, "Sending Terminate to");
-            actor.reply(SystemSignal::Terminate, None)?;
+            actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
             // Description: Waiting for all actor tasks to complete.
