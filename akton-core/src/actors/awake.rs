@@ -100,7 +100,7 @@ for ManagedActor<Awake<State>, State>
         let on_wake = value.setup.wake;
         let on_stop = value.setup.stop;
         let on_before_stop = value.setup.before_stop;
-        let on_before_stop_async = value.setup.on_before_stop_async;
+        let on_before_stop_async = value.setup.before_stop_async;
         let halt_signal = value.halt_signal;
         let parent_return_envelope = value.parent;
         let key = value.key;
