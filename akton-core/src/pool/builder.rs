@@ -39,7 +39,7 @@ use dashmap::DashMap;
 use tracing::{info, instrument, trace};
 use crate::actors::ActorConfig;
 
-use crate::common::{Context, LoadBalanceStrategy};
+use crate::common::{ActorRef, LoadBalanceStrategy};
 use crate::pool::{PoolConfig, PoolItem, RandomStrategy, RoundRobinStrategy};
 use crate::traits::{LoadBalancerStrategy, PooledActor};
 
@@ -84,7 +84,7 @@ impl PoolBuilder {
     /// # Returns
     /// A new `Supervisor` instance.
     #[instrument(skip(self, parent), fields(id=parent.key))]
-    pub(crate) async fn spawn(mut self, parent: &Context) -> anyhow::Result<DashMap<String, PoolItem>> {
+    pub(crate) async fn spawn(mut self, parent: &ActorRef) -> anyhow::Result<DashMap<String, PoolItem>> {
         let subordinates = DashMap::new();
 
         for (pool_name, pool_def) in &mut self.pools {
