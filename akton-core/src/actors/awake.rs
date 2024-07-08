@@ -118,7 +118,6 @@ for ManagedActor<Awake<State>, State>
         let mailbox = value.inbox;
         let context = value.actor_ref;
         let state = value.entity;
-        let pool_supervisor = value.pool_supervisor;
         let broker = value.broker;
 
         // Trace the conversion process
@@ -155,7 +154,6 @@ for ManagedActor<Awake<State>, State>
             entity: state,
             tracker: task_tracker,
             inbox: mailbox,
-            pool_supervisor,
             broker,
         }
     }
