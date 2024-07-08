@@ -84,7 +84,7 @@ impl ActorRef {
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
-        child: ManagedActor<Idle<State>, State>,
+        child: ManagedActor<Idle, State>,
     ) -> anyhow::Result<()> {
         let context = child.activate().await;
         let id = context.arn.clone();
