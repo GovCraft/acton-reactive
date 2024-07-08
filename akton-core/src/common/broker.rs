@@ -12,7 +12,7 @@ use futures::StreamExt;
 use tracing::*;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Akton, AktonReady, ActorRef};
+use crate::common::{Superpos, AktonReady, ActorRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{Actor, AktonMessage};
 
