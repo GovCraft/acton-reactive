@@ -219,14 +219,14 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         &self,
         config: ActorConfig,
     ) -> ManagedActor<Idle, ManagedEntity> {
-        let actor = ManagedActor::new(&Some(self.akton.clone()), None, ManagedEntity::default()).await;
+        let actor = ManagedActor::new(&Some(self.akton.clone()), None).await;
 
         event!(Level::TRACE, new_actor_key = &actor.key);
         actor
     }
 
-    #[instrument(skip(entity))]
-    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, entity: ManagedEntity) -> Self {
+    #[instrument]
+    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>) -> Self {
         let mut managed_actor: ManagedActor<Idle, ManagedEntity> = ManagedActor::default();
 
         if let Some(config) = &config {
