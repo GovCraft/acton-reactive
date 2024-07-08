@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 
-use acton_arn::Arn;
+use akton_arn::Arn;
 use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
