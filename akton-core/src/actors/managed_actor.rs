@@ -230,8 +230,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
     /// A new `Actor` instance.
     #[instrument(skip(state))]
     pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, state: State) -> Self {
-        // Create a channel with a buffer size of 255 for the actor's mailbox
-        let (outbox, mailbox) = channel(255);
+        let (outbox, inbox) = channel(255);
         let mut context: ActorRef = Default::default();
         context.outbox = Some(outbox.clone());
 
@@ -254,7 +253,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
         }
         context.key = key.clone();
         // Ensure the mailbox and outbox are not closed
-        debug_assert!(!mailbox.is_closed(), "Actor mailbox is closed in new");
+        debug_assert!(!inbox.is_closed(), "Actor mailbox is closed in new");
         debug_assert!(!outbox.is_closed(), "Outbox is closed in new");
 
         trace!("NEW ACTOR: {}", &key);
@@ -277,19 +276,12 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
             entity: state,
             broker,
             tracker: task_tracker,
-            inbox: mailbox,
+            inbox,
             akton,
             pool_supervisor: Default::default(),
         }
     }
 
-    /// Activates the actor, optionally with a pool builder.
-    ///
-    /// # Parameters
-    /// - `builder`: An optional `PoolBuilder` to initialize a `PoolSupervisor` to manage pool items .
-    ///
-    /// # Returns
-    /// The actor's context after activation.
     #[instrument(skip(self), fields(key = self.key))]
     pub async fn activate(mut self) -> ActorRef {
         let reactors = mem::take(&mut self.setup.reactors);
