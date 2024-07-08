@@ -7,10 +7,10 @@ use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Acton, Broker, BrokerRef, ActorRef};
-use crate::common::acton_inner::AktonInner;
+use crate::common::acton_inner::ActonInner;
 
 #[derive(Debug, Clone, Default)]
-pub struct SystemReady(pub(crate) AktonInner);
+pub struct SystemReady(pub(crate) ActonInner);
 
 impl SystemReady {
     pub async fn act_on<State>(&mut self) -> ManagedActor<Idle, State>
@@ -87,6 +87,6 @@ impl From<Acton> for SystemReady {
             })
         });
 
-        SystemReady(AktonInner { broker })
+        SystemReady(ActonInner { broker })
     }
 }
