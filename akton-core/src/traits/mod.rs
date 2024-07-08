@@ -32,7 +32,7 @@
  */
 
 pub use actor::Actor;
-pub use acton_message::AktonMessage;
+pub use acton_message::ActonMessage;
 pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 pub use pooled_actor::PooledActor;
 pub use subscriber::Subscriber;
