@@ -38,7 +38,7 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
         let mut akton = akton_ready.clone();
 
         let child_context = akton.spawn_actor_with_setup::<Parent>(child_actor_config, |mut child| Box::pin(async move {
-            child.setup
+            child
                 .act_on::<Pong>(|_actor, _msg| {
                     info!("CHILD SUCCESS! PONG!");
                 });
@@ -48,7 +48,7 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
             child.activate().await
         })).await.expect("Couldn't create child actor");
 
-        actor.setup
+        actor
             .act_on::<Ping>(|_actor, _msg| {
                 info!("SUCCESS! PING!");
             })
@@ -90,7 +90,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
     )?;
 
     let comedian_actor = akton_ready.spawn_actor::<Comedian>(|mut actor| Box::pin(async move {
-        actor.setup
+        actor
             .act_on::<Ping>(|_actor, _msg| {
                 info!("SUCCESS! PING!");
             })
@@ -107,7 +107,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
     })).await?;
 
     let counter_actor = akton_ready.spawn_actor::<Counter>(|mut actor| Box::pin(async move {
-        actor.setup
+        actor
             .act_on_async::<Pong>(|_actor, _msg| {
                 Box::pin(async move {
                     info!("SUCCESS! PONG!");
