@@ -43,7 +43,7 @@ use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{ManagedActor, Idle};
 use crate::common::{BrokerContext, OutboundChannel, OutboundEnvelope, ParentContext, SystemSignal};
-use crate::traits::{ActorContext, Subscriber};
+use crate::traits::{Actor, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
@@ -97,7 +97,7 @@ impl Context {
 
 
 #[async_trait]
-impl ActorContext for Context {
+impl Actor for Context {
     /// Returns the return address for the actor.
     #[instrument(skip(self))]
     fn get_return_address(&self) -> OutboundEnvelope {
