@@ -38,7 +38,6 @@ pub use actor_ref::ActorRef;
 pub(crate) use types::*;
 
 pub(crate) use crate::message::{Envelope, MessageError, OutboundEnvelope};
-pub(crate) use crate::message::signal::SystemSignal;
 // pub use crate::pool::LoadBalanceStrategy;
 
 
