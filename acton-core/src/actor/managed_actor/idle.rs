@@ -91,7 +91,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                 type_id, envelope_type_id
             );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    trace!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
+                    trace!("Downcast message to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
 
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
