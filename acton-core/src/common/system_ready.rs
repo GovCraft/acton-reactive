@@ -5,7 +5,7 @@ use std::pin::Pin;
 use akton_arn::Arn;
 use tokio::sync::oneshot;
 
-use crate::actors::{ManagedActor, ActorConfig, Idle};
+use crate::actor::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Acton, Broker, BrokerRef, ActorRef};
 use crate::common::acton_inner::ActonInner;
 
