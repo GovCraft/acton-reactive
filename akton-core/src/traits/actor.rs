@@ -79,7 +79,7 @@ pub trait Actor {
     }
 
     #[instrument(skip(self), fields(context_key = %self.id()))]
-    fn send_message(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
+    fn send(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
@@ -91,28 +91,28 @@ pub trait Actor {
     }
 
     /// Wakes the actor.
-    async fn wake_actor(&mut self) -> anyhow::Result<()>;
+    async fn wake(&mut self) -> anyhow::Result<()>;
 
     /// Recreates the actor.
-    async fn recreate_actor(&mut self) -> anyhow::Result<()>;
+    async fn recreate(&mut self) -> anyhow::Result<()>;
 
     /// Suspends the actor.
-    fn suspend_actor(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
+    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
     /// Resumes the actor.
-    async fn resume_actor(&mut self) -> anyhow::Result<()>;
+    async fn resume(&mut self) -> anyhow::Result<()>;
 
     /// Supervises the actor.
-    async fn supervise_actor(&mut self) -> anyhow::Result<()>;
+    async fn supervise(&mut self) -> anyhow::Result<()>;
 
     /// Watches the actor.
-    async fn watch_actor(&mut self) -> anyhow::Result<()>;
+    async fn watch(&mut self) -> anyhow::Result<()>;
 
     /// Stops watching the actor.
-    async fn unwatch_actor(&mut self) -> anyhow::Result<()>;
+    async fn unwatch(&mut self) -> anyhow::Result<()>;
 
     /// Marks the actor as failed.
-    async fn mark_as_failed(&mut self) -> anyhow::Result<()>;
+    async fn fail(&mut self) -> anyhow::Result<()>;
     fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
         F: Future<Output = ()> + Sized + 'static,
