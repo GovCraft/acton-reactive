@@ -55,7 +55,7 @@ pub mod prelude {
     pub use async_trait;
     pub use akton_arn::*;
     pub use crate::actors::ActorConfig;
-    pub use crate::common::{Superpos, SystemReady, Broker, ActorRef};
+    pub use crate::common::{Acton, SystemReady, Broker, ActorRef};
     pub use crate::message::{BrokerRequest, BrokerRequestEnvelope, OutboundEnvelope};
     pub use crate::traits::{Actor, AktonMessage, PooledActor, Subscribable, Subscriber};
 }
