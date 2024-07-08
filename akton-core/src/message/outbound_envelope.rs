@@ -119,11 +119,10 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
+    #[instrument(skip(self), fields(sender = self.sender))]
     async fn reply_message_async(
         &self,
         message: Arc<dyn AktonMessage + Send + Sync>,
-        pool_id: Option<String>,
     ) {
         if let Some(reply_to) = &self.reply_to {
             let type_id = (&*message).type_id();
@@ -163,7 +162,7 @@ impl OutboundEnvelope {
         message: impl AktonMessage + Sync + Send + 'static,
         pool_id: Option<String>,
     ) {
-        self.reply_message_async(Arc::new(message), pool_id).await;
+        self.reply_message_async(Arc::new(message)).await;
     }
 
     /// Sends a reply message asynchronously.
@@ -180,6 +179,6 @@ impl OutboundEnvelope {
         message: Arc<dyn AktonMessage + Send + Sync>,
         pool_id: Option<String>,
     ) {
-        self.reply_message_async(message, pool_id).await;
+        self.reply_message_async(message).await;
     }
 }
