@@ -78,7 +78,7 @@ impl PooledActor for AudienceMember {
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
         trace!(id=actor.key, "Setting up actor to handle the `Joke` event.");
-        actor.setup.act_on_async::<Joke>(|actor, event| {
+        actor.act_on_async::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;
             // let event_sender = &event.return_address.sender.value;
