@@ -31,7 +31,7 @@ impl Broker {
 
         actor.setup
             .act_on_async::<BrokerRequest>(|actor, event| {
-                let subscribers = actor.state.subscribers.clone();
+                let subscribers = actor.managed_entity.subscribers.clone();
                 let message = event.message.clone();
                 let message_type_id = (event.message).message.as_ref().type_id();
                 let message_type_name = event.message.message_type_name.clone();
@@ -47,7 +47,7 @@ impl Broker {
                 let subscriber_context = event.message.subscriber_context.clone();
                 let subscriber_id = event.message.subscriber_id.clone();
 
-                let subscribers = actor.state.subscribers.clone();
+                let subscribers = actor.managed_entity.subscribers.clone();
                 Box::pin(async move {
                     subscribers
                         .entry(message_type_id)
