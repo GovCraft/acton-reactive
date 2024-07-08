@@ -90,7 +90,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
+    #[instrument(skip(self), fields(sender = self.sender))]
     pub fn reply(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
@@ -102,10 +102,10 @@ impl OutboundEnvelope {
         // Description: Replying to a message with an optional pool ID.
         // Context: Message details and pool ID.
         let _ = tokio::task::spawn_blocking(move || {
-            tracing::trace!(msg = ?message, pool_id = ?pool_id, "Replying to message.");
+            tracing::trace!(msg = ?message, "Replying to message.");
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
-                envelope.reply_async(message, pool_id).await;
+                envelope.reply_async(message).await;
             });
         });
         Ok(())
@@ -156,11 +156,10 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
+    #[instrument(skip(self), fields(sender = self.sender))]
     pub async fn reply_async(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
-        pool_id: Option<String>,
     ) {
         self.reply_message_async(Arc::new(message)).await;
     }
@@ -173,7 +172,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self, pool_id), fields(sender = self.sender))]
+    #[instrument(skip(self), fields(sender = self.sender))]
     pub async fn reply_async_boxed(
         &self,
         message: Arc<dyn AktonMessage + Send + Sync>,
