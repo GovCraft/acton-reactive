@@ -48,12 +48,12 @@ use crate::traits::akton_message::AktonMessage;
 pub trait Actor {
     /// Returns the actor's return address.
     fn get_return_address(&self) -> OutboundEnvelope;
-    fn get_children(&self) -> DashMap<String, Context>;
-    fn find_child_by_arn(&self, arn: &str) -> Option<Context>;
+    fn get_children(&self) -> DashMap<String, ActorRef>;
+    fn find_child_by_arn(&self, arn: &str) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
     fn get_task_tracker(&self) -> TaskTracker;
     fn get_id(&self) -> String;
-    fn clone_context(&self) -> Context;
+    fn clone_context(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.get_children().len()))]
     fn emit_async(
