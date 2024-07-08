@@ -33,8 +33,8 @@ impl Broker {
             .act_on_async::<BrokerRequest>(|actor, event| {
                 let subscribers = actor.entity.subscribers.clone();
                 let message = event.message.clone();
-                let message_type_id = (event.message).message.as_ref().type_id();
-                let message_type_name = event.message.message_type_name.clone();
+                let message_type_id = message.type_id();
+                let message_type_name = message.message_type_name.clone();
                 debug!(message_type_name=message_type_name, message_type_id=?message_type_id);
 
                 Box::pin(async move {
@@ -42,10 +42,11 @@ impl Broker {
                 })
             })
             .act_on_async::<SubscribeBroker>(|actor, event| {
-                let message_type_id = event.message.message_type_id;
-                let message_type_name = event.message.message_type_name.clone();
-                let subscriber_context = event.message.subscriber_context.clone();
-                let subscriber_id = event.message.subscriber_id.clone();
+                let message = event.message.clone();
+                let message_type_id = message.message_type_id;
+                let message_type_name = message.message_type_name.clone();
+                let subscriber_context = message.subscriber_context.clone();
+                let subscriber_id = message.subscriber_id.clone();
 
                 let subscribers = actor.entity.subscribers.clone();
                 Box::pin(async move {
