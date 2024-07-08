@@ -45,7 +45,7 @@ use crate::traits::akton_message::AktonMessage;
 
 /// Trait for actor context, defining common methods for actor management.
 #[async_trait]
-pub trait ActorContext {
+pub trait Actor {
     /// Returns the actor's return address.
     fn get_return_address(&self) -> OutboundEnvelope;
     fn get_children(&self) -> DashMap<String, Context>;
@@ -140,7 +140,7 @@ pub trait FutureWrapper {
 // Blanket implementation for all types that implement ActorContext
 impl<T> FutureWrapper for T
 where
-    T: ActorContext,
+    T: Actor,
 {
     fn wrap_future<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
     where
