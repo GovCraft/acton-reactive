@@ -59,7 +59,7 @@ pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     /// Reactor called just before the actor stops.
     pub(crate) before_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor stops.
-    pub(crate) on_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
+    pub(crate) stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Asynchronous reactor called just before the actor stops.
     pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
     /// Map of reactors for handling different message types.
@@ -285,7 +285,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_stop = Box::new(life_cycle_event_reactor);
+        self.stop = Box::new(life_cycle_event_reactor);
         self
     }
 
@@ -326,7 +326,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
             before_wake: Box::new(|_| {}),
             wake: Box::new(|_| {}),
             before_stop: Box::new(|_| {}),
-            on_stop: Box::new(|_| {}),
+            stop: Box::new(|_| {}),
             on_before_stop_async: None,
             reactors: DashMap::new(),
         }
