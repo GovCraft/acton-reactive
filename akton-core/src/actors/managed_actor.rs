@@ -48,7 +48,7 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
 
-use crate::common::{ActorRef, Akton, AktonInner, BrokerRef, ParentRef, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{ActorRef, Akton, AktonInner, BrokerRef, ParentRef, ReactorItem, ReactorMap, HaltSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
@@ -65,7 +65,7 @@ pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send +
 
     pub broker: BrokerRef,
 
-    pub halt_signal: StopSignal,
+    pub halt_signal: HaltSignal,
 
     pub key: String,
     pub akton: AktonReady,
