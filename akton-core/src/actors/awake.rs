@@ -40,6 +40,7 @@ use tracing::{instrument, warn};
 use crate::actors::managed_actor::ManagedActor;
 use crate::actors::Idle;
 use crate::common::{LifecycleHandler, AsyncLifecycleHandler};
+use crate::traits::Actor;
 
 /// Represents the lifecycle state of an actor when it is awake.
 ///
@@ -89,7 +90,7 @@ for ManagedActor<Awake<State>, State>
     /// # Returns
     /// A new `Actor` instance in the awake state.
     #[instrument("from idle to awake", skip(value), fields(
-        key = value.key, children_in = value.actor_ref.children.len()
+        key = value.key, children_in = value.actor_ref.children().len()
     ))]
     fn from(value: ManagedActor<Idle<State>, State>) -> ManagedActor<Awake<State>, State>
     where
@@ -132,10 +133,10 @@ for ManagedActor<Awake<State>, State>
         );
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
-        if context.children.is_empty() {
+        if context.children().is_empty() {
             tracing::trace!(
                 "child count before Actor creation {}",
-                context.children.len()
+                context.children().len()
             );
         }
         // Create and return the new actor in the awake state
