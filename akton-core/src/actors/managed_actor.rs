@@ -59,7 +59,7 @@ use super::{ActorConfig, Awake, Idle};
 pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send + Debug + 'static> {
     pub setup: RefType,
 
-    pub context: ActorRef,
+    pub actor_ref: ActorRef,
 
     pub parent: Option<ParentContext>,
 
@@ -108,7 +108,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
     /// # Returns
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
-        if let Some(envelope) = &self.context.outbox {
+        if let Some(envelope) = &self.actor_ref.outbox {
             Option::from(OutboundEnvelope::new(
                 Some(envelope.clone()),
                 self.key.clone(),
@@ -168,7 +168,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
                 }
             } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
                 trace!(actor=self.key, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
-                self.terminate_actor().await;
+                self.terminate().await;
             }
         }
         (self.setup.on_before_stop)(self);
@@ -180,9 +180,9 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         (self.setup.on_stop)(self);
     }
     #[instrument(skip(self))]
-    async fn terminate_actor(&mut self) {
+    async fn terminate(&mut self) {
         tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
-        for item in &self.context.children {
+        for item in &self.actor_ref.children {
             let context = item.value();
             let _ = context.suspend().await;
         }
@@ -270,7 +270,7 @@ akton.clone()
         // Create and return the new actor instance
         ManagedActor {
             setup: Idle::default(),
-            context,
+            actor_ref: context,
             parent,
             halt_signal: Default::default(),
             key,
@@ -291,23 +291,11 @@ akton.clone()
     /// # Returns
     /// The actor's context after activation.
     #[instrument(skip(self), fields(key = self.key))]
-    pub async fn activate(
-        self,
-        builder: Option<PoolBuilder>,
-    ) -> ActorRef {
-        // Box::pin(async move {
+    pub async fn activate(self) -> ActorRef {
         // Store and activate all supervised children if a builder is provided
         let mut actor = self;
         let reactors = mem::take(&mut actor.setup.reactors);
-        let context = actor.context.clone();
-
-
-        // If a pool builder is provided, spawn the supervisor
-        // if let Some(builder) = builder {
-        //     trace!(id = actor.key, "PoolBuilder provided.");
-        //     let moved_context = actor.context.clone();
-        //     actor.pool_supervisor = builder.spawn(&moved_context).await?;
-        // }
+        let context = actor.actor_ref.clone();
 
         // here we transition from an Actor<Idle> to an Actor<Awake>
         let active_actor: ManagedActor<Awake<State>, State> = actor.into();
@@ -327,23 +315,5 @@ akton.clone()
 
         context.clone()
         // })
-    }
-}
-
-/// Represents an actor in the awake state.
-///
-/// # Type Parameters
-/// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> {
-    /// Terminates the actor by setting the halt signal.
-    ///
-    /// This method sets the halt signal to true, indicating that the actor should stop processing.
-    #[instrument(skip(self))]
-    pub(crate) fn terminate(&self) {
-        // Load the current value of the halt signal with sequential consistency ordering
-        self.halt_signal.load(Ordering::SeqCst);
-
-        // Store `true` in the halt signal to indicate termination
-        self.halt_signal.store(true, Ordering::SeqCst);
     }
 }
