@@ -90,18 +90,18 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
     ///
     /// # Parameters
     /// - `message_reactor`: The function to handle the message.
-    #[instrument(skip(self, message_reactor))]
+    #[instrument(skip(self, message_handler))]
     pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &mut EventRecord<M>)
+        message_handler: impl Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &mut EventRecord<M>)
         + Send
         + Sync
         + 'static,
     ) -> &mut Self {
         let type_id = TypeId::of::<M>();
-        trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
+        trace!(type_name = std::any::type_name::<M>(), type_id = ?type_id);
         // Create a boxed handler for the message type.
-        let handler_box: Box<MessageHandler<ManagedEntity>> = Box::new(
+        let handler: Box<MessageHandler<ManagedEntity>> = Box::new(
             move |actor: &mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, envelope: &mut Envelope| {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
@@ -120,7 +120,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
                         sent_time,
                         return_address,
                     };
-                    message_reactor(actor, event_record);
+                    message_handler(actor, event_record);
                     Box::pin(())
                 } else {
                     Box::pin({
@@ -134,9 +134,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         );
 
         // Insert the handler into the reactors map.
-        let _ = &self
-            .reactors
-            .insert(type_id, ReactorItem::MessageReactor(handler_box));
+        let _ = self.reactors.insert(type_id, ReactorItem::MessageReactor(handler));
 
         self
     }
