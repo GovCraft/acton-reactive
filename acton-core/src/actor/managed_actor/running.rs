@@ -36,7 +36,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{debug, instrument, trace};
-use crate::actors::ManagedActor;
+use crate::actor::ManagedActor;
 use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
 use crate::message::{BrokerRequestEnvelope, SystemSignal};
 use crate::traits::Actor;
