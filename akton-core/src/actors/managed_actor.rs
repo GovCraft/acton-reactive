@@ -202,22 +202,23 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         }
         (self.setup.on_stop)(self);
     }
-#[instrument(skip(self))]
-async fn terminate(&mut self) {
-    tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
-    self.actor_ref.children.iter().for_each(|item| {
-        let child_ref = item.value();
-        let _ = child_ref.suspend();
-    });
-    self.pool_supervisor.iter().for_each(|pool| {
-        pool.pool.iter().for_each(|pool_item_ref| {
-            trace!(item=pool_item_ref.key, "Terminating pool item.");
-            let _ = pool_item_ref.suspend();
-        });
-    });
-    trace!(actor=self.key, "All subordinates terminated. Closing mailbox for");
-    self.inbox.close();
-}}
+    #[instrument(skip(self))]
+    async fn terminate(&mut self) {
+        tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
+        for item in &self.actor_ref.children {
+            let child_ref = item.value();
+            let _ = child_ref.suspend().await;
+        }
+        for pool in &self.pool_supervisor {
+            for pool_item_ref in &pool.pool {
+                trace!(item=pool_item_ref.key,"Terminating pool item.");
+                let _ = pool_item_ref.suspend().await;
+            }
+        }
+        trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
+        self.inbox.close();
+    }
+}
 
 /// Represents an actor in the idle state.
 ///
