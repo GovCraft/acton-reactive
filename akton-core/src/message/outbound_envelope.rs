@@ -94,7 +94,6 @@ impl OutboundEnvelope {
     pub fn reply(
         &self,
         message: impl AktonMessage + Sync + Send + 'static,
-        pool_id: Option<String>,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
         trace!("*");
