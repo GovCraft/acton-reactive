@@ -34,11 +34,11 @@
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use crate::actors::ActorConfig;
+use crate::actor::ActorConfig;
 
 use crate::common::ActorRef;
 
-/// Trait for configurable actors, allowing initialization.
+/// Trait for configurable actor, allowing initialization.
 #[async_trait]
 pub trait PooledActor: Send + Debug {
     /// Initializes the actor with a given name and parent context.
