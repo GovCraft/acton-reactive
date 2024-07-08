@@ -66,19 +66,16 @@ pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     pub(crate) reactors: ReactorMap<ManagedEntity>,
 }
 
-/// Custom implementation of the `Debug` trait for the `Idle` struct.
-///
-/// This implementation provides a formatted output for the `Idle` struct.
 impl<ManagedEntity: Default + Send + Debug + 'static> Debug for Idle<ManagedEntity> {
-    /// Formats the `Idle` struct using the given formatter.
-    ///
-    /// # Parameters
-    /// - `f`: The formatter used for writing formatted output.
-    ///
-    /// # Returns
-    /// A result indicating whether the formatting was successful.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Idle").finish()
+        f.debug_struct("Idle")
+         .field("before_wake", &"...")
+         .field("wake", &"...")
+         .field("before_stop", &"...")
+         .field("stop", &"...")
+         .field("before_stop_async", &self.before_stop_async.is_some())
+         .field("reactors", &self.reactors.len())
+         .finish()
     }
 }
 
