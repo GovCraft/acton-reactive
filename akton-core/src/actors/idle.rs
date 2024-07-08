@@ -104,7 +104,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
-        let handler_box: Box<MessageReactor<State>> = Box::new(
+        let handler_box: Box<MessageHandler<State>> = Box::new(
             move |actor: &mut ManagedActor<Awake<State>, State>, envelope: &mut Envelope| {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
