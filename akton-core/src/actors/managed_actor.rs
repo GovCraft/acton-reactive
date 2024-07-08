@@ -55,7 +55,7 @@ pub use idle::Idle;
 
 use crate::common::{ActorRef, Superpos, AktonInner, AsyncLifecycleHandler, BrokerRef, FutureBox, HaltSignal, IdleLifecycleHandler, LifecycleHandler, MessageHandler, ParentRef, ReactorItem, ReactorMap, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, EventRecord, OutboundEnvelope};
-use crate::prelude::{AktonMessage, AktonReady};
+use crate::prelude::{AktonMessage, SystemReady};
 use crate::traits::Actor;
 
 use super::{ActorConfig, Running};
@@ -70,7 +70,7 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
     pub halt_signal: HaltSignal,
 
     pub key: String,
-    pub akton: AktonReady,
+    pub akton: SystemReady,
 
     pub entity: ManagedEntity,
 
