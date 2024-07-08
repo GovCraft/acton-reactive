@@ -10,9 +10,9 @@ use crate::common::{Superpos, Broker, BrokerRef, ActorRef};
 use crate::common::akton_inner::AktonInner;
 
 #[derive(Debug, Clone, Default)]
-pub struct AktonReady(pub(crate) AktonInner);
+pub struct SystemReady(pub(crate) AktonInner);
 
-impl AktonReady {
+impl SystemReady {
     pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle, State>
     where
         State: Default + Send + Debug + 'static,
@@ -70,9 +70,9 @@ impl AktonReady {
     }
 }
 
-impl From<Superpos> for AktonReady {
+impl From<Superpos> for SystemReady {
     fn from(akton: Superpos) -> Self {
-        let pool_size = AktonReady::get_pool_size();
+        let pool_size = SystemReady::get_pool_size();
 
         let (sender, receiver) = oneshot::channel();
 
@@ -87,6 +87,6 @@ impl From<Superpos> for AktonReady {
             })
         });
 
-        AktonReady(AktonInner { broker })
+        SystemReady(AktonInner { broker })
     }
 }
