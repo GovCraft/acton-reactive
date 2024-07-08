@@ -13,7 +13,7 @@ use crate::common::akton_inner::AktonInner;
 pub struct AktonReady(pub(crate) AktonInner);
 
 impl AktonReady {
-    pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle<State>, State>
+    pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
@@ -23,7 +23,7 @@ impl AktonReady {
         ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
     }
 
-    pub async fn create_actor_with_config<State>(&mut self, config: ActorConfig) -> ManagedActor<Idle<State>, State>
+    pub async fn create_actor_with_config<State>(&mut self, config: ActorConfig) -> ManagedActor<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
@@ -38,7 +38,7 @@ impl AktonReady {
     pub async fn spawn_actor_with_setup<State>(
         &mut self,
         config: ActorConfig,
-        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
     ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
@@ -50,7 +50,7 @@ impl AktonReady {
 
     pub async fn spawn_actor<State>(
         &mut self,
-        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
     ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
