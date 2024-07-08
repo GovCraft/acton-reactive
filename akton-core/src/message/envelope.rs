@@ -37,7 +37,7 @@ use dyn_clone::DynClone;
 
 use static_assertions::assert_impl_all;
 
-use crate::common::OutboundChannel;
+use crate::common::Outbox;
 use crate::traits::AktonMessage;
 /// Represents an envelope that carries a message within the actor system.
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ pub struct Envelope {
     /// The time when the message was sent.
     pub sent_time: SystemTime,
     /// The return address for the message response.
-    pub return_address: Option<OutboundChannel>,
+    pub return_address: Option<Outbox>,
 }
 
 impl Envelope {
@@ -64,7 +64,7 @@ impl Envelope {
     /// A new `Envelope` instance.
     pub fn new(
         message: Arc<dyn AktonMessage + Send + Sync + 'static>,
-        return_address: Option<OutboundChannel>,
+        return_address: Option<Outbox>,
         pool_id: Option<String>,
     ) -> Self {
         Envelope {
