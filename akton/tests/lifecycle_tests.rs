@@ -41,7 +41,7 @@ async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
     let mut pool_item_actor = akton_ready.create::<PoolItem>().await;
 
     pool_item_actor
-        .setup
+
         .on_before_wake(|_actor| {
             tracing::info!("Actor waking up");
         })
