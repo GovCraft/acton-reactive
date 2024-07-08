@@ -32,7 +32,7 @@
  */
 pub use acton::Acton;
 pub use system_ready::SystemReady;
-pub(crate) use acton_inner::AktonInner;
+pub(crate) use acton_inner::ActonInner;
 pub use broker::Broker;
 pub use actor_ref::ActorRef;
 pub(crate) use types::*;
@@ -42,7 +42,6 @@ pub(crate) use crate::message::signal::SystemSignal;
 // pub use crate::pool::LoadBalanceStrategy;
 
 
-mod akton_old;
 
 mod types;
 
