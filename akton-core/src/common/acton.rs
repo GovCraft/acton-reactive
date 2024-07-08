@@ -1,7 +1,7 @@
 #[derive(Default, Debug, Clone)]
-pub struct Superpos;
+pub struct Acton;
 
-impl Superpos {
+impl Acton {
     pub fn launch() -> Self {
         Default::default()
     }
