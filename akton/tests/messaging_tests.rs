@@ -42,7 +42,7 @@ use akton_test::prelude::*;
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
     let mut akton: SystemReady = Superpos::launch().into();
-    let mut actor = akton.create_actor::<PoolItem>().await;
+    let mut actor = akton.act_on::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let message = event.message.clone();
@@ -64,7 +64,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
     let mut system: SystemReady = Superpos::launch().into();
-    let mut actor = system.create_actor::<PoolItem>().await;
+    let mut actor = system.act_on::<PoolItem>().await;
     actor
         .act_on_async::<Ping>(|actor, event| {
             let message = event.message.clone();
