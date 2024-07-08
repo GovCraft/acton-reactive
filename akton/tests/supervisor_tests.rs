@@ -41,7 +41,7 @@ use tracing::{info, trace};
 async fn test_audience_pool() -> anyhow::Result<()> {
     initialize_tracing();
 
-    let mut akton: SystemReady = Superpos::launch().into();
+    let mut akton: SystemReady = Acton::launch().into();
 
 
     let mut audience = akton.act_on::<AudienceMember>();
