@@ -169,7 +169,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Activate the messenger actor
     let messenger_actor = messenger_actor.activate(None);
 
-    // Terminate both actors
+    // Terminate both actor
     counter_actor.suspend().await?;
     messenger_actor.suspend().await?;
 
