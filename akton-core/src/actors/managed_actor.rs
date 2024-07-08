@@ -31,7 +31,7 @@
  *
  */
 
-use std::any::TypeId;
+use std::any::{type_name_of_val, TypeId};
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
@@ -165,7 +165,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Awake, Manage
         while let Some(mut incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
-
+            debug!("{}",type_name_of_val(&incoming_envelope.message));
             // Special case for BrokerRequestEnvelope
             if let Some(broker_request_envelope) = incoming_envelope.message.as_any().downcast_ref::<BrokerRequestEnvelope>() {
                 envelope = Envelope::new(
