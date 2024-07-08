@@ -42,7 +42,7 @@ use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
 
 use crate::actors::{ManagedActor, Idle};
-use crate::common::{BrokerRef, OutboundChannel, OutboundEnvelope, ParentRef, SystemSignal};
+use crate::common::{BrokerRef, Outbox, OutboundEnvelope, ParentRef, SystemSignal};
 use crate::traits::{Actor, Subscriber};
 
 /// Represents the context in which an actor operates.
@@ -51,7 +51,7 @@ pub struct ActorRef {
     /// The unique identifier (ARN) for the context.
     pub key: String,
     /// The outbound channel for sending messages.
-    pub(crate) outbox: Option<OutboundChannel>,
+    pub(crate) outbox: Option<Outbox>,
     /// The task tracker for the actor.
     tracker: TaskTracker,
     /// The actor's optional parent context.
