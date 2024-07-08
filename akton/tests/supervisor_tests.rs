@@ -44,7 +44,7 @@ async fn test_audience_pool() -> anyhow::Result<()> {
     let mut akton: SystemReady = Superpos::launch().into();
 
 
-    let mut audience = akton.create_actor::<AudienceMember>();
+    let mut audience = akton.act_on::<AudienceMember>();
     let pool_name = "audience";
     audience
 
