@@ -11,7 +11,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use tracing::*;
 
-use crate::actors::{Actor, ActorConfig, Idle};
+use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Akton, AktonReady, Context};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActorContext, AktonMessage};
@@ -27,7 +27,7 @@ impl Broker {
         let actor_config = ActorConfig::new(Arn::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
-        let mut actor = Actor::new(&None, Some(actor_config), Broker::default()).await;
+        let mut actor = ManagedActor::new(&None, Some(actor_config), Broker::default()).await;
 
         actor.setup
             .act_on_async::<BrokerRequest>(|actor, event| {
