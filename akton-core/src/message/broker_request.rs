@@ -39,18 +39,18 @@ use static_assertions::assert_impl_all;
 use tracing::*;
 
 use crate::common::Outbox;
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
 #[derive(Debug, Clone)]
 pub struct BrokerRequest {
-    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub message: Arc<dyn ActonMessage + Send + Sync + 'static>,
     pub message_type_name: String,
     pub message_type_id: TypeId,
 }
 
 impl BrokerRequest {
-    pub fn new<M: AktonMessage + Send + Sync + 'static>(message: M) -> Self {
+    pub fn new<M: ActonMessage + Send + Sync + 'static>(message: M) -> Self {
         let message_type_name = std::any::type_name_of_val(&message).to_string();
         let message_type_id = message.type_id();
         let message = Arc::new(message);
