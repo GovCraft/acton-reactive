@@ -115,7 +115,7 @@ impl Actor for ActorRef {
     }
 
     /// Returns the task tracker for the actor.
-    fn task_tracker(&self) -> TaskTracker {
+    fn tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
     }
 
@@ -140,7 +140,7 @@ impl Actor for ActorRef {
     /// Suspends the actor.
     fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
-            let tracker = self.task_tracker().clone();
+            let tracker = self.tracker().clone();
 
             let actor = self.return_address().clone();
 
