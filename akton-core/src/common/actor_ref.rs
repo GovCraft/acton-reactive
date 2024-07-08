@@ -57,7 +57,7 @@ pub struct ActorRef {
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentRef>>,
     pub broker: Box<Option<BrokerRef>>,
-    pub(crate) children: DashMap<String, ActorRef>,
+    children: DashMap<String, ActorRef>,
 }
 
 impl Subscriber for ActorRef {
