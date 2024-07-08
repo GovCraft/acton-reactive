@@ -83,7 +83,7 @@ where
                           message_type_name,
                           broker_key
                       );
-                emit_broker.emit(subscription, None).await;
+                emit_broker.emit(subscription).await;
             }
         }
     }
@@ -101,7 +101,7 @@ where
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
-                broker.emit(subscription, None).await;
+                broker.emit(subscription).await;
             });
         }
         trace!(
