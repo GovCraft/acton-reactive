@@ -80,10 +80,10 @@ pub(crate) type Fut = Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>;
 pub(crate) type OutboundChannel = Sender<Envelope>;
 
 /// A type alias for a stop signal, represented by an atomic boolean.
-pub(crate) type StopSignal = AtomicBool;
+pub(crate) type HaltSignal = AtomicBool;
 
 /// A type alias for a lifecycle reactor function.
-pub(crate) type LifecycleReactor<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
+pub(crate) type LifecycleHandler<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<State> =
