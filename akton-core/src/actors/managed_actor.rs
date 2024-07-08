@@ -32,6 +32,7 @@
  */
 
 mod idle;
+pub mod running;
 
 use std::any::{type_name_of_val, TypeId};
 use std::fmt;
@@ -57,7 +58,7 @@ use crate::message::{BrokerRequestEnvelope, Envelope, EventRecord, OutboundEnvel
 use crate::prelude::{AktonMessage, AktonReady};
 use crate::traits::Actor;
 
-use super::{ActorConfig, Awake};
+use super::{ActorConfig, Running};
 
 pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'static> {
     pub actor_ref: ActorRef,
@@ -79,11 +80,11 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
     /// Reactor called before the actor wakes up.
     pub(crate) before_activate: Box<IdleLifecycleHandler<Idle, ManagedEntity>>,
     /// Reactor called when the actor wakes up.
-    pub(crate) on_activate: Box<LifecycleHandler<Awake, ManagedEntity>>,
+    pub(crate) on_activate: Box<LifecycleHandler<Running, ManagedEntity>>,
     /// Reactor called just before the actor stops.
-    pub(crate) before_stop: Box<LifecycleHandler<Awake, ManagedEntity>>,
+    pub(crate) before_stop: Box<LifecycleHandler<Running, ManagedEntity>>,
     /// Reactor called when the actor stops.
-    pub(crate) on_stop: Box<LifecycleHandler<Awake, ManagedEntity>>,
+    pub(crate) on_stop: Box<LifecycleHandler<Running, ManagedEntity>>,
     /// Asynchronous reactor called just before the actor stops.
     pub(crate) before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
     /// Map of reactors for handling different message types.
@@ -133,7 +134,7 @@ impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug for Mana
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Awake, ManagedEntity> {
+impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, ManagedEntity> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
@@ -225,7 +226,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     #[instrument(skip(self, message_handler))]
     pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_handler: impl Fn(&mut ManagedActor<Awake, ManagedEntity>, &mut EventRecord<M>)
+        message_handler: impl Fn(&mut ManagedActor<Running, ManagedEntity>, &mut EventRecord<M>)
         + Send
         + Sync
         + 'static,
@@ -234,7 +235,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         trace!(type_name = std::any::type_name::<M>(), type_id = ?type_id);
         // Create a boxed handler for the message type.
         let handler: Box<MessageHandler<ManagedEntity>> = Box::new(
-            move |actor: &mut ManagedActor<Awake, ManagedEntity>, envelope: &mut Envelope| {
+            move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
@@ -278,7 +279,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Awake, ManagedEntity>, &'a mut EventRecord<M>) -> FutureBox
+        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Running, ManagedEntity>, &'a mut EventRecord<M>) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -290,7 +291,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut ManagedActor<Awake, ManagedEntity>, envelope: &mut Envelope| -> FutureBox {
+            move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
@@ -358,7 +359,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_activate(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake, ManagedEntity>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Running, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_activate = Box::new(life_cycle_event_reactor);
@@ -371,7 +372,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake, ManagedEntity>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Running, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
@@ -384,7 +385,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn before_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake, ManagedEntity>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Running, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.before_stop = Box::new(life_cycle_event_reactor);
@@ -397,7 +398,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// - `f`: The asynchronous function to be called.
     pub fn before_stop_async<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Awake, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
+        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
     {
         self.before_stop_async = Some(Box::new(f));
         self
@@ -450,7 +451,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let reactors = mem::take(&mut self.reactors);
         let actor_ref = self.actor_ref.clone();
 
-        let active_actor: ManagedActor<Awake, ManagedEntity> = self.from_idle();
+        let active_actor: ManagedActor<Running, ManagedEntity> = self.from_idle();
         let actor = Box::leak(Box::new(active_actor));
 
         debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
@@ -464,7 +465,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     #[instrument("from idle to awake", skip(self), fields(
         key = self.key, children_in = self.actor_ref.children().len()
     ))]
-    fn from_idle(self) -> ManagedActor<Awake, ManagedEntity>
+    fn from_idle(self) -> ManagedActor<Running, ManagedEntity>
     where
         ManagedEntity: Send + 'static,
     {
@@ -512,7 +513,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                 );
         }
         // Create and return the new actor in the awake state
-        ManagedActor::<Awake, ManagedEntity>{
+        ManagedActor::<Running, ManagedEntity>{
             actor_ref,
             parent,
             halt_signal,
