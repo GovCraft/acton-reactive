@@ -85,7 +85,7 @@ let mut akton:AktonReady = Akton::launch().into();
 
     let _ = comedian.suspend().await?;
     let _ = counter.suspend().await?;
-    let _ = broker.suspend_actor().await?;
+    let _ = broker.suspend().await?;
 
     Ok(())
 }
