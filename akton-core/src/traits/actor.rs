@@ -128,7 +128,7 @@ pub trait Actor {
 
 
 pub trait FutureWrapper {
-    fn wrap_future<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
+    fn wrap<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
     where
         F: Future<Output=()> + 'static;
 
@@ -142,7 +142,7 @@ impl<T> FutureWrapper for T
 where
     T: Actor,
 {
-    fn wrap_future<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
+    fn wrap<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
     where
         F: Future<Output=()> + 'static
     {
