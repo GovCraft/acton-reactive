@@ -48,7 +48,7 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
 
-use crate::common::{Akton, AktonInner, BrokerContext, Context, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{Akton, AktonInner, BrokerContext, ActorRef, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
@@ -66,7 +66,7 @@ pub struct ManagedActor<RefType: Send + 'static, State: Default + Send + Debug +
     pub setup: RefType,
 
     /// The context in which the actor operates.
-    pub context: Context,
+    pub context: ActorRef,
 
     /// The parent actor's return envelope.
     pub parent: Option<ParentContext>,
@@ -247,7 +247,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
     pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, state: State) -> Self {
         // Create a channel with a buffer size of 255 for the actor's mailbox
         let (outbox, mailbox) = channel(255);
-        let mut context: Context = Default::default();
+        let mut context: ActorRef = Default::default();
         context.outbox = Some(outbox.clone());
 
         let mut key = Arn::default().to_string();
@@ -309,7 +309,7 @@ akton.clone()
     pub async fn activate(
         self,
         builder: Option<PoolBuilder>,
-    ) -> Context {
+    ) -> ActorRef {
         // Box::pin(async move {
         // Store and activate all supervised children if a builder is provided
         let mut actor = self;
