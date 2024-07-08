@@ -50,13 +50,14 @@ use tokio::sync::mpsc::{channel, Receiver};
 use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
+pub use idle::Idle;
 
 use crate::common::{ActorRef, Akton, AktonInner, AsyncLifecycleHandler, BrokerRef, FutureBox, HaltSignal, IdleLifecycleHandler, LifecycleHandler, MessageHandler, ParentRef, ReactorItem, ReactorMap, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, EventRecord, OutboundEnvelope};
 use crate::prelude::{AktonMessage, AktonReady};
 use crate::traits::Actor;
 
-use super::{ActorConfig, Awake, Idle};
+use super::{ActorConfig, Awake};
 
 pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'static> {
     pub actor_ref: ActorRef,
