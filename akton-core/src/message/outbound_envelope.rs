@@ -38,7 +38,7 @@ use akton_arn::Arn;
 use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
-use crate::common::{Envelope, MessageError, OutboundChannel};
+use crate::common::{Envelope, MessageError, Outbox};
 use crate::traits::AktonMessage;
 
 /// Represents an outbound envelope for sending messages in the actor system.
@@ -47,7 +47,7 @@ pub struct OutboundEnvelope {
     /// The sender's ARN (Akton Resource Name).
     pub sender: String,
     /// The optional channel for sending replies.
-    pub(crate) reply_to: Option<OutboundChannel>,
+    pub(crate) reply_to: Option<Outbox>,
 }
 
 // Manually implement PartialEq for OutboundEnvelope
@@ -78,7 +78,7 @@ impl OutboundEnvelope {
     /// # Returns
     /// A new `OutboundEnvelope` instance.
     #[instrument(skip(reply_to))]
-    pub fn new(reply_to: Option<OutboundChannel>, sender: String) -> Self {
+    pub fn new(reply_to: Option<Outbox>, sender: String) -> Self {
         OutboundEnvelope { reply_to, sender }
     }
 
