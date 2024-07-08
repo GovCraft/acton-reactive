@@ -40,12 +40,12 @@ use tracing::*;
 
 use crate::common::Outbox;
 use crate::message::BrokerRequest;
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
 #[derive(Debug, Clone)]
 pub struct BrokerRequestEnvelope {
-    pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
+    pub message: Arc<dyn ActonMessage + Send + Sync + 'static>,
 }
 
 impl From<BrokerRequest> for BrokerRequestEnvelope {
@@ -58,7 +58,7 @@ impl From<BrokerRequest> for BrokerRequestEnvelope {
 }
 
 impl BrokerRequestEnvelope {
-    pub fn new<M: AktonMessage + Send + Sync + 'static>(request: M) -> Self {
+    pub fn new<M: ActonMessage + Send + Sync + 'static>(request: M) -> Self {
         let message = Arc::new(request);
         Self {
             message,
