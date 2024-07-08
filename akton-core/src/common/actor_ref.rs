@@ -49,7 +49,7 @@ use crate::traits::{Actor, Subscriber};
 #[derive(Debug, Clone, Default)]
 pub struct ActorRef {
     /// The unique identifier (ARN) for the context.
-    pub key: String,
+    pub arn: String,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Option<Outbox>,
     /// The task tracker for the actor.
@@ -68,7 +68,7 @@ impl Subscriber for ActorRef {
 
 impl PartialEq for ActorRef {
     fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
+        self.arn == other.arn
     }
 }
 
@@ -76,7 +76,7 @@ impl Eq for ActorRef {}
 
 impl Hash for ActorRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.hash(state);
+        self.arn.hash(state);
     }
 }
 
@@ -87,7 +87,7 @@ impl ActorRef {
         child: ManagedActor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
         let context = child.activate().await;
-        let id = context.key.clone();
+        let id = context.arn.clone();
         self.children.insert(id, context);
 
         Ok(())
@@ -102,7 +102,7 @@ impl Actor for ActorRef {
     #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        OutboundEnvelope::new(outbox, self.key.clone())
+        OutboundEnvelope::new(outbox, self.arn.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
     fn children(&self) -> DashMap<String, ActorRef> {
@@ -120,7 +120,7 @@ impl Actor for ActorRef {
     }
 
     fn id(&self) -> String {
-        self.key.clone()
+        self.arn.clone()
     }
 
     fn clone_ref(&self) -> ActorRef {
@@ -148,7 +148,7 @@ impl Actor for ActorRef {
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor=self.key, "Sending Terminate to");
+            warn!(actor=self.arn, "Sending Terminate to");
             actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
@@ -160,7 +160,7 @@ impl Actor for ActorRef {
             // Event: Actor Terminated
             // Description: The actor and its subordinates have been terminated.
             // Context: None
-            info!(actor=self.key, "The actor and its subordinates have been terminated.");
+            info!(actor=self.arn, "The actor and its subordinates have been terminated.");
             Ok(())
         }
     }
