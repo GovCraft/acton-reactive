@@ -105,25 +105,25 @@ impl Actor for ActorRef {
         OutboundEnvelope::new(outbox, self.key.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
-    fn get_children(&self) -> DashMap<String, ActorRef> {
+    fn children(&self) -> DashMap<String, ActorRef> {
         // event!(Level::TRACE,child_count= self.children.len());
         self.children.clone()
     }
 
-    fn find_child_by_arn(&self, arn: &str) -> Option<ActorRef> {
+    fn find_child(&self, arn: &str) -> Option<ActorRef> {
         self.children.get(arn).map(|item| item.value().clone())
     }
 
     /// Returns the task tracker for the actor.
-    fn get_task_tracker(&self) -> TaskTracker {
+    fn task_tracker(&self) -> TaskTracker {
         self.task_tracker.clone()
     }
 
-    fn get_id(&self) -> String {
+    fn id(&self) -> String {
         self.key.clone()
     }
 
-    fn clone_context(&self) -> ActorRef {
+    fn clone_ref(&self) -> ActorRef {
         self.clone()
     }
 
@@ -140,7 +140,7 @@ impl Actor for ActorRef {
     /// Suspends the actor.
     fn suspend_actor(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
-            let tracker = self.get_task_tracker().clone();
+            let tracker = self.task_tracker().clone();
 
             let actor = self.return_address().clone();
 
