@@ -31,7 +31,7 @@
  *
  */
 
-pub use actor::ActorContext;
+pub use actor::Actor;
 pub use akton_message::AktonMessage;
 pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 pub use pooled_actor::PooledActor;
