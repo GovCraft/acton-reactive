@@ -52,23 +52,23 @@ pub(crate) type ReactorMap<T> = DashMap<TypeId, ReactorItem<T>>;
 /// An enum representing different types of reactors for handling signals, messages, and futures.
 pub enum ReactorItem<T: Default + Send + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
-    Signal(Box<SignalReactor<T>>),
+    Signal(Box<SignalHandler<T>>),
     /// A message reactor, which reacts to messages.
     Message(Box<MessageReactor<T>>),
     /// A future reactor, which reacts to futures.
-    Future(Box<FutReactor<T>>),
+    Future(Box<FutureHandler<T>>),
 }
 
 /// A type alias for a message reactor function.
 pub(crate) type MessageReactor<State> =
     dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
+pub type SignalHandler<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> FutureBox
+pub(crate) type FutureHandler<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> FutureBox
     + Send
     + Sync
     + 'static;
