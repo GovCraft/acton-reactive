@@ -101,22 +101,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
 }
 
 
-/// Custom implementation of the `Debug` trait for the `Actor` struct.
-///
-/// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
-impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
-for ManagedActor<RefType, State>
-{
-    /// Formats the `Actor` struct using the given formatter.
-    ///
-    /// # Parameters
-    /// - `f`: The formatter used for writing formatted output.
-    ///
-    /// # Returns
-    /// A result indicating whether the formatting was successful.
+impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug for ManagedActor<RefType, State> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Actor")
-            .field("key", &self.key) // Only the key field is included in the debug output
+        f.debug_struct("ManagedActor")
+            .field("key", &self.key)
             .finish()
     }
 }
