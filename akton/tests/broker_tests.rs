@@ -58,13 +58,13 @@ let mut akton:AktonReady = Akton::launch().into();
     )?;
     let mut counter_actor = akton.create_with_config::<Counter>(actor_config);
     counter_actor
-        .setup
+
         .act_on::<Pong>(|actor, event| {
             info!("Also SUCCESS! PONG!");
         });
 
     comedy_show
-        .setup
+
         .act_on_async::<Ping>(|actor, event| {
             info!("SUCCESS! PING!");
             Box::pin(async move {})
