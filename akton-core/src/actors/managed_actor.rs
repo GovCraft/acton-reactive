@@ -139,7 +139,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
     /// A clone of the parent's return envelope.
     pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
         if let Some(parent) = &self.parent {
-            Some(parent.get_return_address().clone())
+            Some(parent.return_address().clone())
         } else {
             None
         }
