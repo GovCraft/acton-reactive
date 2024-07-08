@@ -207,44 +207,6 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
         self
     }
 
-    /// Adds an internal signal handler for a specific signal type.
-    ///
-    /// # Parameters
-    /// - `signal_reactor`: The function to handle the signal.
-    #[instrument(skip(self, signal_reactor))]
-    pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
-        &mut self,
-        signal_reactor: impl Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &dyn AktonMessage) -> FutureBox
-        + Send
-        + Sync
-        + 'static,
-    ) -> &mut Self {
-        let type_id = TypeId::of::<M>();
-
-        // Create a boxed handler for the signal type.
-        let handler_box: Box<SignalHandler<ManagedEntity>> = Box::new(
-            move |actor: &mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, message: &dyn AktonMessage| -> FutureBox {
-                if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
-                    let fut = signal_reactor(actor, concrete_msg);
-                    Box::pin(fut)
-                } else {
-                    error!(
-                        "Message type mismatch: expected {:?}",
-                        std::any::type_name::<M>()
-                    );
-                    Box::pin(future::ready(()))
-                }
-            },
-        );
-
-        debug!("adding signal reactor to reactors");
-        // Insert the handler into the reactors map.
-        let _ = &self
-            .reactors
-            .insert(type_id, ReactorItem::SignalReactor(handler_box));
-
-        self
-    }
 
     /// Sets the reactor to be called before the actor wakes up.
     ///
