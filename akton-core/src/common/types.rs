@@ -56,7 +56,7 @@ pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
     /// A message reactor, which reacts to messages.
     MessageReactor(Box<MessageHandler<ActorEntity>>),
     /// A future reactor, which reacts to futures.
-    Future(Box<FutureHandler<ActorEntity>>),
+    FutureReactor(Box<FutureHandler<ActorEntity>>),
 }
 
 /// A type alias for a message reactor function.
