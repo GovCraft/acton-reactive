@@ -44,7 +44,6 @@ pub(crate) mod common;
 
 pub(crate) mod actors;
 pub(crate) mod message;
-pub(crate) mod pool;
 /// Trait definitions used in the Akton framework.
 pub(crate) mod traits;
 
