@@ -37,7 +37,7 @@ mod setup;
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton_ready: AktonReady = Akton::launch().into();
+    let mut akton_ready: AktonReady = Superpos::launch().into();
     let mut pool_item_actor = akton_ready.create::<PoolItem>().await;
 
     pool_item_actor
