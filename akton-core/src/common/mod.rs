@@ -30,7 +30,7 @@
  *
  *
  */
-pub use akton::Akton;
+pub use akton::Superpos;
 pub use akton_ready::AktonReady;
 pub(crate) use akton_inner::AktonInner;
 pub use broker::Broker;
