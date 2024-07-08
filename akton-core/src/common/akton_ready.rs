@@ -5,7 +5,7 @@ use std::pin::Pin;
 use akton_arn::Arn;
 use tokio::sync::oneshot;
 
-use crate::actors::{Actor, ActorConfig, Idle};
+use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Akton, Broker, BrokerContext, Context};
 use crate::common::akton_inner::AktonInner;
 
@@ -13,22 +13,22 @@ use crate::common::akton_inner::AktonInner;
 pub struct AktonReady(pub(crate) AktonInner);
 
 impl AktonReady {
-    pub async fn create_actor<State>(&mut self) -> Actor<Idle<State>, State>
+    pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle<State>, State>
     where
         State: Default + Send + Debug + 'static,
     {
         let broker = self.0.broker.clone();
         let akton_ready = self.clone();
         let config = ActorConfig::new(Arn::default(), None, Some(broker)).unwrap_or_default();
-        Actor::new(&Some(akton_ready), Some(config), State::default()).await
+        ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
     }
 
-    pub async fn create_actor_with_config<State>(&mut self, config: ActorConfig) -> Actor<Idle<State>, State>
+    pub async fn create_actor_with_config<State>(&mut self, config: ActorConfig) -> ManagedActor<Idle<State>, State>
     where
         State: Default + Send + Debug + 'static,
     {
         let akton_ready = self.clone();
-        Actor::new(&Some(akton_ready), Some(config), State::default()).await
+        ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
     }
 
     pub fn get_broker(&self) -> BrokerContext {
@@ -38,19 +38,19 @@ impl AktonReady {
     pub async fn spawn_actor_with_setup<State>(
         &mut self,
         config: ActorConfig,
-        setup_fn: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
     ) -> anyhow::Result<Context>
     where
         State: Default + Send + Debug + 'static,
     {
         let akton_ready = self.clone();
-        let actor = Actor::new(&Some(akton_ready), Some(config), State::default()).await;
+        let actor = ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await;
         Ok(setup_fn(actor).await)
     }
 
     pub async fn spawn_actor<State>(
         &mut self,
-        setup_fn: impl FnOnce(Actor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
     ) -> anyhow::Result<Context>
     where
         State: Default + Send + Debug + 'static,
@@ -58,7 +58,7 @@ impl AktonReady {
         let broker = self.get_broker();
         let config = ActorConfig::new(Arn::default(), None, Some(broker.clone()))?;
         let akton_ready = self.clone();
-        let actor = Actor::new(&Some(akton_ready), Some(config), State::default()).await;
+        let actor = ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await;
         Ok(setup_fn(actor).await)
     }
 
