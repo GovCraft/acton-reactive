@@ -34,7 +34,7 @@
 use std::any::{Any, TypeId};
 use std::fmt::Debug;
 use crate::common::ActorRef;
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 #[derive(Debug,Clone)]
 pub(crate) struct SubscribeBroker {
