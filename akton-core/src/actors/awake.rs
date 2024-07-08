@@ -37,7 +37,7 @@ use std::fmt::Formatter;
 
 use tracing::{instrument, warn};
 
-use crate::actors::actor::Actor;
+use crate::actors::managed_actor::ManagedActor;
 use crate::actors::Idle;
 use crate::common::{LifecycleReactor, AsyncLifecycleReactor};
 
@@ -78,8 +78,8 @@ impl<State: Default + Send + Debug + 'static> Debug for Awake<State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> From<Actor<Idle<State>, State>>
-for Actor<Awake<State>, State>
+impl<State: Default + Send + Debug + 'static> From<ManagedActor<Idle<State>, State>>
+for ManagedActor<Awake<State>, State>
 {
     /// Converts an `Actor` from the idle state to the awake state.
     ///
@@ -91,7 +91,7 @@ for Actor<Awake<State>, State>
     #[instrument("from idle to awake", skip(value), fields(
         key = value.key, children_in = value.context.children.len()
     ))]
-    fn from(value: Actor<Idle<State>, State>) -> Actor<Awake<State>, State>
+    fn from(value: ManagedActor<Idle<State>, State>) -> ManagedActor<Awake<State>, State>
     where
         State: Send + 'static,
     {
@@ -139,7 +139,7 @@ for Actor<Awake<State>, State>
             );
         }
         // Create and return the new actor in the awake state
-        Actor {
+        ManagedActor {
             setup: Awake {
                 on_wake,
                 on_before_stop,
