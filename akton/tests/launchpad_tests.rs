@@ -43,9 +43,9 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
                     info!("CHILD SUCCESS! PONG!");
                 });
 
-            let child_context = &child.context.clone();
+            let child_context = &child.actor_ref.clone();
             child_context.subscribe::<Pong>().await;
-            child.activate(None).await
+            child.activate().await
         })).await.expect("Couldn't create child actor");
 
         actor.setup
@@ -55,12 +55,12 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
             .act_on_async::<Pong>(|actor, _msg| {
                 ActorRef::wrap_future(wait_and_respond())
             });
-        let context = &actor.context.clone();
+        let context = &actor.actor_ref.clone();
 
         context.subscribe::<Ping>().await;
         context.subscribe::<Pong>().await;
 
-        actor.activate(None).await
+        actor.activate().await
     })).await?;
 
     broker_clone.emit(BrokerRequest::new(Ping), None).await;
@@ -100,10 +100,10 @@ async fn test_launchpad() -> anyhow::Result<()> {
                 })
             });
 
-        actor.context.subscribe::<Ping>().await;
-        actor.context.subscribe::<Pong>().await;
+        actor.actor_ref.subscribe::<Ping>().await;
+        actor.actor_ref.subscribe::<Pong>().await;
 
-        actor.activate(None).await
+        actor.activate().await
     })).await?;
 
     let counter_actor = akton_ready.spawn_actor::<Counter>(|mut actor| Box::pin(async move {
@@ -114,9 +114,9 @@ async fn test_launchpad() -> anyhow::Result<()> {
                 })
             });
 
-        actor.context.subscribe::<Pong>().await;
+        actor.actor_ref.subscribe::<Pong>().await;
 
-        actor.activate(None).await
+        actor.activate().await
     })).await?;
 
     broker.emit(BrokerRequest::new(Ping), None).await;
