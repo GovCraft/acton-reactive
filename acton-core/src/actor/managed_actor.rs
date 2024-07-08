@@ -93,8 +93,3 @@ impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug for Mana
             .finish()
     }
 }
-
-// Function to downcast the message to the original type.
-pub fn downcast_message<T: 'static>(msg: &dyn ActonMessage) -> Option<&T> {
-    msg.as_any().downcast_ref::<T>()
-}
