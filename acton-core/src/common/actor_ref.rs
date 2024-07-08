@@ -40,7 +40,7 @@ use dashmap::DashMap;
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
-use crate::actors::{ManagedActor, Idle};
+use crate::actor::{ManagedActor, Idle};
 use crate::common::{BrokerRef, Outbox, OutboundEnvelope, ParentRef};
 use crate::message::SystemSignal;
 use crate::traits::{Actor, Subscriber};
