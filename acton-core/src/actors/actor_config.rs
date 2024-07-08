@@ -33,7 +33,7 @@
 
 use std::fmt::Display;
 
-use acton_arn::{Arn, ArnParser};
+use akton_arn::{Arn, ArnParser};
 
 use crate::common::{BrokerRef, ParentRef};
 
