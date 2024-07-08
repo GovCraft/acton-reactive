@@ -40,7 +40,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
-use crate::actors::{ManagedActor, Running};
+use crate::actor::{ManagedActor, Running};
 use crate::common::ActorRef;
 use crate::message::Envelope;
 use crate::traits::ActonMessage;
