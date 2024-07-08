@@ -89,7 +89,7 @@ impl PooledActor for PoolItem {
             });
 
         // Activate the actor and return the context
-        actor.activate(None).await
+        actor.activate().await
     }
 }
 
