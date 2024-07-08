@@ -45,7 +45,7 @@ pub struct ActorConfig {
 }
 
 impl ActorConfig {
-    pub fn new(name: Arn<'_>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
+    pub fn new(name: Arn, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
             let parent_arn = ArnParser::new(&parent.arn).parse()?;
