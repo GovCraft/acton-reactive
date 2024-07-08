@@ -98,7 +98,7 @@ for ManagedActor<Awake<State>, State>
         tracing::trace!("*");
         // Extract lifecycle reactors and other properties from the idle actor
         let on_wake = value.setup.on_activate;
-        let on_stop = value.setup.stop;
+        let on_stop = value.setup.on_stop;
         let on_before_stop = value.setup.before_stop;
         let on_before_stop_async = value.setup.before_stop_async;
         let halt_signal = value.halt_signal;
