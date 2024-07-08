@@ -50,10 +50,10 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
             info!(type_name=type_name,type_id=?type_id, "Received");
-            actor.state.receive_count += 1;
+            actor.managed_entity.receive_count += 1;
         })
         .on_before_stop(|actor| {
-            info!("Processed {} Pings", actor.state.receive_count);
+            info!("Processed {} Pings", actor.managed_entity.receive_count);
         });
     let context = actor.activate(None).await;
     context.emit(Ping, None).await;
@@ -73,11 +73,11 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
             let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
             info!(type_name=type_name,type_id=?type_id, "Received in async handler");
-            actor.state.receive_count += 1;
+            actor.managed_entity.receive_count += 1;
             Box::pin(async move {})
         })
         .on_before_stop(|actor| {
-            info!("Processed {} Pings", actor.state.receive_count);
+            info!("Processed {} Pings", actor.managed_entity.receive_count);
         });
     let context = actor.activate(None).await;
     context.emit(Ping, None).await;
