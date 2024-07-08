@@ -76,7 +76,7 @@ mod setup;
 async fn test_async_reactor() -> anyhow::Result<()> {
     initialize_tracing();
 
-    let mut akton: SystemReady = Superpos::launch().into();
+    let mut akton: SystemReady = Acton::launch().into();
 
     let actor_config = ActorConfig::new(
         Arn::with_root("improve_show").unwrap(),
@@ -130,7 +130,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
 
-    let mut akton: SystemReady = Superpos::launch().into();
+    let mut akton: SystemReady = Acton::launch().into();
     // Create an actor for counting
     let mut counter_actor = akton.act_on::<Counter>();
     counter_actor
@@ -180,7 +180,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut akton: SystemReady = Superpos::launch().into();
+let mut akton: SystemReady = Acton::launch().into();
 
     let actor_config = ActorConfig::new(
         Arn::with_root("test_child_actor").unwrap(),
@@ -253,7 +253,7 @@ let mut akton: SystemReady = Superpos::launch().into();
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut akton: SystemReady = Superpos::launch().into();
+let mut akton: SystemReady = Acton::launch().into();
     // Create the parent actor
     let mut parent_actor = akton.act_on::<PoolItem>();
     parent_actor.on_before_wake(|actor| {
@@ -297,7 +297,7 @@ let mut akton: SystemReady = Superpos::launch().into();
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
-let mut akton: SystemReady = Superpos::launch().into();
+let mut akton: SystemReady = Acton::launch().into();
     let actor_config = ActorConfig::new(
         Arn::with_root("test_actor_mutation").unwrap(),
         None,
@@ -354,7 +354,7 @@ let mut akton: SystemReady = Superpos::launch().into();
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton: SystemReady = Superpos::launch().into();
+    let mut akton: SystemReady = Acton::launch().into();
     let actor_config = ActorConfig::new(
         Arn::with_root("test_child_count_in_reactor").unwrap(),
         None,
