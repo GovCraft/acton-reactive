@@ -7,7 +7,6 @@ use tokio::sync::mpsc::channel;
 use tracing::{error, event, info, instrument, Level, trace};
 
 use crate::actor::{ActorConfig, ManagedActor, Running};
-use crate::actor::managed_actor::downcast_message;
 use crate::common::{ActorRef, ActonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
 use crate::message::EventRecord;
 use crate::prelude::{Actor, ActonMessage};
@@ -400,4 +399,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
             _actor_state: Default::default(),
         }
     }
+}
+
+
+// Function to downcast the message to the original type.
+pub fn downcast_message<T: 'static>(msg: &dyn ActonMessage) -> Option<&T> {
+    msg.as_any().downcast_ref::<T>()
 }
