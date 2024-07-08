@@ -176,14 +176,14 @@ impl<State: Default + Send + Debug> Idle<State> {
                     let sent_time = envelope.sent_time;
                     let mut event_record = {
                         if let Some(parent) = &actor.parent {
-                            let return_address = parent.get_return_address();
+                            let return_address = parent.return_address();
                             EventRecord {
                                 message,
                                 sent_time,
                                 return_address,
                             }
                         } else {
-                            let return_address = actor.context.get_return_address();
+                            let return_address = actor.context.return_address();
                             EventRecord {
                                 message,
                                 sent_time,
