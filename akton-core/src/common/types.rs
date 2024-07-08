@@ -60,15 +60,15 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 }
 
 /// A type alias for a message reactor function.
-pub(crate) type MessageHandler<State> =
-    dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
+pub(crate) type MessageHandler<ManagedEntity> =
+    dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalHandler<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
+pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &dyn AktonMessage) -> FutureBox
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutureHandler<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> FutureBox
+pub(crate) type FutureHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &'b mut Envelope) -> FutureBox
     + Send
     + Sync
     + 'static;
@@ -83,13 +83,13 @@ pub(crate) type Outbox = Sender<Envelope>;
 pub(crate) type HaltSignal = AtomicBool;
 
 /// A type alias for a lifecycle reactor function.
-pub(crate) type LifecycleHandler<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
+pub(crate) type LifecycleHandler<T, ManagedEntity> = dyn Fn(&ManagedActor<T, ManagedEntity>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
-pub(crate) type AsyncLifecycleHandler<State> =
-    Box<dyn Fn(&ManagedActor<Awake<State>, State>) -> FutureBox + Send + Sync + 'static>;
+pub(crate) type AsyncLifecycleHandler<ManagedEntity> =
+    Box<dyn Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
-pub(crate) type IdleLifecycleHandler<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
+pub(crate) type IdleLifecycleHandler<T, ManagedEntity> = dyn Fn(&ManagedActor<T, ManagedEntity>) + Send;
 pub type BrokerRef = ActorRef;
 pub type ParentRef = ActorRef;
