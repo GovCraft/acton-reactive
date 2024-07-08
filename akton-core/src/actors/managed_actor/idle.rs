@@ -336,6 +336,71 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     }
 }
 
+impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, ManagedEntity>> for ManagedActor<Running, ManagedEntity> {
+    fn from(value: ManagedActor<Idle, ManagedEntity>) -> Self {
+        let on_activate = value.on_activate;
+        let before_activate = value.before_activate;
+        let on_stop = value.on_stop;
+        let before_stop = value.before_stop;
+        let before_stop_async = value.before_stop_async;
+        let halt_signal = value.halt_signal;
+        let parent = value.parent;
+        let key = value.key;
+        let tracker = value.tracker;
+        let akton = value.akton;
+        let reactors = value.reactors;
+        // Trace the process and check if the mailbox is closed before conversion
+        tracing::trace!("Checking if mailbox is closed before conversion");
+        debug_assert!(
+            !value.inbox.is_closed(),
+            "Actor mailbox is closed before conversion in From<Actor<Idle, State>>"
+        );
+
+        let inbox = value.inbox;
+        let actor_ref = value.actor_ref;
+        let entity = value.entity;
+        let broker = value.broker;
+
+        // Trace the conversion process
+        // tracing::trace!(
+        //     "Converting Actor from Idle to Awake with key: {}",
+        //     key.self
+        // );
+        // tracing::trace!("Checking if mailbox is closed before conversion");
+        debug_assert!(
+            !inbox.is_closed(),
+            "Actor mailbox is closed in From<Actor<Idle, State>>"
+        );
+
+        // tracing::trace!("Mailbox is not closed, proceeding with conversion");
+        if actor_ref.children().is_empty() {
+            tracing::trace!(
+                    "child count before Actor creation {}",
+                    actor_ref.children().len()
+                );
+        }
+        // Create and return the new actor in the awake state
+        ManagedActor::<Running, ManagedEntity>{
+            actor_ref,
+            parent,
+            halt_signal,
+            key,
+            akton,
+            entity,
+            tracker,
+            inbox,
+            before_activate,
+            on_activate,
+            before_stop,
+            on_stop,
+            before_stop_async,
+            broker,
+            reactors,
+            _actor_state: Default::default(),
+        }
+    }
+}
+
 impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<Idle, ManagedEntity> {
     fn default() -> Self {
         let (outbox, inbox) = channel(255);
