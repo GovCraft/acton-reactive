@@ -52,7 +52,7 @@ pub(crate) type ReactorMap<ActorEntity> = DashMap<TypeId, ReactorItem<ActorEntit
 /// An enum representing different types of reactors for handling signals, messages, and futures.
 pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
-    Signal(Box<SignalHandler<ActorEntity>>),
+    SignalReactor(Box<SignalHandler<ActorEntity>>),
     /// A message reactor, which reacts to messages.
     Message(Box<MessageHandler<ActorEntity>>),
     /// A future reactor, which reacts to futures.
