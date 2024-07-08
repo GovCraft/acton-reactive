@@ -41,7 +41,7 @@ use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level};
 
 use crate::common::*;
-use crate::traits::akton_message::AktonMessage;
+use crate::traits::acton_message::AktonMessage;
 
 /// Trait for actor context, defining common methods for actor management.
 #[async_trait]
