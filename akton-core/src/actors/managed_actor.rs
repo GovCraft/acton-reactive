@@ -50,7 +50,6 @@ use tracing::*;
 
 use crate::common::{ActorRef, Akton, AktonInner, BrokerRef, ParentRef, ReactorItem, ReactorMap, HaltSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
-use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
 use crate::traits::Actor;
 
@@ -75,7 +74,6 @@ pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send +
     pub(crate) tracker: TaskTracker,
 
     pub inbox: Receiver<Envelope>,
-    pub(crate) pool_supervisor: DashMap<String, PoolItem>,
 }
 
 impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<Idle<ManagedEntity>, ManagedEntity> {
@@ -95,7 +93,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
             akton: Default::default(),
             halt_signal: Default::default(),
             tracker: Default::default(),
-            pool_supervisor: Default::default(),
         }
     }
 }
@@ -186,12 +183,6 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         for item in &self.actor_ref.children() {
             let child_ref = item.value();
             let _ = child_ref.suspend().await;
-        }
-        for pool in &self.pool_supervisor {
-            for pool_item_ref in &pool.pool {
-                trace!(item=pool_item_ref.arn,"Terminating pool item.");
-                let _ = pool_item_ref.suspend().await;
-            }
         }
         trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
         self.inbox.close();
