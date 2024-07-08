@@ -116,7 +116,7 @@ for ManagedActor<Awake<State>, State>
 
         let mailbox = value.mailbox;
         let context = value.context;
-        let state = value.state;
+        let state = value.managed_entity;
         let pool_supervisor = value.pool_supervisor;
         let broker = value.broker;
 
@@ -151,7 +151,7 @@ for ManagedActor<Awake<State>, State>
             halt_signal,
             key,
             akton,
-            state,
+            managed_entity: state,
             task_tracker,
             mailbox,
             pool_supervisor,
