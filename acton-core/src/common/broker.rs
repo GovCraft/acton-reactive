@@ -11,7 +11,7 @@ use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use tracing::*;
 
-use crate::actors::{ManagedActor, ActorConfig, Idle};
+use crate::actor::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Acton, SystemReady, ActorRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{Actor, ActonMessage};
