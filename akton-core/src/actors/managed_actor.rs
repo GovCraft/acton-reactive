@@ -52,7 +52,7 @@ use crate::common::{Akton, AktonInner, BrokerContext, Context, ParentContext, Re
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
-use crate::traits::ActorContext;
+use crate::traits::Actor;
 
 use super::{ActorConfig, Awake, Idle};
 
@@ -61,7 +61,7 @@ use super::{ActorConfig, Awake, Idle};
 /// # Type Parameters
 /// - `RefType`: The type used for the actor's setup reference.
 /// - `State`: The type representing the state of the actor.
-pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
+pub struct ManagedActor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
     /// The setup reference for the actor.
     pub setup: RefType,
 
@@ -97,7 +97,7 @@ pub struct Actor<RefType: Send + 'static, State: Default + Send + Debug + 'stati
 ///
 /// This implementation provides a formatted output for the `Actor` struct, primarily focusing on the `key` field.
 impl<RefType: Send + 'static, State: Default + Send + Debug + 'static> Debug
-for Actor<RefType, State>
+for ManagedActor<RefType, State>
 {
     /// Formats the `Actor` struct using the given formatter.
     ///
@@ -117,7 +117,7 @@ for Actor<RefType, State>
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
@@ -216,7 +216,7 @@ impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
+impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
     /// Creates and supervises a new actor with the given ID and state.
     ///
     /// # Parameters
@@ -228,8 +228,8 @@ impl<State: Default + Send + Debug + 'static> Actor<Idle<State>, State> {
     pub async fn create_child(
         &self,
         config: ActorConfig,
-    ) -> Actor<Idle<State>, State> {
-        let actor = Actor::new(&Some(self.akton.clone()), None, State::default()).await;
+    ) -> ManagedActor<Idle<State>, State> {
+        let actor = ManagedActor::new(&Some(self.akton.clone()), None, State::default()).await;
 
         event!(Level::TRACE, new_actor_key = &actor.key);
         actor
@@ -283,7 +283,7 @@ akton.clone()
             }
         };
         // Create and return the new actor instance
-        Actor {
+        ManagedActor {
             setup: Idle::default(),
             context,
             parent,
@@ -325,7 +325,7 @@ akton.clone()
         // }
 
         // here we transition from an Actor<Idle> to an Actor<Awake>
-        let active_actor: Actor<Awake<State>, State> = actor.into();
+        let active_actor: ManagedActor<Awake<State>, State> = actor.into();
 
         // makes actor live for static, required for the `wake` function
         let actor = Box::leak(Box::new(active_actor));
@@ -349,7 +349,7 @@ akton.clone()
 ///
 /// # Type Parameters
 /// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug + 'static> Actor<Awake<State>, State> {
+impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> {
     /// Terminates the actor by setting the halt signal.
     ///
     /// This method sets the halt signal to true, indicating that the actor should stop processing.
