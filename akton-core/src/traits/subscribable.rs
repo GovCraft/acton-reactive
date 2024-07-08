@@ -37,7 +37,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::*;
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{ActorContext, AktonMessage};
+use crate::traits::{Actor, AktonMessage};
 use crate::traits::subscriber::Subscriber;
 use dyn_clone::DynClone;
 #[async_trait]
@@ -45,11 +45,11 @@ pub trait Subscribable {
     fn subscribe<T: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
 
-        Self: ActorContext + Subscriber;
+        Self: Actor + Subscriber;
     fn unsubscribe<T: AktonMessage>(&self)
     where
 
-        Self: ActorContext + Subscriber + Send + Sync + 'static;
+        Self: Actor + Subscriber + Send + Sync + 'static;
 }
 
 #[async_trait]
@@ -59,7 +59,7 @@ where
 {
     fn subscribe<M: AktonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
     where
-        Self: ActorContext + Subscriber + 'static,
+        Self: Actor + Subscriber + 'static,
     {
         let subscriber_id = self.get_id();
         let message_type_id = TypeId::of::<M>();
@@ -89,7 +89,7 @@ where
     }
     fn unsubscribe<M: AktonMessage>(&self)
     where
-        Self: ActorContext + Subscriber,
+        Self: Actor + Subscriber,
     {
         let subscriber_id = self.get_id();
         let subscription = UnsubscribeBroker {
