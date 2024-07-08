@@ -20,7 +20,7 @@ impl AktonReady {
         let broker = self.0.broker.clone();
         let akton_ready = self.clone();
         let config = ActorConfig::new(Arn::default(), None, Some(broker)).unwrap_or_default();
-        ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
+        ManagedActor::new(&Some(akton_ready), Some(config)).await
     }
 
     pub async fn create_actor_with_config<State>(&mut self, config: ActorConfig) -> ManagedActor<Idle, State>
@@ -28,7 +28,7 @@ impl AktonReady {
         State: Default + Send + Debug + 'static,
     {
         let akton_ready = self.clone();
-        ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
+        ManagedActor::new(&Some(akton_ready), Some(config)).await
     }
 
     pub fn get_broker(&self) -> BrokerRef {
@@ -44,7 +44,7 @@ impl AktonReady {
         State: Default + Send + Debug + 'static,
     {
         let akton_ready = self.clone();
-        let actor = ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await;
+        let actor = ManagedActor::new(&Some(akton_ready), Some(config)).await;
         Ok(setup_fn(actor).await)
     }
 
@@ -58,7 +58,7 @@ impl AktonReady {
         let broker = self.get_broker();
         let config = ActorConfig::new(Arn::default(), None, Some(broker.clone()))?;
         let akton_ready = self.clone();
-        let actor = ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await;
+        let actor = ManagedActor::new(&Some(akton_ready), Some(config)).await;
         Ok(setup_fn(actor).await)
     }
 
