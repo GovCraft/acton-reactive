@@ -33,7 +33,7 @@
 
 use std::fmt::Debug;
 
-use crate::common::Context;
+use crate::common::ActorRef;
 
 /// Trait defining the strategy for load balancing.
 pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
@@ -44,5 +44,5 @@ pub(crate) trait LoadBalancerStrategy: Send + Sync + Debug {
     ///
     /// # Returns
     /// An `Option<usize>` representing the index of the selected context in the list, or `None` if no selection is made.
-    fn select_context(&mut self, items: &[Context]) -> Option<usize>;
+    fn select_context(&mut self, items: &[ActorRef]) -> Option<usize>;
 }
