@@ -33,7 +33,7 @@
 
 use std::collections::HashMap;
 use std::fmt::Debug;
-use acton_arn::Arn;
+use akton_arn::Arn;
 
 use dashmap::DashMap;
 use tracing::{info, instrument, trace};
