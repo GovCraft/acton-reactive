@@ -102,6 +102,6 @@ impl PooledActor for AudienceMember {
         // Context: None
         trace!("Activating the AudienceMember actor.");
         actor
-            .activate(None).await
+            .activate().await
     }
 }
