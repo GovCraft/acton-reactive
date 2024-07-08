@@ -202,23 +202,22 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         }
         (self.setup.on_stop)(self);
     }
-    #[instrument(skip(self))]
-    async fn terminate(&mut self) {
-        tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
-        for item in &self.actor_ref.children {
-            let context = item.value();
-            let _ = context.suspend().await;
-        }
-        for pool in &self.pool_supervisor {
-            for item_context in &pool.pool {
-                trace!(item=item_context.key,"Terminating pool item.");
-                let _ = item_context.suspend().await;
-            }
-        }
-        trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
-        self.inbox.close();
-    }
-}
+#[instrument(skip(self))]
+async fn terminate(&mut self) {
+    tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
+    self.actor_ref.children.iter().for_each(|item| {
+        let child_ref = item.value();
+        let _ = child_ref.suspend();
+    });
+    self.pool_supervisor.iter().for_each(|pool| {
+        pool.pool.iter().for_each(|pool_item_ref| {
+            trace!(item=pool_item_ref.key, "Terminating pool item.");
+            let _ = pool_item_ref.suspend();
+        });
+    });
+    trace!(actor=self.key, "All subordinates terminated. Closing mailbox for");
+    self.inbox.close();
+}}
 
 /// Represents an actor in the idle state.
 ///
@@ -242,15 +241,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
         event!(Level::TRACE, new_actor_key = &actor.key);
         actor
     }
-    /// Creates a new actor with the given ID, state, and optional parent context.
-    ///
-    /// # Parameters
-    /// - `id`: The identifier for the new actor.
-    /// - `state`: The initial state of the actor.
-    /// - `parent_context`: An optional parent context for the new actor.
-    ///
-    /// # Returns
-    /// A new `Actor` instance.
+
     #[instrument(skip(entity))]
     pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, entity: ManagedEntity) -> Self {
         let mut managed_actor: ManagedActor<Idle<ManagedEntity>, ManagedEntity> = ManagedActor::default();
