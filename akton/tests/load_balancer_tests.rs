@@ -40,7 +40,7 @@ use akton::prelude::*;
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut akton: SystemReady = Superpos::launch().into();
+let mut akton: SystemReady = Acton::launch().into();
     let pool_name = "pool";
 
     // Create the main actor
@@ -86,7 +86,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
 
-    let mut akton: SystemReady = Superpos::launch().into();
+    let mut akton: SystemReady = Acton::launch().into();
     // Create the main actor
     let mut main_actor = akton.act_on::<PoolItem>();
     main_actor
