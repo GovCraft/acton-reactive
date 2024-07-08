@@ -212,7 +212,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_before_wake(
+    pub fn before_wake(
         &mut self,
         life_cycle_event_reactor: impl Fn(&ManagedActor<Idle<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
