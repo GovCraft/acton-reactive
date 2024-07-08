@@ -154,7 +154,6 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
                 envelope = Envelope::new(
                     broker_request_envelope.message.clone(),
                     incoming_envelope.return_address.clone(),
-                    incoming_envelope.pool_id.clone(),
                 );
                 type_id = broker_request_envelope.message.as_any().type_id().clone();
             } else {
@@ -162,16 +161,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
                 type_id = envelope.message.as_any().type_id().clone();
             }
 
-            if let Some(ref pool_id) = &envelope.pool_id {
-                if let Some(mut pool_def) = self.pool_supervisor.get_mut(pool_id) {
-                    let pool_clone = pool_def.pool.clone();
-                    if let Some(index) = pool_def.strategy.select_context(&pool_clone) {
-                        let context = &pool_def.pool[index];
-                        trace!(pool_item=context.key,index = index, "Emitting to pool item");
-                        context.emit(envelope.message, None).await;
-                    }
-                }
-            } else if let Some(reactor) = reactors.get(&type_id) {
+            if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
                     ReactorItem::MessageReactor(reactor) => (*reactor)(self, &mut envelope),
                     ReactorItem::FutureReactor(fut) => fut(self, &mut envelope).await,
