@@ -13,7 +13,7 @@ use crate::common::akton_inner::AktonInner;
 pub struct SystemReady(pub(crate) AktonInner);
 
 impl SystemReady {
-    pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle, State>
+    pub async fn act_on<State>(&mut self) -> ManagedActor<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
