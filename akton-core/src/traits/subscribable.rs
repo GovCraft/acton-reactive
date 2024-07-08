@@ -61,21 +61,21 @@ where
     where
         Self: Actor + Subscriber + 'static,
     {
-        let subscriber_id = self.get_id();
+        let subscriber_id = self.id();
         let message_type_id = TypeId::of::<M>();
         let message_type_name = std::any::type_name::<M>().to_string();
         let subscription = SubscribeBroker {
             subscriber_id,
             message_type_id,
             message_type_name: message_type_name.clone(),
-            subscriber_context: self.clone_context(),
+            subscriber_context: self.clone_ref(),
         };
         let broker = self.get_broker();
-        let key = self.get_id().clone();
+        let key = self.id().clone();
 
         async move {
             if let Some(emit_broker) = broker {
-                let broker_key = emit_broker.get_id();
+                let broker_key = emit_broker.id();
                 debug!(
                           type_id=?message_type_id,
                           subscribing_actor = key,
@@ -83,7 +83,7 @@ where
                           message_type_name,
                           broker_key
                       );
-                emit_broker.emit_async(subscription, None).await;
+                emit_broker.emit(subscription, None).await;
             }
         }
     }
@@ -91,22 +91,22 @@ where
     where
         Self: Actor + Subscriber,
     {
-        let subscriber_id = self.get_id();
+        let subscriber_id = self.id();
         let subscription = UnsubscribeBroker {
             subscriber_id,
             message_type_id: TypeId::of::<M>(),
-            subscriber_context: self.clone_context(),
+            subscriber_context: self.clone_ref(),
         };
         let broker = self.get_broker();
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
-                broker.emit_async(subscription, None).await;
+                broker.emit(subscription, None).await;
             });
         }
         trace!(
             type_id = ?TypeId::of::<M>(),
-            repository_actor = self.get_id(),
+            repository_actor = self.id(),
             "Unsubscribed to {}",
             std::any::type_name::<M>()
         );
