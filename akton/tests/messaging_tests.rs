@@ -41,7 +41,7 @@ use akton_test::prelude::*;
 #[akton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton: AktonReady = Superpos::launch().into();
+    let mut akton: SystemReady = Superpos::launch().into();
     let mut actor = akton.create_actor::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
@@ -63,7 +63,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 #[akton_test]
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut system: AktonReady = Superpos::launch().into();
+    let mut system: SystemReady = Superpos::launch().into();
     let mut actor = system.create_actor::<PoolItem>().await;
     actor
         .act_on_async::<Ping>(|actor, event| {
