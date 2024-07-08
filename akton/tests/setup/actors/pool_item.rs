@@ -101,6 +101,6 @@ impl PoolItem {
                     parent_address,
                     actor_address,
                 );
-        parent.emit(StatusReport::Complete(final_count), None).await
+        parent.emit(StatusReport::Complete(final_count)).await
     }
 }
