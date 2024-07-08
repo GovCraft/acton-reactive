@@ -59,7 +59,7 @@ pub struct AudienceMember {
 impl PooledActor for AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn initialize(&self, config: ActorConfig) -> Context {
+    async fn initialize(&self, config: ActorConfig) -> ActorRef {
         let mut akton: AktonReady = Akton::launch().into();
 
         let broker = akton.get_broker();
