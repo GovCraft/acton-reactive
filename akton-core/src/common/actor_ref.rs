@@ -128,17 +128,17 @@ impl Actor for ActorRef {
     }
 
     /// Wakes the actor.
-    async fn wake_actor(&mut self) -> anyhow::Result<()> {
+    async fn wake(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Recreates the actor.
-    async fn recreate_actor(&mut self) -> anyhow::Result<()> {
+    async fn recreate(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Suspends the actor.
-    fn suspend_actor(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
+    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
             let tracker = self.task_tracker().clone();
 
@@ -166,27 +166,27 @@ impl Actor for ActorRef {
     }
 
     /// Resumes the actor.
-    async fn resume_actor(&mut self) -> anyhow::Result<()> {
+    async fn resume(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Supervises the actor.
-    async fn supervise_actor(&mut self) -> anyhow::Result<()> {
+    async fn supervise(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Watches the actor.
-    async fn watch_actor(&mut self) -> anyhow::Result<()> {
+    async fn watch(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Stops watching the actor.
-    async fn unwatch_actor(&mut self) -> anyhow::Result<()> {
+    async fn unwatch(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 
     /// Marks the actor as failed.
-    async fn mark_as_failed(&mut self) -> anyhow::Result<()> {
+    async fn fail(&mut self) -> anyhow::Result<()> {
         unimplemented!()
     }
 }
