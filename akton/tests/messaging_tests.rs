@@ -48,7 +48,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             let message = event.message.clone();
             let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
-            info!(type_name=type_name,type_id=?type_id, "Received");
+            info!(type_name=type_name, "Received in sync handler");
             actor.entity.receive_count += 1;
         })
         .before_stop(|actor| {
@@ -70,7 +70,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
             let message = event.message.clone();
             let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
-            info!(type_name=type_name,type_id=?type_id, "Received in async handler");
+            info!(type_name=type_name, "Received in async handler");
             actor.entity.receive_count += 1;
             Box::pin(async move {})
         })
