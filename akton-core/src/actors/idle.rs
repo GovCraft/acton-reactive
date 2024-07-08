@@ -31,6 +31,5 @@
  *
  */
 
-pub struct Idle;
 
 
