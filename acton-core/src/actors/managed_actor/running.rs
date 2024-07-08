@@ -37,8 +37,8 @@ use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{debug, instrument, trace};
 use crate::actors::ManagedActor;
-use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap, SystemSignal};
-use crate::message::BrokerRequestEnvelope;
+use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
+use crate::message::{BrokerRequestEnvelope, SystemSignal};
 use crate::traits::Actor;
 
 pub struct Running;
