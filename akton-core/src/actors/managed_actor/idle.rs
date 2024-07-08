@@ -8,7 +8,7 @@ use tracing::{error, event, info, instrument, Level, trace};
 
 use crate::actors::{ActorConfig, ManagedActor, Running};
 use crate::actors::managed_actor::downcast_message;
-use crate::common::{ActorRef, AktonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
+use crate::common::{ActorRef, ActonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
 use crate::message::EventRecord;
 use crate::prelude::{Actor, AktonMessage};
 
@@ -240,7 +240,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         trace!("NEW ACTOR: {}", &managed_actor.actor_ref.arn);
 
         managed_actor.akton = akton.clone().unwrap_or_else(|| SystemReady {
-            0: AktonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
+            0: ActonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
         });
 
         managed_actor.key = managed_actor.actor_ref.arn.clone();
