@@ -255,37 +255,22 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
     pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>, entity: ManagedEntity) -> Self {
         let mut managed_actor: ManagedActor<Idle<ManagedEntity>, ManagedEntity> = ManagedActor::default();
 
-        let mut key = Arn::default().to_string();
-        let mut parent = Default::default();
-        let mut broker = Default::default();
-
-        if let Some(config) = config {
-            key = config.name().clone();
-            parent = config.parent().clone();
-            if let Some(config_broker) = config.get_broker() {
-                broker = config_broker.clone();
-                managed_actor.actor_ref.broker = Box::new(Some(config_broker.clone()));
-            } else {
-                broker = managed_actor.actor_ref.clone();
-            }
-        } else {
-            broker = managed_actor.actor_ref.clone();
+        if let Some(config) = &config {
+            managed_actor.actor_ref.key = config.name().clone();
+            managed_actor.parent = config.parent().clone();
+            managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
         }
-        managed_actor.actor_ref.key = key.clone();
-        // Ensure the mailbox and outbox are not closed
+
         debug_assert!(!managed_actor.inbox.is_closed(), "Actor mailbox is closed in new");
 
-        trace!("NEW ACTOR: {}", &key);
-        let akton = {
-            if let Some(akton) = akton.clone() {
-                akton.clone()
-            } else {
-                AktonReady {
-                    0: AktonInner { broker: broker.clone() },
-                }
-            }
-        };
-        // Create and return the new actor instance
+        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.key);
+
+        managed_actor.akton = akton.clone().unwrap_or_else(|| AktonReady {
+            0: AktonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
+        });
+
+        managed_actor.key = managed_actor.actor_ref.key.clone();
+
         managed_actor
     }
 
