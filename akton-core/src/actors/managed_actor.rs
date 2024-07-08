@@ -56,40 +56,25 @@ use crate::traits::Actor;
 
 use super::{ActorConfig, Awake, Idle};
 
-/// Represents an actor in the Akton framework.
-///
-/// # Type Parameters
-/// - `RefType`: The type used for the actor's setup reference.
-/// - `State`: The type representing the state of the actor.
 pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send + Debug + 'static> {
-    /// The setup reference for the actor.
     pub setup: RefType,
 
-    /// The context in which the actor operates.
     pub context: ActorRef,
 
-    /// The parent actor's return envelope.
     pub parent: Option<ParentContext>,
 
-    /// The actor's optional context ref to a broker actor.
     pub broker: BrokerContext,
 
-    /// The signal used to halt the actor.
     pub halt_signal: StopSignal,
 
-    /// The unique identifier (ARN) for the actor.
     pub key: String,
     pub akton: AktonReady,
 
-    /// The state of the actor.
     pub entity: ManagedEntity,
 
-    /// The task tracker for the actor.
     pub(crate) tracker: TaskTracker,
 
-    /// The mailbox for receiving envelopes.
     pub inbox: Receiver<Envelope>,
-    /// The mailbox for receiving envelopes.
     pub(crate) pool_supervisor: DashMap<String, PoolItem>,
 }
 
