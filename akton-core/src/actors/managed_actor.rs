@@ -290,30 +290,19 @@ akton.clone()
     ///
     /// # Returns
     /// The actor's context after activation.
-    #[instrument(skip(self), fields(key = self.key))]
-    pub async fn activate(self) -> ActorRef {
-        // Store and activate all supervised children if a builder is provided
-        let mut actor = self;
-        let reactors = mem::take(&mut actor.setup.reactors);
-        let context = actor.actor_ref.clone();
+  #[instrument(skip(self), fields(key = self.key))]
+pub async fn activate(mut self) -> ActorRef {
+    let reactors = mem::take(&mut self.setup.reactors);
+    let actor_ref = self.actor_ref.clone();
 
-        // here we transition from an Actor<Idle> to an Actor<Awake>
-        let active_actor: ManagedActor<Awake<State>, State> = actor.into();
+    let active_actor: ManagedActor<Awake<State>, State> = self.into();
+    let actor = Box::leak(Box::new(active_actor));
 
-        // makes actor live for static, required for the `wake` function
-        let actor = Box::leak(Box::new(active_actor));
-        debug_assert!(
-            !actor.inbox.is_closed(),
-            "Actor mailbox is closed in spawn"
-        );
+    debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in spawn");
 
-        // TODO: we need to store this join handle
-        // Spawn the actor's wake task
-        let _ = &context.task_tracker.spawn(actor.wake(reactors));
+    let _ = actor_ref.task_tracker.spawn(actor.wake(reactors));
+    actor_ref.task_tracker.close();
 
-        context.task_tracker.close();
-
-        context.clone()
-        // })
-    }
+    actor_ref
+}
 }
