@@ -6,7 +6,7 @@ use akton_arn::Arn;
 use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Akton, Broker, BrokerContext, ActorRef};
+use crate::common::{Akton, Broker, BrokerRef, ActorRef};
 use crate::common::akton_inner::AktonInner;
 
 #[derive(Debug, Clone, Default)]
@@ -31,7 +31,7 @@ impl AktonReady {
         ManagedActor::new(&Some(akton_ready), Some(config), State::default()).await
     }
 
-    pub fn get_broker(&self) -> BrokerContext {
+    pub fn get_broker(&self) -> BrokerRef {
         self.0.broker.clone()
     }
 
