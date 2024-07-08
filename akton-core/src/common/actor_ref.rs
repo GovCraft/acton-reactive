@@ -86,7 +86,7 @@ impl ActorRef {
         &self,
         child: ManagedActor<Idle<State>, State>,
     ) -> anyhow::Result<()> {
-        let context = child.activate(None).await;
+        let context = child.activate().await;
         let id = context.key.clone();
         self.children.insert(id, context);
 
