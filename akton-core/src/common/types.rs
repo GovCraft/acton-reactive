@@ -77,7 +77,7 @@ pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<S
 pub(crate) type Fut = Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>;
 
 /// A type alias for an outbound channel, which sends envelopes.
-pub(crate) type OutboundChannel = Sender<Envelope>;
+pub(crate) type Outbox = Sender<Envelope>;
 
 /// A type alias for a stop signal, represented by an atomic boolean.
 pub(crate) type HaltSignal = AtomicBool;
