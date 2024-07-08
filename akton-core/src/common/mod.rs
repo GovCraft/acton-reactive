@@ -31,7 +31,7 @@
  *
  */
 pub use superpos::Superpos;
-pub use akton_ready::AktonReady;
+pub use system_ready::AktonReady;
 pub(crate) use akton_inner::AktonInner;
 pub use broker::Broker;
 pub use actor_ref::ActorRef;
@@ -49,5 +49,5 @@ mod types;
 mod actor_ref;
 mod broker;
 mod superpos;
-mod akton_ready;
+mod system_ready;
 mod akton_inner;
