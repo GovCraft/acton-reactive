@@ -85,12 +85,21 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
         actor_ref.outbox = Some(outbox.clone());
 
         ManagedActor {
-            inbox,
+            setup: Idle::default(),
             actor_ref,
-            ..Default::default()
+            parent: Default::default(),
+            key: Default::default(),
+            entity: ManagedEntity::default(),
+            broker: Default::default(),
+            inbox,
+            akton: Default::default(),
+            halt_signal: Default::default(),
+            tracker: Default::default(),
+            pool_supervisor: Default::default(),
         }
     }
 }
+
 
 /// Custom implementation of the `Debug` trait for the `Actor` struct.
 ///
