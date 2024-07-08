@@ -132,7 +132,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     let mut akton: SystemReady = Superpos::launch().into();
     // Create an actor for counting
-    let mut counter_actor = akton.create_actor::<Counter>();
+    let mut counter_actor = akton.act_on::<Counter>();
     counter_actor
 
         .act_on::<Tally>(|actor, _event| {
@@ -153,7 +153,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = akton.create_actor::<Messenger>();
+    let mut messenger_actor = akton.act_on::<Messenger>();
     messenger_actor
 
         .on_before_wake(|_actor| {
@@ -255,7 +255,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     initialize_tracing();
 let mut akton: SystemReady = Superpos::launch().into();
     // Create the parent actor
-    let mut parent_actor = akton.create_actor::<PoolItem>();
+    let mut parent_actor = akton.act_on::<PoolItem>();
     parent_actor.on_before_wake(|actor| {
         assert_eq!(actor.context.children().len(), 1);
     });
@@ -361,7 +361,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
         None,
     )?;
 
-    let mut comedy_show = akton.create_actor::<Comedian>();
+    let mut comedy_show = akton.act_on::<Comedian>();
     comedy_show
 
         .act_on::<FunnyJokeFor>(|actor, event_record| {
