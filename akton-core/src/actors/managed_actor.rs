@@ -82,13 +82,13 @@ pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send +
     pub akton: AktonReady,
 
     /// The state of the actor.
-    pub managed_entity: ManagedEntity,
+    pub entity: ManagedEntity,
 
     /// The task tracker for the actor.
-    pub(crate) task_tracker: TaskTracker,
+    pub(crate) tracker: TaskTracker,
 
     /// The mailbox for receiving envelopes.
-    pub mailbox: Receiver<Envelope>,
+    pub inbox: Receiver<Envelope>,
     /// The mailbox for receiving envelopes.
     pub(crate) pool_supervisor: DashMap<String, PoolItem>,
 }
@@ -149,7 +149,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<State>) {
         (self.setup.on_wake)(self);
 
-        while let Some(mut incoming_envelope) = self.mailbox.recv().await {
+        while let Some(mut incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
 
@@ -208,7 +208,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
             }
         }
         trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
-        self.mailbox.close();
+        self.inbox.close();
     }
 }
 
@@ -289,10 +289,10 @@ akton.clone()
             parent,
             halt_signal: Default::default(),
             key,
-            managed_entity: state,
+            entity: state,
             broker,
-            task_tracker,
-            mailbox,
+            tracker: task_tracker,
+            inbox: mailbox,
             akton,
             pool_supervisor: Default::default(),
         }
@@ -330,7 +330,7 @@ akton.clone()
         // makes actor live for static, required for the `wake` function
         let actor = Box::leak(Box::new(active_actor));
         debug_assert!(
-            !actor.mailbox.is_closed(),
+            !actor.inbox.is_closed(),
             "Actor mailbox is closed in spawn"
         );
 
