@@ -57,7 +57,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
         });
     let context = actor.activate(None).await;
     context.emit(Ping, None).await;
-    context.suspend_actor().await?;
+    context.suspend().await?;
     Ok(())
 }
 
@@ -81,6 +81,6 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
         });
     let context = actor.activate(None).await;
     context.emit(Ping, None).await;
-    context.suspend_actor().await?;
+    context.suspend().await?;
     Ok(())
 }
