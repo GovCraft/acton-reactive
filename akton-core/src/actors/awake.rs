@@ -104,19 +104,19 @@ for ManagedActor<Awake<State>, State>
         let halt_signal = value.halt_signal;
         let parent_return_envelope = value.parent;
         let key = value.key;
-        let task_tracker = value.task_tracker;
+        let task_tracker = value.tracker;
         let akton = value.akton;
 
         // Trace the process and check if the mailbox is closed before conversion
         tracing::trace!("Checking if mailbox is closed before conversion");
         debug_assert!(
-            !value.mailbox.is_closed(),
+            !value.inbox.is_closed(),
             "Actor mailbox is closed before conversion in From<Actor<Idle<State>, State>>"
         );
 
-        let mailbox = value.mailbox;
+        let mailbox = value.inbox;
         let context = value.context;
-        let state = value.managed_entity;
+        let state = value.entity;
         let pool_supervisor = value.pool_supervisor;
         let broker = value.broker;
 
@@ -151,9 +151,9 @@ for ManagedActor<Awake<State>, State>
             halt_signal,
             key,
             akton,
-            managed_entity: state,
-            task_tracker,
-            mailbox,
+            entity: state,
+            tracker: task_tracker,
+            inbox: mailbox,
             pool_supervisor,
             broker,
         }
