@@ -32,10 +32,9 @@
  */
 
 pub(crate) use managed_actor::ManagedActor;
-pub(crate) use running::Running;
+pub(crate) use managed_actor::running::Running;
 pub use actor_config::ActorConfig;
 pub use managed_actor::Idle;
 mod managed_actor;
-mod running;
 mod idle;
 mod actor_config;
