@@ -41,12 +41,10 @@ use akton_test::prelude::*;
 #[akton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut akton: SystemReady = Superpos::launch().into();
-    let mut actor = akton.act_on::<PoolItem>().await;
+    let mut system: SystemReady = Acton::launch().into();
+    let mut actor = system.act_on::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
-            let message = event.message.clone();
-            let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
             info!(type_name=type_name, "Received in sync handler");
             actor.entity.receive_count += 1;
@@ -63,16 +61,14 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 #[akton_test]
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut system: SystemReady = Superpos::launch().into();
+    let mut system: SystemReady = Acton::launch().into();
     let mut actor = system.act_on::<PoolItem>().await;
     actor
         .act_on_async::<Ping>(|actor, event| {
-            let message = event.message.clone();
-            let type_id = TypeId::of::<Ping>();
             let type_name = std::any::type_name::<Ping>();
             info!(type_name=type_name, "Received in async handler");
             actor.entity.receive_count += 1;
-            Box::pin(async move {})
+            ActorRef::noop()
         })
         .before_stop(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
