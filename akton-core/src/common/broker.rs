@@ -58,7 +58,7 @@ impl Broker {
             });
 
         trace!("Activating the BrokerActor.");
-        let mut context = actor.activate(None).await;
+        let mut context = actor.activate().await;
         context.broker = Box::from(Some(context.clone()));
         context
     }
