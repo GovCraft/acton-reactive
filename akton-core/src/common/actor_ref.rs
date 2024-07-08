@@ -53,7 +53,7 @@ pub struct ActorRef {
     /// The outbound channel for sending messages.
     pub(crate) outbox: Option<OutboundChannel>,
     /// The task tracker for the actor.
-    pub(crate) task_tracker: TaskTracker,
+    tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentContext>>,
     pub broker: Box<Option<BrokerContext>>,
@@ -116,7 +116,7 @@ impl Actor for ActorRef {
 
     /// Returns the task tracker for the actor.
     fn tracker(&self) -> TaskTracker {
-        self.task_tracker.clone()
+        self.tracker.clone()
     }
 
     fn id(&self) -> String {
