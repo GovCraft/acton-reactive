@@ -253,7 +253,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let reactors = mem::take(&mut self.reactors);
         let actor_ref = self.actor_ref.clone();
 
-        let active_actor: ManagedActor<Running, ManagedEntity> = self.from_idle();
+        let active_actor: ManagedActor<Running, ManagedEntity> = self.into();
         let actor = Box::leak(Box::new(active_actor));
 
         debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
@@ -349,8 +349,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
         let tracker = value.tracker;
         let akton = value.akton;
         let reactors = value.reactors;
-        // Trace the process and check if the mailbox is closed before conversion
-        tracing::trace!("Checking if mailbox is closed before conversion");
+
         debug_assert!(
             !value.inbox.is_closed(),
             "Actor mailbox is closed before conversion in From<Actor<Idle, State>>"
@@ -360,17 +359,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
         let actor_ref = value.actor_ref;
         let entity = value.entity;
         let broker = value.broker;
-
-        // Trace the conversion process
-        // tracing::trace!(
-        //     "Converting Actor from Idle to Awake with key: {}",
-        //     key.self
-        // );
-        // tracing::trace!("Checking if mailbox is closed before conversion");
-        debug_assert!(
-            !inbox.is_closed(),
-            "Actor mailbox is closed in From<Actor<Idle, State>>"
-        );
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
         if actor_ref.children().is_empty() {
