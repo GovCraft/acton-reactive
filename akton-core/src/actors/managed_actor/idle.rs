@@ -95,12 +95,12 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let handler_box = Box::new(
             move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
-                info!(
+                trace!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
                 type_id, envelope_type_id
             );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    info!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
+                    trace!("Message successfully downcasted to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
 
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
