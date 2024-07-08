@@ -56,7 +56,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             info!("Processed {} Pings", actor.state.receive_count);
         });
     let context = actor.activate(None).await;
-    context.emit_async(Ping, None).await;
+    context.emit(Ping, None).await;
     context.suspend_actor().await?;
     Ok(())
 }
@@ -80,7 +80,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
             info!("Processed {} Pings", actor.state.receive_count);
         });
     let context = actor.activate(None).await;
-    context.emit_async(Ping, None).await;
+    context.emit(Ping, None).await;
     context.suspend_actor().await?;
     Ok(())
 }
