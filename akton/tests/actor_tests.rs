@@ -50,11 +50,11 @@ mod setup;
 //
 //
 //     let mut tangle = Akton::<BrokerOwner>::create_with_id("broker_manager");
-//     tangle.setup.act_on::<Pong>(|_,_|{
+//     tangle.act_on::<Pong>(|_,_|{
 //        trace!("PONG");
 //     });
 //     let mut counter = Akton::<Counter>::create_with_id("counter");
-//     counter.setup.act_on::<Ping>(|_,_|{
+//     counter.act_on::<Ping>(|_,_|{
 //        trace!("PING");
 //     });
 //     let counter = counter.activate(None).await?;
@@ -86,7 +86,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
     let mut comedy_show = akton.create_with_config::<Comedian>(actor_config);
 
     comedy_show
-        .setup
+
         .act_on_async::<FunnyJoke>(|actor, record| {
             actor.state.jokes_told += 1;
             let context = actor.context.clone();
@@ -134,7 +134,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Create an actor for counting
     let mut counter_actor = akton.create_actor::<Counter>();
     counter_actor
-        .setup
+
         .act_on::<Tally>(|actor, _event| {
             tracing::info!("on tally");
             actor.state.count += 1; // Increment count on tally event
@@ -155,7 +155,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Create an actor for messaging
     let mut messenger_actor = akton.create_actor::<Messenger>();
     messenger_actor
-        .setup
+
         .on_before_wake(|_actor| {
             trace!("*");
         })
@@ -201,7 +201,7 @@ let mut akton: AktonReady = Akton::launch().into();
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
-        .setup
+
         .act_on::<Ping>(|actor, event| {
             match event.message {
                 Ping => {
@@ -256,7 +256,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 let mut akton: AktonReady = Akton::launch().into();
     // Create the parent actor
     let mut parent_actor = akton.create_actor::<PoolItem>();
-    parent_actor.setup.on_before_wake(|actor| {
+    parent_actor.on_before_wake(|actor| {
         assert_eq!(actor.context.children().len(), 1);
     });
     // Activate the parent actor
@@ -307,7 +307,7 @@ let mut akton:AktonReady = Akton::launch().into();
     let mut comedy_show = akton.create_with_config::<Comedian>(actor_config);
 
     comedy_show
-        .setup
+
         .act_on_async::<FunnyJoke>(|actor, record| {
             actor.state.jokes_told += 1;
             let envelope = actor.new_envelope();
@@ -363,7 +363,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
     let mut comedy_show = akton.create_actor::<Comedian>();
     comedy_show
-        .setup
+
         .act_on::<FunnyJokeFor>(|actor, event_record| {
             // assert_eq!(actor.context.children().len(), 1);
             match &event_record.message {
@@ -388,7 +388,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     )?;
 
     let mut child = akton.create_with_config::<Counter>(actor_config);
-    child.setup.act_on::<Ping>(|actor, event| {
+    child.act_on::<Ping>(|actor, event| {
         tracing::info!("Received Ping from parent actor");
     });
     let child_id = child.key.clone();
