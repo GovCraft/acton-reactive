@@ -83,7 +83,7 @@ impl PoolBuilder {
     ///
     /// # Returns
     /// A new `Supervisor` instance.
-    #[instrument(skip(self, parent), fields(id=parent.key))]
+    #[instrument(skip(self, parent), fields(id=parent.arn))]
     pub(crate) async fn spawn(mut self, parent: &ActorRef) -> anyhow::Result<DashMap<String, PoolItem>> {
         let subordinates = DashMap::new();
 
@@ -130,7 +130,7 @@ impl PoolBuilder {
         // Event: Supervisor Initialized
         // Description: The supervisor has been initialized with the actor pools.
         // Context: Parent key and number of subordinates.
-        info!(parent_key = %parent.key, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
+        info!(parent_key = %parent.arn, subordinates_count = subordinates.len(), "Supervisor initialized with actor pools.");
 
         // Return the new supervisor instance.
         Ok(subordinates)
