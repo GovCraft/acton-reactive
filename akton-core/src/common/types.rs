@@ -54,13 +54,13 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
     /// A signal reactor, which reacts to signals.
     Signal(Box<SignalHandler<T>>),
     /// A message reactor, which reacts to messages.
-    Message(Box<MessageReactor<T>>),
+    Message(Box<MessageHandler<T>>),
     /// A future reactor, which reacts to futures.
     Future(Box<FutureHandler<T>>),
 }
 
 /// A type alias for a message reactor function.
-pub(crate) type MessageReactor<State> =
+pub(crate) type MessageHandler<State> =
     dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
 pub type SignalHandler<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
