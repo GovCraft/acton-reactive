@@ -64,7 +64,7 @@ pub fn initialize_tracing() {
             .add_directive("akton_core::actors::actor=error".parse().unwrap())
             .add_directive("akton_core::common::broker=error".parse().unwrap())
             .add_directive("akton_core::common::broker[broadcast]=error".parse().unwrap())
-            .add_directive("akton_core::actors::managed_actor=trace".parse().unwrap())
+            .add_directive("akton_core::actors::managed_actor=info".parse().unwrap())
             .add_directive("akton_core::actors::actor[wake]=error".parse().unwrap())
             .add_directive("akton_core::actors::actor[terminate_actor]=off".parse().unwrap())
             .add_directive("akton_core::actors::actor[handle_message]=trace".parse().unwrap())
