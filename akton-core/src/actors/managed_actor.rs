@@ -177,6 +177,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Awake, Manage
                 envelope = incoming_envelope;
                 type_id = envelope.message.as_any().type_id().clone();
             }
+let is_target = reactors.len() > 0;
 
             if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
