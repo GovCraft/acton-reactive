@@ -251,62 +251,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
 
         actor_ref
     }
-
-    #[instrument("from idle to awake", skip(self), fields(
-        key = self.key, children_in = self.actor_ref.children().len()
-    ))]
-    fn from_idle(self) -> ManagedActor<Running, ManagedEntity>
-    where
-        ManagedEntity: Send + 'static,
-    {
-        // Extract lifecycle reactors and other properties from the idle actor
-        let on_activate = self.on_activate;
-        let before_activate = self.before_activate;
-        let on_stop = self.on_stop;
-        let before_stop = self.before_stop;
-        let before_stop_async = self.before_stop_async;
-        let halt_signal = self.halt_signal;
-        let parent = self.parent;
-        let key = self.key;
-        let tracker = self.tracker;
-        let acton = self.acton;
-        let reactors = self.reactors;
-
-        debug_assert!(
-            !self.inbox.is_closed(),
-            "Actor mailbox is closed before conversion in From<Actor<Idle, State>>"
-        );
-
-        let inbox = self.inbox;
-        let actor_ref = self.actor_ref;
-        let entity = self.entity;
-        let broker = self.broker;
-
-        debug_assert!(
-            !inbox.is_closed(),
-            "Actor mailbox is closed in From<Actor<Idle, State>>"
-        );
-
-        // Create and return the new actor in the awake state
-        ManagedActor::<Running, ManagedEntity>{
-            actor_ref,
-            parent,
-            halt_signal,
-            key,
-            acton,
-            entity,
-            tracker,
-            inbox,
-            before_activate,
-            on_activate,
-            before_stop,
-            on_stop,
-            before_stop_async,
-            broker,
-            reactors,
-            _actor_state: Default::default(),
-        }
-    }
 }
 
 impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, ManagedEntity>> for ManagedActor<Running, ManagedEntity> {
@@ -335,7 +279,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
         if actor_ref.children().is_empty() {
-            tracing::trace!(
+            trace!(
                     "child count before Actor creation {}",
                     actor_ref.children().len()
                 );
