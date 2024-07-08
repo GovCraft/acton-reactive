@@ -6,8 +6,8 @@ use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
 use tracing::{error, event, info, instrument, Level, trace};
 
-use crate::actors::{ActorConfig, ManagedActor, Running};
-use crate::actors::managed_actor::downcast_message;
+use crate::actor::{ActorConfig, ManagedActor, Running};
+use crate::actor::managed_actor::downcast_message;
 use crate::common::{ActorRef, ActonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
 use crate::message::EventRecord;
 use crate::prelude::{Actor, ActonMessage};
