@@ -227,7 +227,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
 
         // Create a boxed handler for the signal type.
-        let handler_box: Box<SignalReactor<State>> = Box::new(
+        let handler_box: Box<SignalHandler<State>> = Box::new(
             move |actor: &mut ManagedActor<Awake<State>, State>, message: &dyn AktonMessage| -> FutureBox {
                 if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                     let fut = signal_reactor(actor, concrete_msg);
