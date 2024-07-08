@@ -61,7 +61,7 @@ pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     /// Reactor called when the actor stops.
     pub(crate) stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Asynchronous reactor called just before the actor stops.
-    pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
+    pub(crate) before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<ManagedEntity>,
 }
@@ -310,7 +310,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
     where
         F: for<'b> Fn(&'b ManagedActor<Awake<ManagedEntity>, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
     {
-        self.on_before_stop_async = Some(Box::new(f));
+        self.before_stop_async = Some(Box::new(f));
         self
     }
 
@@ -327,7 +327,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
             wake: Box::new(|_| {}),
             before_stop: Box::new(|_| {}),
             stop: Box::new(|_| {}),
-            on_before_stop_async: None,
+            before_stop_async: None,
             reactors: DashMap::new(),
         }
     }
