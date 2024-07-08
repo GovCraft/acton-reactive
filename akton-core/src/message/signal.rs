@@ -34,7 +34,7 @@ use std::{any::Any, fmt::Debug};
 
 use tokio::sync::oneshot::Sender;
 
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 /// System-wide signals used to control actor lifecycle events.
 #[derive(Debug, Clone)]
