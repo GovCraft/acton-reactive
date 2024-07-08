@@ -29,7 +29,7 @@ impl Broker {
 
         let mut actor = ManagedActor::new(&None, Some(actor_config), Broker::default()).await;
 
-        actor.setup
+        actor
             .act_on_async::<BrokerRequest>(|actor, event| {
                 let subscribers = actor.entity.subscribers.clone();
                 let message = event.message.clone();
