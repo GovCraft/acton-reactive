@@ -91,5 +91,5 @@ pub(crate) type AsyncLifecycleReactor<State> =
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleReactor<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
-pub type BrokerContext = ActorRef;
-pub type ParentContext = ActorRef;
+pub type BrokerRef = ActorRef;
+pub type ParentRef = ActorRef;
