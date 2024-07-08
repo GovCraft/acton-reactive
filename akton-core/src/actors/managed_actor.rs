@@ -298,7 +298,7 @@ pub async fn activate(mut self) -> ActorRef {
     let active_actor: ManagedActor<Awake<State>, State> = self.into();
     let actor = Box::leak(Box::new(active_actor));
 
-    debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in spawn");
+    debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
 
     let _ = actor_ref.task_tracker.spawn(actor.wake(reactors));
     actor_ref.task_tracker.close();
