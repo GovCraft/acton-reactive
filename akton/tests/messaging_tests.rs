@@ -52,7 +52,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             info!(type_name=type_name,type_id=?type_id, "Received");
             actor.entity.receive_count += 1;
         })
-        .on_before_stop(|actor| {
+        .before_stop(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
         });
     let context = actor.activate().await;
@@ -76,7 +76,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
             actor.entity.receive_count += 1;
             Box::pin(async move {})
         })
-        .on_before_stop(|actor| {
+        .before_stop(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
         });
     let context = actor.activate().await;
