@@ -39,7 +39,7 @@ use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, Outbox};
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
@@ -93,7 +93,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self), fields(sender = self.sender))]
     pub fn reply(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl ActonMessage + Sync + Send + 'static,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
         trace!("*");
@@ -121,7 +121,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self), fields(sender = self.sender))]
     async fn reply_message_async(
         &self,
-        message: Arc<dyn AktonMessage + Send + Sync>,
+        message: Arc<dyn ActonMessage + Send + Sync>,
     ) {
         if let Some(reply_to) = &self.reply_to {
             let type_id = (&*message).type_id();
@@ -158,7 +158,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self), fields(sender = self.sender))]
     pub async fn reply_async(
         &self,
-        message: impl AktonMessage + Sync + Send + 'static,
+        message: impl ActonMessage + Sync + Send + 'static,
     ) {
         self.reply_message_async(Arc::new(message)).await;
     }
@@ -174,7 +174,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self), fields(sender = self.sender))]
     pub async fn reply_async_boxed(
         &self,
-        message: Arc<dyn AktonMessage + Send + Sync>,
+        message: Arc<dyn ActonMessage + Send + Sync>,
         pool_id: Option<String>,
     ) {
         self.reply_message_async(message).await;
