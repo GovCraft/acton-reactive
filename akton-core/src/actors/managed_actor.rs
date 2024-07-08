@@ -61,7 +61,7 @@ use super::{ActorConfig, Awake, Idle};
 /// # Type Parameters
 /// - `RefType`: The type used for the actor's setup reference.
 /// - `State`: The type representing the state of the actor.
-pub struct ManagedActor<RefType: Send + 'static, State: Default + Send + Debug + 'static> {
+pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send + Debug + 'static> {
     /// The setup reference for the actor.
     pub setup: RefType,
 
@@ -82,7 +82,7 @@ pub struct ManagedActor<RefType: Send + 'static, State: Default + Send + Debug +
     pub akton: AktonReady,
 
     /// The state of the actor.
-    pub state: State,
+    pub state: ManagedEntity,
 
     /// The task tracker for the actor.
     pub(crate) task_tracker: TaskTracker,
