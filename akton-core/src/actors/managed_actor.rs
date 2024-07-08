@@ -31,6 +31,8 @@
  *
  */
 
+mod idle;
+
 use std::any::{type_name_of_val, TypeId};
 use std::fmt;
 use std::fmt::Debug;
