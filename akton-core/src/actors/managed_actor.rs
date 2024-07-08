@@ -189,7 +189,7 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Awake<State>, State> 
         }
         for pool in &self.pool_supervisor {
             for pool_item_ref in &pool.pool {
-                trace!(item=pool_item_ref.key,"Terminating pool item.");
+                trace!(item=pool_item_ref.arn,"Terminating pool item.");
                 let _ = pool_item_ref.suspend().await;
             }
         }
@@ -226,20 +226,20 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle<ManagedE
         let mut managed_actor: ManagedActor<Idle<ManagedEntity>, ManagedEntity> = ManagedActor::default();
 
         if let Some(config) = &config {
-            managed_actor.actor_ref.key = config.name().clone();
+            managed_actor.actor_ref.arn = config.name().clone();
             managed_actor.parent = config.parent().clone();
             managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
         }
 
         debug_assert!(!managed_actor.inbox.is_closed(), "Actor mailbox is closed in new");
 
-        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.key);
+        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.arn);
 
         managed_actor.akton = akton.clone().unwrap_or_else(|| AktonReady {
             0: AktonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
         });
 
-        managed_actor.key = managed_actor.actor_ref.key.clone();
+        managed_actor.key = managed_actor.actor_ref.arn.clone();
 
         managed_actor
     }
