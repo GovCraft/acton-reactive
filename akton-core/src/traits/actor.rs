@@ -51,7 +51,7 @@ pub trait Actor {
     fn children(&self) -> DashMap<String, ActorRef>;
     fn find_child(&self, arn: &str) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
-    fn task_tracker(&self) -> TaskTracker;
+    fn tracker(&self) -> TaskTracker;
     fn id(&self) -> String;
     fn clone_ref(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
