@@ -34,7 +34,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use acton_arn::Arn;
+use akton_arn::Arn;
 use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
