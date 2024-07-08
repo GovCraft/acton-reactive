@@ -31,11 +31,11 @@
  *
  */
 
-pub(crate) use actor::Actor;
+pub(crate) use managed_actor::ManagedActor;
 pub(crate) use awake::Awake;
 pub(crate) use idle::Idle;
 pub use actor_config::ActorConfig;
-mod actor;
+mod managed_actor;
 mod awake;
 mod idle;
 mod actor_config;
