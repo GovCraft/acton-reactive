@@ -47,7 +47,7 @@ use crate::traits::akton_message::AktonMessage;
 #[async_trait]
 pub trait Actor {
     /// Returns the actor's return address.
-    fn get_return_address(&self) -> OutboundEnvelope;
+    fn return_address(&self) -> OutboundEnvelope;
     fn get_children(&self) -> DashMap<String, ActorRef>;
     fn find_child_by_arn(&self, arn: &str) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
@@ -72,7 +72,7 @@ pub trait Actor {
             }
         };
         async move {
-            let envelope = self.get_return_address();
+            let envelope = self.return_address();
             event!(Level::TRACE, return_address = envelope.sender);
             envelope.reply_async(message, pool_name).await;
         }
@@ -84,7 +84,7 @@ pub trait Actor {
     where
         Self: Sync,
     {
-        let envelope = self.get_return_address();
+        let envelope = self.return_address();
         event!(Level::TRACE, addressed_to = %envelope.sender);
         envelope.reply(message, pool_name)?;
         Ok(())
