@@ -183,7 +183,7 @@ impl<State: Default + Send + Debug> Idle<State> {
                                 return_address,
                             }
                         } else {
-                            let return_address = actor.context.return_address();
+                            let return_address = actor.actor_ref.return_address();
                             EventRecord {
                                 message,
                                 sent_time,
