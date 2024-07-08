@@ -139,7 +139,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         // Insert the handler into the reactors map.
         let _ = &self
             .reactors
-            .insert(type_id, ReactorItem::Message(handler_box));
+            .insert(type_id, ReactorItem::MessageReactor(handler_box));
 
         self
     }
