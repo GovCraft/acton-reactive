@@ -31,14 +31,14 @@
  *
  */
 
-pub use actor_context::ActorContext;
+pub use actor::ActorContext;
 pub use akton_message::AktonMessage;
 pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 pub use pooled_actor::PooledActor;
 pub use subscriber::Subscriber;
 pub use subscribable::Subscribable;
 
-mod actor_context;
+mod actor;
 mod akton_message;
 mod load_balancer_strategy;
 mod pooled_actor;
