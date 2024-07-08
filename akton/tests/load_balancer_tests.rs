@@ -44,7 +44,7 @@ let mut akton: SystemReady = Superpos::launch().into();
     let pool_name = "pool";
 
     // Create the main actor
-    let mut main_actor = akton.create_actor::<PoolItem>();
+    let mut main_actor = akton.act_on::<PoolItem>();
     main_actor
 
         .act_on::<StatusReport>(|actor, event| {
@@ -88,7 +88,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
 
     let mut akton: SystemReady = Superpos::launch().into();
     // Create the main actor
-    let mut main_actor = akton.create_actor::<PoolItem>();
+    let mut main_actor = akton.act_on::<PoolItem>();
     main_actor
 
         .act_on::<StatusReport>(|actor, event| {
