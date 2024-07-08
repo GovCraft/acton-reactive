@@ -44,8 +44,6 @@ use crate::traits::AktonMessage;
 pub struct Envelope {
     /// The message contained in the envelope.
     pub message: Arc<dyn AktonMessage + Send + Sync + 'static>,
-    /// The identifier of the pool, if any, to which this envelope belongs.
-    pub pool_id: Option<String>,
     /// The time when the message was sent.
     pub sent_time: SystemTime,
     /// The return address for the message response.
@@ -65,13 +63,11 @@ impl Envelope {
     pub fn new(
         message: Arc<dyn AktonMessage + Send + Sync + 'static>,
         return_address: Option<Outbox>,
-        pool_id: Option<String>,
     ) -> Self {
         Envelope {
             message,
             sent_time: SystemTime::now(),
             return_address,
-            pool_id,
         }
     }
 }
