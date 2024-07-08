@@ -48,7 +48,7 @@ use tokio::time::timeout;
 use tokio_util::task::TaskTracker;
 use tracing::*;
 
-use crate::common::{Akton, AktonInner, BrokerContext, ActorRef, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
+use crate::common::{ActorRef, Akton, AktonInner, BrokerContext, ParentContext, ReactorItem, ReactorMap, StopSignal, SystemSignal};
 use crate::message::{BrokerRequestEnvelope, Envelope, OutboundEnvelope};
 use crate::pool::{PoolBuilder, PoolItem};
 use crate::prelude::AktonReady;
@@ -260,11 +260,11 @@ impl<State: Default + Send + Debug + 'static> ManagedActor<Idle<State>, State> {
         trace!("NEW ACTOR: {}", &key);
         let akton = {
             if let Some(akton) = akton.clone() {
-akton.clone()
+                akton.clone()
             } else {
-             AktonReady{
-                 0: AktonInner { broker: broker.clone() },
-             }
+                AktonReady {
+                    0: AktonInner { broker: broker.clone() },
+                }
             }
         };
         // Create and return the new actor instance
@@ -290,19 +290,19 @@ akton.clone()
     ///
     /// # Returns
     /// The actor's context after activation.
-  #[instrument(skip(self), fields(key = self.key))]
-pub async fn activate(mut self) -> ActorRef {
-    let reactors = mem::take(&mut self.setup.reactors);
-    let actor_ref = self.actor_ref.clone();
+    #[instrument(skip(self), fields(key = self.key))]
+    pub async fn activate(mut self) -> ActorRef {
+        let reactors = mem::take(&mut self.setup.reactors);
+        let actor_ref = self.actor_ref.clone();
 
-    let active_actor: ManagedActor<Awake<State>, State> = self.into();
-    let actor = Box::leak(Box::new(active_actor));
+        let active_actor: ManagedActor<Awake<State>, State> = self.into();
+        let actor = Box::leak(Box::new(active_actor));
 
-    debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
+        debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
 
-    let _ = actor_ref.tracker().spawn(actor.wake(reactors));
-    actor_ref.tracker().close();
+        let _ = actor_ref.tracker().spawn(actor.wake(reactors));
+        actor_ref.tracker().close();
 
-    actor_ref
-}
+        actor_ref
+    }
 }
