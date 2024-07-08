@@ -63,18 +63,18 @@ pub enum ReactorItem<T: Default + Send + Debug + 'static> {
 pub(crate) type MessageReactor<State> =
     dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> Fut
+pub type SignalReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
     + Send
     + Sync
     + 'static;
 /// A type alias for a future reactor function.
-pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> Fut
+pub(crate) type FutReactor<State> = dyn for<'a, 'b> Fn(&mut ManagedActor<Awake<State>, State>, &'b mut Envelope) -> FutureBox
     + Send
     + Sync
     + 'static;
 
 /// A type alias for a boxed future.
-pub(crate) type Fut = Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>;
+pub(crate) type FutureBox = Pin<Box<dyn Future<Output = ()> + Sync + Send + 'static>>;
 
 /// A type alias for an outbound channel, which sends envelopes.
 pub(crate) type Outbox = Sender<Envelope>;
@@ -87,7 +87,7 @@ pub(crate) type LifecycleHandler<T, State> = dyn Fn(&ManagedActor<T, State>) + S
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<State> =
-    Box<dyn Fn(&ManagedActor<Awake<State>, State>) -> Fut + Send + Sync + 'static>;
+    Box<dyn Fn(&ManagedActor<Awake<State>, State>) -> FutureBox + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
 pub(crate) type IdleLifecycleHandler<T, State> = dyn Fn(&ManagedActor<T, State>) + Send;
