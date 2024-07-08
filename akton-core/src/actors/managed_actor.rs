@@ -82,7 +82,7 @@ pub struct ManagedActor<RefType: Send + 'static, ManagedEntity: Default + Send +
     pub akton: AktonReady,
 
     /// The state of the actor.
-    pub state: ManagedEntity,
+    pub managed_entity: ManagedEntity,
 
     /// The task tracker for the actor.
     pub(crate) task_tracker: TaskTracker,
@@ -289,7 +289,7 @@ akton.clone()
             parent,
             halt_signal: Default::default(),
             key,
-            state,
+            managed_entity: state,
             broker,
             task_tracker,
             mailbox,
