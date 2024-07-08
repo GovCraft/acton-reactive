@@ -31,7 +31,7 @@
  *
  */
 pub use superpos::Superpos;
-pub use system_ready::AktonReady;
+pub use system_ready::SystemReady;
 pub(crate) use akton_inner::AktonInner;
 pub use broker::Broker;
 pub use actor_ref::ActorRef;
