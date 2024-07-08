@@ -59,18 +59,10 @@ pub trait Actor {
     fn emit(
         &self,
         message: impl AktonMessage + Sync + Send,
-        pool_name: Option<&str>,
     ) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: Sync,
     {
-        let pool_name = {
-            if let Some(pool_id) = pool_name {
-                Some(String::from(pool_id))
-            } else {
-                None
-            }
-        };
         async move {
             let envelope = self.return_address();
             event!(Level::TRACE, return_address = envelope.sender);
