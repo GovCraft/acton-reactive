@@ -15,12 +15,12 @@ To get started with the Akton framework, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-akton = { path = "./akton" }
+acton = { path = "./acton" }
 ```
 ## Example Usage
 ### Creating and Managing Actors
 ```rust
-use akton::prelude::*;
+use acton::prelude::*;
 
 #[derive(Default, Debug)]
 struct MyActor;
