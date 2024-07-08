@@ -300,8 +300,8 @@ pub async fn activate(mut self) -> ActorRef {
 
     debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
 
-    let _ = actor_ref.task_tracker.spawn(actor.wake(reactors));
-    actor_ref.task_tracker.close();
+    let _ = actor_ref.tracker().spawn(actor.wake(reactors));
+    actor_ref.tracker().close();
 
     actor_ref
 }
