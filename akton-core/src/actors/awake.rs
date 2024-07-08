@@ -39,7 +39,7 @@ use tracing::{instrument, warn};
 
 use crate::actors::managed_actor::ManagedActor;
 use crate::actors::Idle;
-use crate::common::{LifecycleReactor, AsyncLifecycleHandler};
+use crate::common::{LifecycleHandler, AsyncLifecycleHandler};
 
 /// Represents the lifecycle state of an actor when it is awake.
 ///
@@ -47,13 +47,13 @@ use crate::common::{LifecycleReactor, AsyncLifecycleHandler};
 /// - `State`: The type representing the state of the actor.
 pub struct Awake<State: Default + Send + Debug + 'static> {
     /// Reactor called when the actor wakes up.
-    pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_wake: Box<LifecycleHandler<Awake<State>, State>>,
     /// Reactor called just before the actor stops.
-    pub(crate) on_before_stop: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_before_stop: Box<LifecycleHandler<Awake<State>, State>>,
     /// Asynchronous reactor called just before the actor stops.
     pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<State>>,
     /// Reactor called when the actor stops.
-    pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
+    pub(crate) on_stop: Box<LifecycleHandler<Awake<State>, State>>,
 }
 
 /// Custom implementation of the `Debug` trait for the `Awake` struct.
