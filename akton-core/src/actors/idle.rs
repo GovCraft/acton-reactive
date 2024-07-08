@@ -53,7 +53,7 @@ use crate::traits::{Actor, AktonMessage};
 /// - `State`: The type representing the state of the actor.
 pub struct Idle<State: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
-    pub(crate) on_before_wake: Box<IdleLifecycleReactor<Idle<State>, State>>,
+    pub(crate) on_before_wake: Box<IdleLifecycleHandler<Idle<State>, State>>,
     /// Reactor called when the actor wakes up.
     pub(crate) on_wake: Box<LifecycleReactor<Awake<State>, State>>,
     /// Reactor called just before the actor stops.
@@ -61,7 +61,7 @@ pub struct Idle<State: Default + Send + Debug + 'static> {
     /// Reactor called when the actor stops.
     pub(crate) on_stop: Box<LifecycleReactor<Awake<State>, State>>,
     /// Asynchronous reactor called just before the actor stops.
-    pub(crate) on_before_stop_async: Option<AsyncLifecycleReactor<State>>,
+    pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<State>>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<State>,
 }
