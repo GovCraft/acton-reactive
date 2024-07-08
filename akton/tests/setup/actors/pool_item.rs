@@ -66,7 +66,7 @@ impl PooledActor for PoolItem {
         tracing::trace!(
             "Actor initialized with key: {}, mailbox closed: {}",
             actor.key,
-            actor.mailbox.is_closed()
+            actor.inbox.is_closed()
         );
 
         // Set up the actor to handle Ping events and define behavior before stopping
@@ -74,11 +74,11 @@ impl PooledActor for PoolItem {
             .setup
             .act_on::<Ping>(|actor, _event| {
                 tracing::debug!(actor=actor.key,"Received Ping event for");
-                actor.managed_entity.receive_count += 1; // Increment receive_count on Ping event
+                actor.entity.receive_count += 1; // Increment receive_count on Ping event
             })
             .on_before_stop_async(|actor| {
                 let parent = &actor.parent.clone().unwrap();
-                let final_count = actor.managed_entity.receive_count;
+                let final_count = actor.entity.receive_count;
                 // let parent_envelope = parent.key.clone();
                 let parent_address = parent.key.clone();
                 let actor_address = actor.key.clone();
