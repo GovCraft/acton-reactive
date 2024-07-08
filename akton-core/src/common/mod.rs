@@ -30,9 +30,9 @@
  *
  *
  */
-pub use acton::Superpos;
+pub use acton::Acton;
 pub use system_ready::SystemReady;
-pub(crate) use akton_inner::AktonInner;
+pub(crate) use acton_inner::AktonInner;
 pub use broker::Broker;
 pub use actor_ref::ActorRef;
 pub(crate) use types::*;
@@ -50,4 +50,4 @@ mod actor_ref;
 mod broker;
 mod acton;
 mod system_ready;
-mod akton_inner;
+mod acton_inner;
