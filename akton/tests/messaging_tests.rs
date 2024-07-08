@@ -44,7 +44,6 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
     let mut akton: AktonReady = Akton::launch().into();
     let mut actor = akton.create_actor::<PoolItem>().await;
     actor
-
         .act_on::<Ping>(|actor, event| {
             let message = event.message.clone();
             let type_id = TypeId::of::<Ping>();
@@ -67,7 +66,6 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     let mut akton: AktonReady = Akton::launch().into();
     let mut actor = akton.create_actor::<PoolItem>().await;
     actor
-
         .act_on_async::<Ping>(|actor, event| {
             let message = event.message.clone();
             let type_id = TypeId::of::<Ping>();
