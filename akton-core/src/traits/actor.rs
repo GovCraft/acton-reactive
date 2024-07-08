@@ -41,7 +41,7 @@ use tokio_util::task::TaskTracker;
 use tracing::{event, instrument, Level};
 
 use crate::common::*;
-use crate::traits::acton_message::AktonMessage;
+use crate::traits::acton_message::ActonMessage;
 
 /// Trait for actor context, defining common methods for actor management.
 #[async_trait]
@@ -58,7 +58,7 @@ pub trait Actor {
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit(
         &self,
-        message: impl AktonMessage + Sync + Send,
+        message: impl ActonMessage + Sync + Send,
     ) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: Sync,
@@ -71,7 +71,7 @@ pub trait Actor {
     }
 
     #[instrument(skip(self), fields(context_key = %self.id()))]
-    fn send(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
+    fn send(&self, message: impl ActonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
