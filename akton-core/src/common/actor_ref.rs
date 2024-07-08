@@ -47,7 +47,7 @@ use crate::traits::{Actor, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone, Default)]
-pub struct Context {
+pub struct ActorRef {
     /// The unique identifier (ARN) for the context.
     pub key: String,
     /// The outbound channel for sending messages.
@@ -57,30 +57,30 @@ pub struct Context {
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentContext>>,
     pub broker: Box<Option<BrokerContext>>,
-    pub(crate) children: DashMap<String, Context>,
+    pub(crate) children: DashMap<String, ActorRef>,
 }
 
-impl Subscriber for Context {
+impl Subscriber for ActorRef {
     fn get_broker(&self) -> Option<BrokerContext> {
         *self.broker.clone()
     }
 }
 
-impl PartialEq for Context {
+impl PartialEq for ActorRef {
     fn eq(&self, other: &Self) -> bool {
         self.key == other.key
     }
 }
 
-impl Eq for Context {}
+impl Eq for ActorRef {}
 
-impl Hash for Context {
+impl Hash for ActorRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.key.hash(state);
     }
 }
 
-impl Context {
+impl ActorRef {
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
@@ -97,7 +97,7 @@ impl Context {
 
 
 #[async_trait]
-impl Actor for Context {
+impl Actor for ActorRef {
     /// Returns the return address for the actor.
     #[instrument(skip(self))]
     fn get_return_address(&self) -> OutboundEnvelope {
@@ -105,12 +105,12 @@ impl Actor for Context {
         OutboundEnvelope::new(outbox, self.key.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
-    fn get_children(&self) -> DashMap<String, Context> {
+    fn get_children(&self) -> DashMap<String, ActorRef> {
         // event!(Level::TRACE,child_count= self.children.len());
         self.children.clone()
     }
 
-    fn find_child_by_arn(&self, arn: &str) -> Option<Context> {
+    fn find_child_by_arn(&self, arn: &str) -> Option<ActorRef> {
         self.children.get(arn).map(|item| item.value().clone())
     }
 
@@ -123,7 +123,7 @@ impl Actor for Context {
         self.key.clone()
     }
 
-    fn clone_context(&self) -> Context {
+    fn clone_context(&self) -> ActorRef {
         self.clone()
     }
 
