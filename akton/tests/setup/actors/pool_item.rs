@@ -49,7 +49,7 @@ pub struct PoolItem {
 impl PooledActor for PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
-        let mut akton: AktonReady = Superpos::launch().into();
+        let mut akton: SystemReady = Superpos::launch().into();
 
         let broker = akton.get_broker();
 
