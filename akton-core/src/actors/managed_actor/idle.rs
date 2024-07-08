@@ -39,7 +39,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let handler: Box<MessageHandler<ManagedEntity>> = Box::new(
             move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| {
                 let envelope_type_id = envelope.message.as_any().type_id();
-                info!(
+                trace!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
                 type_id, envelope_type_id
             );
