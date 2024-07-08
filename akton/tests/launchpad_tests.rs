@@ -66,8 +66,8 @@ async fn test_launch_passing_akton() -> anyhow::Result<()> {
     broker_clone.emit(BrokerRequest::new(Ping), None).await;
     broker_clone.emit(BrokerRequest::new(Pong), None).await;
 
-    parent_actor.suspend_actor().await?;
-    broker_clone.suspend_actor().await?;
+    parent_actor.suspend().await?;
+    broker_clone.suspend().await?;
     Ok(())
 }
 
@@ -122,8 +122,8 @@ async fn test_launchpad() -> anyhow::Result<()> {
     broker.emit(BrokerRequest::new(Ping), None).await;
     broker.emit(BrokerRequest::new(Pong), None).await;
 
-    broker.suspend_actor().await?;
-    comedian_actor.suspend_actor().await?;
-    counter_actor.suspend_actor().await?;
+    broker.suspend().await?;
+    comedian_actor.suspend().await?;
+    counter_actor.suspend().await?;
     Ok(())
 }
