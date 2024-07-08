@@ -250,7 +250,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_before_stop(
+    pub fn before_stop(
         &mut self,
         life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
@@ -263,7 +263,7 @@ impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
     ///
     /// # Parameters
     /// - `f`: The asynchronous function to be called.
-    pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
+    pub fn before_stop_async<F>(&mut self, f: F) -> &mut Self
     where
         F: for<'b> Fn(&'b ManagedActor<Awake<ManagedEntity>, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
     {
