@@ -48,15 +48,15 @@ use crate::traits::akton_message::AktonMessage;
 pub trait Actor {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
-    fn get_children(&self) -> DashMap<String, ActorRef>;
-    fn find_child_by_arn(&self, arn: &str) -> Option<ActorRef>;
+    fn children(&self) -> DashMap<String, ActorRef>;
+    fn find_child(&self, arn: &str) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
-    fn get_task_tracker(&self) -> TaskTracker;
-    fn get_id(&self) -> String;
-    fn clone_context(&self) -> ActorRef;
+    fn task_tracker(&self) -> TaskTracker;
+    fn id(&self) -> String;
+    fn clone_ref(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
-    #[instrument(skip(self), fields(children = self.get_children().len()))]
-    fn emit_async(
+    #[instrument(skip(self), fields(children = self.children().len()))]
+    fn emit(
         &self,
         message: impl AktonMessage + Sync + Send,
         pool_name: Option<&str>,
@@ -78,7 +78,7 @@ pub trait Actor {
         }
     }
 
-    #[instrument(skip(self), fields(context_key = %self.get_id()))]
+    #[instrument(skip(self), fields(context_key = %self.id()))]
     fn send_message(&self, message: impl AktonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
