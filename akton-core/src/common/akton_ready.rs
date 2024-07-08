@@ -6,7 +6,7 @@ use akton_arn::Arn;
 use tokio::sync::oneshot;
 
 use crate::actors::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Akton, Broker, BrokerContext, Context};
+use crate::common::{Akton, Broker, BrokerContext, ActorRef};
 use crate::common::akton_inner::AktonInner;
 
 #[derive(Debug, Clone)]
@@ -38,8 +38,8 @@ impl AktonReady {
     pub async fn spawn_actor_with_setup<State>(
         &mut self,
         config: ActorConfig,
-        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
-    ) -> anyhow::Result<Context>
+        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+    ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
     {
@@ -50,8 +50,8 @@ impl AktonReady {
 
     pub async fn spawn_actor<State>(
         &mut self,
-        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output = Context> + Send + 'static>>,
-    ) -> anyhow::Result<Context>
+        setup_fn: impl FnOnce(ManagedActor<Idle<State>, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+    ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
     {
