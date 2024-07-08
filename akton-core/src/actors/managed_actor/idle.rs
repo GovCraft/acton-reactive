@@ -8,7 +8,7 @@ use tracing::{error, event, info, instrument, Level, trace};
 
 use crate::actors::{ActorConfig, ManagedActor, Running};
 use crate::actors::managed_actor::downcast_message;
-use crate::common::{ActorRef, AktonInner, AktonReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
+use crate::common::{ActorRef, AktonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
 use crate::message::EventRecord;
 use crate::prelude::{Actor, AktonMessage};
 
@@ -226,7 +226,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     }
 
     #[instrument]
-    pub(crate) async fn new(akton: &Option<AktonReady>, config: Option<ActorConfig>) -> Self {
+    pub(crate) async fn new(akton: &Option<SystemReady>, config: Option<ActorConfig>) -> Self {
         let mut managed_actor: ManagedActor<Idle, ManagedEntity> = ManagedActor::default();
 
         if let Some(config) = &config {
@@ -239,7 +239,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
 
         trace!("NEW ACTOR: {}", &managed_actor.actor_ref.arn);
 
-        managed_actor.akton = akton.clone().unwrap_or_else(|| AktonReady {
+        managed_actor.akton = akton.clone().unwrap_or_else(|| SystemReady {
             0: AktonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
         });
 
