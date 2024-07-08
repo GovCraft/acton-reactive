@@ -31,12 +31,12 @@
  *
  */
 
-use crate::common::Context;
+use crate::common::ActorRef;
 use crate::traits::LoadBalancerStrategy;
 
 #[derive(Debug)]
 pub(crate) struct PoolItem {
     pub(crate) id: String,
-    pub(crate) pool: Vec<Context>,
+    pub(crate) pool: Vec<ActorRef>,
     pub(crate) strategy: Box<dyn LoadBalancerStrategy>,
 }
