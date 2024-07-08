@@ -45,7 +45,7 @@ use crate::actors::{ManagedActor, ActorConfig, Awake};
 use crate::common::*;
 use crate::common::LifecycleReactor;
 use crate::message::{Envelope, EventRecord, OutboundEnvelope};
-use crate::traits::{ActorContext, AktonMessage};
+use crate::traits::{Actor, AktonMessage};
 
 /// Represents the lifecycle state of an actor when it is idle.
 ///
