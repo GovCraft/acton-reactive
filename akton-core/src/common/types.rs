@@ -43,7 +43,7 @@ use tokio::sync::mpsc::Sender;
 use crate::actors::{ManagedActor, Running};
 use crate::common::ActorRef;
 use crate::message::Envelope;
-use crate::traits::AktonMessage;
+use crate::traits::ActonMessage;
 
 /// A type alias for a map of reactors, indexed by `TypeId`.
 pub(crate) type ReactorMap<ActorEntity> = DashMap<TypeId, ReactorItem<ActorEntity>>;
@@ -63,7 +63,7 @@ pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
 pub(crate) type MessageHandler<ManagedEntity> =
     dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &'b mut Envelope) + Send + Sync + 'static;
 /// A type alias for a signal reactor function.
-pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &dyn AktonMessage) -> FutureBox
+pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &dyn ActonMessage) -> FutureBox
     + Send
     + Sync
     + 'static;
