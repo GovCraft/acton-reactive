@@ -151,7 +151,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Awake<State>, State>, &'a mut EventRecord<M>) -> Fut
+        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Awake<State>, State>, &'a mut EventRecord<M>) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -163,7 +163,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut ManagedActor<Awake<State>, State>, envelope: &mut Envelope| -> Fut {
+            move |actor: &mut ManagedActor<Awake<State>, State>, envelope: &mut Envelope| -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
@@ -219,7 +219,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, signal_reactor))]
     pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> Fut
+        signal_reactor: impl Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -228,7 +228,7 @@ impl<State: Default + Send + Debug> Idle<State> {
 
         // Create a boxed handler for the signal type.
         let handler_box: Box<SignalReactor<State>> = Box::new(
-            move |actor: &mut ManagedActor<Awake<State>, State>, message: &dyn AktonMessage| -> Fut {
+            move |actor: &mut ManagedActor<Awake<State>, State>, message: &dyn AktonMessage| -> FutureBox {
                 if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                     let fut = signal_reactor(actor, concrete_msg);
                     Box::pin(fut)
@@ -308,7 +308,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Awake<State>, State>) -> Fut + Send + Sync + 'static,
+        F: for<'b> Fn(&'b ManagedActor<Awake<State>, State>) -> FutureBox + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
