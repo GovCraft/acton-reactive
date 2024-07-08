@@ -40,7 +40,7 @@ mod setup;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_broker() -> anyhow::Result<()> {
     initialize_tracing();
-let mut akton:AktonReady = Superpos::launch().into();
+let mut akton: SystemReady = Superpos::launch().into();
     let broker = akton.get_broker();
 
     let actor_config = ActorConfig::new(
