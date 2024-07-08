@@ -9,7 +9,7 @@ use crate::actors::{ManagedActor, ActorConfig, Idle};
 use crate::common::{Akton, Broker, BrokerContext, ActorRef};
 use crate::common::akton_inner::AktonInner;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AktonReady(pub(crate) AktonInner);
 
 impl AktonReady {
