@@ -71,7 +71,7 @@ impl Broker {
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();
                 warn!(subscriber_count=subscribers.len(), type_id=?message_type_id, message=?message, "emitting message");
-                subscriber_context.emit_async(message, None).await;
+                subscriber_context.emit(message, None).await;
             }
         }
     }
