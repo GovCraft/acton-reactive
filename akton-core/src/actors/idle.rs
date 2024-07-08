@@ -50,26 +50,26 @@ use crate::traits::{Actor, AktonMessage};
 /// Represents the lifecycle state of an actor when it is idle.
 ///
 /// # Type Parameters
-/// - `State`: The type representing the state of the actor.
-pub struct Idle<State: Default + Send + Debug + 'static> {
+/// - `ManagedEntity`: The type representing the state of the actor.
+pub struct Idle<ManagedEntity: Default + Send + Debug + 'static> {
     /// Reactor called before the actor wakes up.
-    pub(crate) on_before_wake: Box<IdleLifecycleHandler<Idle<State>, State>>,
+    pub(crate) on_before_wake: Box<IdleLifecycleHandler<Idle<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor wakes up.
-    pub(crate) on_wake: Box<LifecycleHandler<Awake<State>, State>>,
+    pub(crate) on_wake: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called just before the actor stops.
-    pub(crate) on_before_stop: Box<LifecycleHandler<Awake<State>, State>>,
+    pub(crate) on_before_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Reactor called when the actor stops.
-    pub(crate) on_stop: Box<LifecycleHandler<Awake<State>, State>>,
+    pub(crate) on_stop: Box<LifecycleHandler<Awake<ManagedEntity>, ManagedEntity>>,
     /// Asynchronous reactor called just before the actor stops.
-    pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<State>>,
+    pub(crate) on_before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
     /// Map of reactors for handling different message types.
-    pub(crate) reactors: ReactorMap<State>,
+    pub(crate) reactors: ReactorMap<ManagedEntity>,
 }
 
 /// Custom implementation of the `Debug` trait for the `Idle` struct.
 ///
 /// This implementation provides a formatted output for the `Idle` struct.
-impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
+impl<ManagedEntity: Default + Send + Debug + 'static> Debug for Idle<ManagedEntity> {
     /// Formats the `Idle` struct using the given formatter.
     ///
     /// # Parameters
@@ -85,8 +85,8 @@ impl<State: Default + Send + Debug + 'static> Debug for Idle<State> {
 /// Represents an actor in the idle state and provides methods to set up its behavior.
 ///
 /// # Type Parameters
-/// - `State`: The type representing the state of the actor.
-impl<State: Default + Send + Debug> Idle<State> {
+/// - `ManagedEntity`: The type representing the state of the actor.
+impl<ManagedEntity: Default + Send + Debug> Idle<ManagedEntity> {
 
 
     /// Adds a synchronous message handler for a specific message type.
@@ -96,7 +96,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_reactor))]
     pub fn act_on<M: AktonMessage + Clone + 'static>(
         &mut self,
-        message_reactor: impl Fn(&mut ManagedActor<Awake<State>, State>, &mut EventRecord<M>)
+        message_reactor: impl Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &mut EventRecord<M>)
         + Send
         + Sync
         + 'static,
@@ -104,8 +104,8 @@ impl<State: Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
-        let handler_box: Box<MessageHandler<State>> = Box::new(
-            move |actor: &mut ManagedActor<Awake<State>, State>, envelope: &mut Envelope| {
+        let handler_box: Box<MessageHandler<ManagedEntity>> = Box::new(
+            move |actor: &mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, envelope: &mut Envelope| {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
@@ -151,7 +151,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Awake<State>, State>, &'a mut EventRecord<M>) -> FutureBox
+        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &'a mut EventRecord<M>) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -163,7 +163,7 @@ impl<State: Default + Send + Debug> Idle<State> {
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut ManagedActor<Awake<State>, State>, envelope: &mut Envelope| -> FutureBox {
+            move |actor: &mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, envelope: &mut Envelope| -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 info!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
@@ -219,7 +219,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     #[instrument(skip(self, signal_reactor))]
     pub fn act_on_internal_signal<M: AktonMessage + 'static + Clone>(
         &mut self,
-        signal_reactor: impl Fn(&mut ManagedActor<Awake<State>, State>, &dyn AktonMessage) -> FutureBox
+        signal_reactor: impl Fn(&mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, &dyn AktonMessage) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -227,8 +227,8 @@ impl<State: Default + Send + Debug> Idle<State> {
         let type_id = TypeId::of::<M>();
 
         // Create a boxed handler for the signal type.
-        let handler_box: Box<SignalHandler<State>> = Box::new(
-            move |actor: &mut ManagedActor<Awake<State>, State>, message: &dyn AktonMessage| -> FutureBox {
+        let handler_box: Box<SignalHandler<ManagedEntity>> = Box::new(
+            move |actor: &mut ManagedActor<Awake<ManagedEntity>, ManagedEntity>, message: &dyn AktonMessage| -> FutureBox {
                 if let Some(concrete_msg) = message.as_any().downcast_ref::<M>() {
                     let fut = signal_reactor(actor, concrete_msg);
                     Box::pin(fut)
@@ -257,7 +257,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_before_wake(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Idle<State>, State>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Idle<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         self.on_before_wake = Box::new(life_cycle_event_reactor);
         self
@@ -269,7 +269,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_wake(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<State>, State>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_wake = Box::new(life_cycle_event_reactor);
@@ -282,7 +282,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<State>, State>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_stop = Box::new(life_cycle_event_reactor);
@@ -295,7 +295,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `life_cycle_event_reactor`: The function to be called.
     pub fn on_before_stop(
         &mut self,
-        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<State>, State>) + Send + Sync + 'static,
+        life_cycle_event_reactor: impl Fn(&ManagedActor<Awake<ManagedEntity>, ManagedEntity>) + Send + Sync + 'static,
     ) -> &mut Self {
         // Create a boxed handler that can be stored in the HashMap.
         self.on_before_stop = Box::new(life_cycle_event_reactor);
@@ -308,7 +308,7 @@ impl<State: Default + Send + Debug> Idle<State> {
     /// - `f`: The asynchronous function to be called.
     pub fn on_before_stop_async<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Awake<State>, State>) -> FutureBox + Send + Sync + 'static,
+        F: for<'b> Fn(&'b ManagedActor<Awake<ManagedEntity>, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
     {
         self.on_before_stop_async = Some(Box::new(f));
         self
@@ -318,9 +318,9 @@ impl<State: Default + Send + Debug> Idle<State> {
     ///
     /// # Returns
     /// A new `Idle` instance with default settings.
-    pub(crate) fn new() -> Idle<State>
+    pub(crate) fn new() -> Idle<ManagedEntity>
     where
-        State: Send + 'static,
+        ManagedEntity: Send + 'static,
     {
         Idle {
             on_before_wake: Box::new(|_| {}),
@@ -336,7 +336,7 @@ impl<State: Default + Send + Debug> Idle<State> {
 /// Provides a default implementation for the `Idle` struct.
 ///
 /// This implementation creates a new `Idle` instance with default settings.
-impl<State: Default + Send + Debug + 'static> Default for Idle<State> {
+impl<ManagedEntity: Default + Send + Debug + 'static> Default for Idle<ManagedEntity> {
     /// Creates a new `Idle` instance with default settings.
     ///
     /// # Returns
