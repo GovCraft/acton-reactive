@@ -48,7 +48,7 @@ impl ActorConfig {
     pub fn new(ern: Ern<UnixTime>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
-            let parent_ern = ErnParser::new(parent.arn.to_string()).parse()?;
+            let parent_ern = ErnParser::new(parent.ern.to_string()).parse()?;
             let child_ern = parent_ern + ern;
             Ok(ActorConfig {
                 ern: child_ern,
