@@ -39,32 +39,32 @@ use crate::common::{BrokerRef, ParentRef};
 
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
-    id: String,
+    ern: Ern<UnixTime>,
     broker: Option<BrokerRef>,
     parent: Option<ParentRef>,
 }
 
 impl ActorConfig {
-    pub fn new(name: Ern<UnixTime>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
+    pub fn new(ern: Ern<UnixTime>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
-            let parent_arn = ErnParser::new(&parent.arn).parse()?;
-            let child_arn = parent_arn + name;
+            let parent_ern = ErnParser::new(&parent.arn).parse()?;
+            let child_ern = parent_ern + ern;
             Ok(ActorConfig {
-                id: child_arn.to_string(),
+                ern: child_ern,
                 broker,
                 parent: Some(parent),
             })
         } else {
             Ok(ActorConfig {
-                id: name.to_string(),
+                ern,
                 broker,
                 parent,
             })
         }
     }
-    pub(crate) fn name(&self) -> &String {
-        &self.id
+    pub(crate) fn ern(&self) -> &Ern<UnixTime> {
+        &self.ern
     }
     pub(crate) fn get_broker(&self) -> &Option<BrokerRef> {
         &self.broker
