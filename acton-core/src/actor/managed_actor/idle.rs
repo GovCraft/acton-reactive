@@ -7,12 +7,11 @@ use tokio::sync::mpsc::channel;
 use tracing::{error, event, info, instrument, Level, trace};
 
 use crate::actor::{ActorConfig, ManagedActor, Running};
-use crate::common::{ActorRef, ActonInner, SystemReady, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
+use crate::common::{ActonInner, ActorRef, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem, SystemReady};
 use crate::message::EventRecord;
-use crate::prelude::{Actor, ActonMessage};
+use crate::prelude::{ActonMessage, Actor};
 
 pub struct Idle;
-
 
 
 impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, ManagedEntity> {
@@ -280,7 +279,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
                 );
         }
         // Create and return the new actor in the awake state
-        ManagedActor::<Running, ManagedEntity>{
+        ManagedActor::<Running, ManagedEntity> {
             actor_ref,
             parent,
             halt_signal,
