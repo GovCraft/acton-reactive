@@ -1,10 +1,13 @@
 # acton_test
 
-`acton_test` is a Rust crate that provides utilities for testing asynchronous code, particularly focused on improving the experience of writing and running tests for complex asynchronous systems.
+`acton_test` is a Rust crate that provides utilities for testing asynchronous code, particularly focused on improving
+the experience of writing and running tests for complex asynchronous systems.
 
 ## Problem
 
-Testing asynchronous code in Rust can be challenging, especially when dealing with complex systems that involve multiple asynchronous operations, potential race conditions, and intricate timing issues. Traditional testing approaches often fall short in providing a seamless experience for developers working with such systems.
+Testing asynchronous code in Rust can be challenging, especially when dealing with complex systems that involve multiple
+asynchronous operations, potential race conditions, and intricate timing issues. Traditional testing approaches often
+fall short in providing a seamless experience for developers working with such systems.
 
 Common issues include:
 
@@ -15,7 +18,8 @@ Common issues include:
 
 ## Solution
 
-`acton_test` addresses these issues by providing a simple, yet powerful procedural macro `#[acton_test]` that can be applied to async test functions. This macro:
+`acton_test` addresses these issues by providing a simple, yet powerful procedural macro `#[acton_test]` that can be
+applied to async test functions. This macro:
 
 1. Automatically sets up the necessary async runtime for your tests.
 2. Implements robust panic handling, ensuring that panics in async code are properly caught and reported.
@@ -45,7 +49,8 @@ async fn my_async_test() {
 ## Features
 
 * **Simplified Async Testing**: Write async tests as if they were synchronous, without worrying about runtime setup.
-* **Improved Panic Handling**: Panics in async code are caught and reported clearly, making it easier to diagnose test failures.
+* **Improved Panic Handling**: Panics in async code are caught and reported clearly, making it easier to diagnose test
+  failures.
 * **Tracing Integration**: Seamless integration with the `tracing` crate for consistent logging in your tests.
 * **Reduced Boilerplate**: No need to manually set up async runtimes or handle panics in each test.
 
@@ -58,15 +63,18 @@ The `#[acton_test]` macro expands your async test function into a synchronous te
 3. Runs your async code within this environment.
 4. Handles any panics or errors, reporting them in a clear and consistent manner.
 
-This approach ensures that your async tests run in a controlled environment, with proper error handling and logging, without requiring you to set this up manually for each test.
+This approach ensures that your async tests run in a controlled environment, with proper error handling and logging,
+without requiring you to set this up manually for each test.
 
 ## Compatibility
 
-`acton_test` is designed to work with Rust's standard library, Tokio, and the `tracing` crate. It should be compatible with most async Rust code, regardless of the specific async framework being used.
+`acton_test` is designed to work with Rust's standard library, Tokio, and the `tracing` crate. It should be compatible
+with most async Rust code, regardless of the specific async framework being used.
 
 ## Current Usage
 
-While `acton_test` is a standalone crate that can be used for testing any asynchronous Rust code, it is currently being actively used and developed as part of the Akton Actor Framework, an open-source project being created by Govcraft.
+While `acton_test` is a standalone crate that can be used for testing any asynchronous Rust code, it is currently being
+actively used and developed as part of the Akton Actor Framework, an open-source project being created by Govcraft.
 
 ## Contributing
 
