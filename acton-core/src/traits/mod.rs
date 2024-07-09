@@ -31,11 +31,10 @@
  *
  */
 
-pub use actor::Actor;
 pub use acton_message::ActonMessage;
-
-pub use subscriber::Subscriber;
+pub use actor::Actor;
 pub use subscribable::Subscribable;
+pub use subscriber::Subscriber;
 
 mod actor;
 mod acton_message;
