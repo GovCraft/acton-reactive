@@ -24,3 +24,4 @@ static_assertions = "1.1.0"
 log = "0.4.21"
 dyn-clone = "1.0.17"
 type-safe-id = { version = "0.3.0", features = ["arbitrary", "serde"] }
+derive-new = "0.6.0"
