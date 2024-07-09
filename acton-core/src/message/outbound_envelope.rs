@@ -39,21 +39,22 @@ use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError, Outbox};
+use crate::message::return_address::ReturnAddress;
 use crate::traits::ActonMessage;
 
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
     /// The sender's ARN (Akton Resource Name).
-    pub sender: String,
+    pub sender: Arn,
     /// The optional channel for sending replies.
-    pub(crate) reply_to: Option<Outbox>,
+    pub(crate) return_address: ReturnAddress,
 }
 
 // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {
     fn eq(&self, other: &Self) -> bool {
-        self.sender == other.sender && self.reply_to.is_some() == other.reply_to.is_some()
+        self.sender == other.sender && self.return_address.is_some() == other.return_address.is_some()
     }
 }
 
@@ -64,7 +65,7 @@ impl Eq for OutboundEnvelope {}
 impl std::hash::Hash for OutboundEnvelope {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.sender.hash(state);
-        self.reply_to.is_some().hash(state);
+        self.return_address.is_some().hash(state);
     }
 }
 
@@ -78,8 +79,8 @@ impl OutboundEnvelope {
     /// # Returns
     /// A new `OutboundEnvelope` instance.
     #[instrument(skip(reply_to))]
-    pub fn new(reply_to: Option<Outbox>, sender: String) -> Self {
-        OutboundEnvelope { reply_to, sender }
+    pub fn new(return_address: ReturnAddress, sender: Arn) -> Self {
+        OutboundEnvelope { return_address, sender }
     }
 
     /// Sends a reply message synchronously.
@@ -123,13 +124,13 @@ impl OutboundEnvelope {
         &self,
         message: Arc<dyn ActonMessage + Send + Sync>,
     ) {
-        if let Some(reply_to) = &self.reply_to {
+        if let Some(reply_to) = &self.return_address {
             let type_id = (&*message).type_id();
             if !reply_to.is_closed() {
                 // Reserve capacity
                 match reply_to.reserve().await {
                     Ok(permit) => {
-                        let envelope = Envelope::new(message, self.reply_to.clone());
+                        let envelope = Envelope::new(message, self.return_address.clone());
                         permit.send(envelope);
                         trace!("Reply to {} from OutboundEnvelope", &self.sender)
                     }
