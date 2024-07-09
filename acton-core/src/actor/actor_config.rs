@@ -36,6 +36,7 @@ use std::fmt::Display;
 use acton_ern::{Ern, ErnParser, UnixTime};
 
 use crate::common::{BrokerRef, ParentRef};
+use crate::traits::Actor;
 
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
@@ -48,7 +49,7 @@ impl ActorConfig {
     pub fn new(ern: Ern<UnixTime>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
-            let parent_ern = ErnParser::new(parent.ern.to_string()).parse()?;
+            let parent_ern = ErnParser::new(parent.ern().to_string()).parse()?;
             let child_ern = parent_ern + ern;
             Ok(ActorConfig {
                 ern: child_ern,
@@ -63,8 +64,8 @@ impl ActorConfig {
             })
         }
     }
-    pub(crate) fn ern(&self) -> &Ern<UnixTime> {
-        &self.ern
+    pub(crate) fn ern(&self) -> Ern<UnixTime> {
+        self.ern.clone()
     }
     pub(crate) fn get_broker(&self) -> &Option<BrokerRef> {
         &self.broker
