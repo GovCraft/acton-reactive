@@ -46,7 +46,7 @@ pub struct PoolItem {
 }
 
 #[async_trait]
-impl PooledActor for PoolItem {
+impl PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
         let mut acton: SystemReady = Acton::launch().into();
