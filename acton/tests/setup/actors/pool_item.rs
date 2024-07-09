@@ -64,14 +64,14 @@ impl PoolItem {
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
             "Actor initialized with key: {}, mailbox closed: {}",
-            actor.key,
+            actor.ern,
             actor.inbox.is_closed()
         );
 
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor=actor.key,"Received Ping event for");
+                tracing::debug!(actor=actor.ern,"Received Ping event for");
                 actor.entity.receive_count += 1; // Increment receive_count on Ping event
             })
             .before_stop_async(|actor| {
@@ -79,7 +79,7 @@ impl PoolItem {
                 let final_count = actor.entity.receive_count;
                 // let parent_envelope = parent.key.clone();
                 let parent_address = parent.arn.clone();
-                let actor_address = actor.key.clone();
+                let actor_address = actor.ern.clone();
 
 
                 let parent = parent.clone();
