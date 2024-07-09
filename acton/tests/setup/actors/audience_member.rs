@@ -73,10 +73,6 @@ impl AudienceMember {
         // let mut actor =
         //     Akton::<AudienceMember>::create_with_config(config.clone());
 
-        // Event: Setting up Joke Handler
-        // Description: Setting up an actor to handle the `Joke` event.
-        // Context: None
-        trace!(id=actor.ern, "Setting up actor to handle the `Joke` event.");
         actor.act_on_async::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;
