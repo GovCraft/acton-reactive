@@ -49,7 +49,7 @@ use crate::traits::{Actor, Subscriber};
 #[derive(Debug, Clone)]
 pub struct ActorRef {
     /// The unique identifier (ARN) for the context.
-    pub arn: Ern<UnixTime>,
+    ern: Ern<UnixTime>,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Outbox,
     /// The task tracker for the actor.
@@ -64,7 +64,7 @@ impl Default for ActorRef {
     fn default() -> Self {
         let (outbox, _) = mpsc::channel(1);
         ActorRef {
-            arn: Ern::default(),
+            ern: Ern::default(),
             outbox,
             tracker: TaskTracker::new(),
             parent: None,
@@ -82,7 +82,7 @@ impl Subscriber for ActorRef {
 
 impl PartialEq for ActorRef {
     fn eq(&self, other: &Self) -> bool {
-        self.arn == other.arn
+        self.ern == other.ern
     }
 }
 
@@ -90,7 +90,7 @@ impl Eq for ActorRef {}
 
 impl Hash for ActorRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.arn.hash(state);
+        self.ern.hash(state);
     }
 }
 
@@ -101,7 +101,7 @@ impl ActorRef {
         child: ManagedActor<Idle, State>,
     ) -> anyhow::Result<()> {
         let context = child.activate().await;
-        let id = context.arn.clone();
+        let id = context.ern.clone();
         self.children.insert(id, context);
 
         Ok(())
@@ -116,7 +116,7 @@ impl Actor for ActorRef {
     #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        let return_address = ReturnAddress::new(outbox, self.arn.clone());
+        let return_address = ReturnAddress::new(outbox, self.ern.clone());
         OutboundEnvelope::new(return_address)
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
@@ -134,7 +134,7 @@ impl Actor for ActorRef {
     }
 
     fn ern(&self) -> Ern<UnixTime> {
-        self.arn.clone()
+        self.ern.clone()
     }
 
     fn clone_ref(&self) -> ActorRef {
@@ -162,7 +162,7 @@ impl Actor for ActorRef {
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor=self.arn.to_string(), "Sending Terminate to");
+            warn!(actor=self.ern.to_string(), "Sending Terminate to");
             actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
@@ -174,7 +174,7 @@ impl Actor for ActorRef {
             // Event: Actor Terminated
             // Description: The actor and its subordinates have been terminated.
             // Context: None
-            info!(actor=self.arn.to_string(), "The actor and its subordinates have been terminated.");
+            info!(actor=self.ern.to_string(), "The actor and its subordinates have been terminated.");
             Ok(())
         }
     }
