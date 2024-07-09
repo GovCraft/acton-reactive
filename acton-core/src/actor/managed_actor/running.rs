@@ -52,7 +52,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
         if let Some(envelope) = &self.actor_ref.outbox {
             Option::from(OutboundEnvelope::new(
                 Some(envelope.clone()),
-                self.key.clone(),
+                self.ern.clone(),
             ))
         } else {
             None
@@ -99,7 +99,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
                     _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
             } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                trace!(actor=self.key, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
+                trace!(actor=self.ern, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
                 self.terminate().await;
             }
         }
@@ -113,12 +113,12 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     }
     #[instrument(skip(self))]
     async fn terminate(&mut self) {
-        tracing::trace!(actor=self.key, "Received SystemSignal::Terminate for");
+        tracing::trace!(actor=self.ern, "Received SystemSignal::Terminate for");
         for item in &self.actor_ref.children() {
             let child_ref = item.value();
             let _ = child_ref.suspend().await;
         }
-        trace!(actor=self.key,"All subordinates terminated. Closing mailbox for");
+        trace!(actor=self.ern,"All subordinates terminated. Closing mailbox for");
         self.inbox.close();
     }
 }
