@@ -47,5 +47,7 @@ mod unsubscribe_broker;
 mod broker_request;
 mod broker_request_envelope;
 mod signal;
+mod return_address;
+
 pub use signal::SystemSignal;
 pub use broker_request_envelope::BrokerRequestEnvelope;
