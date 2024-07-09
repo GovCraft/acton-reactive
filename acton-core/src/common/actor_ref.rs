@@ -133,7 +133,7 @@ impl Actor for ActorRef {
         self.tracker.clone()
     }
 
-    fn id(&self) -> Ern<UnixTime> {
+    fn ern(&self) -> Ern<UnixTime> {
         self.arn.clone()
     }
 
