@@ -35,6 +35,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::future::Future;
+use acton_ern::{Ern, UnixTime};
 
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
@@ -61,7 +62,7 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
 
     pub halt_signal: HaltSignal,
 
-    pub key: String,
+    pub ern: Ern<UnixTime>,
     pub acton: SystemReady,
 
     pub entity: ManagedEntity,
@@ -89,7 +90,7 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
 impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug for ManagedActor<ActorState, ManagedEntity> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("ManagedActor")
-            .field("key", &self.key)
+            .field("key", &self.ern)
             .finish()
     }
 }
