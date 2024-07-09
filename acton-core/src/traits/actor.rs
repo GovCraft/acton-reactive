@@ -34,6 +34,7 @@
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use acton_ern::{Ern, UnixTime};
 
 use async_trait::async_trait;
 use dashmap::DashMap;
@@ -48,11 +49,11 @@ use crate::traits::acton_message::ActonMessage;
 pub trait Actor {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
-    fn children(&self) -> DashMap<String, ActorRef>;
-    fn find_child(&self, arn: &str) -> Option<ActorRef>;
+    fn children(&self) -> DashMap<Ern<UnixTime>, ActorRef>;
+    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
-    fn id(&self) -> String;
+    fn id(&self) -> Ern<UnixTime>;
     fn clone_ref(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.children().len()))]
