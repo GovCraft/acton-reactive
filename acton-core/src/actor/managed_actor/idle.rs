@@ -37,10 +37,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
-                    let return_address = OutboundEnvelope::new(
-                        envelope.return_address.clone(),
-                        actor.ern.clone(),
-                    );
+                    let return_address = OutboundEnvelope::new(envelope.return_address.clone());
                     let event_record = &mut EventRecord {
                         message,
                         sent_time,
