@@ -76,7 +76,7 @@ impl AudienceMember {
         // Event: Setting up Joke Handler
         // Description: Setting up an actor to handle the `Joke` event.
         // Context: None
-        trace!(id=actor.key, "Setting up actor to handle the `Joke` event.");
+        trace!(id=actor.ern, "Setting up actor to handle the `Joke` event.");
         actor.act_on_async::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;
