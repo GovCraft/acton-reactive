@@ -52,10 +52,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         let envelope = &self.actor_ref.outbox;
-        Option::from(OutboundEnvelope::new(
-            ReturnAddress::new(self.actor_ref.outbox.clone(), self.ern.clone()),
-            self.ern.clone(),
-        ))
+        Option::from(OutboundEnvelope::new(ReturnAddress::new(self.actor_ref.outbox.clone(), self.ern.clone())))
     }
 
     /// Creates a new parent envelope for the actor.
