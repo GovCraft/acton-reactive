@@ -53,7 +53,7 @@ impl PoolItem {
         let broker = acton.get_broker();
 
         let actor_config = ActorConfig::new(
-            Arn::with_root("improve_show").expect("Couldn't create pool item Arn"),
+            Ern::with_root("improve_show").expect("Couldn't create pool item Ern"),
             None,
             Some(broker.clone()),
         );
