@@ -51,3 +51,4 @@ mod return_address;
 
 pub use signal::SystemSignal;
 pub use broker_request_envelope::BrokerRequestEnvelope;
+pub use return_address::ReturnAddress;
