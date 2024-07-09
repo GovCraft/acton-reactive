@@ -39,7 +39,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                     let sent_time = envelope.sent_time;
                     let return_address = OutboundEnvelope::new(
                         envelope.return_address.clone(),
-                        actor.key.clone(),
+                        actor.ern.clone(),
                     );
                     let event_record = &mut EventRecord {
                         message,
@@ -209,7 +209,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     pub async fn create_child(&self) -> ManagedActor<Idle, ManagedEntity> {
         let actor = ManagedActor::new(&Some(self.acton.clone()), None).await;
 
-        event!(Level::TRACE, new_actor_key = &actor.key);
+        event!(Level::TRACE, new_actor_key = &actor.ern);
         actor
     }
 
@@ -218,7 +218,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let mut managed_actor: ManagedActor<Idle, ManagedEntity> = ManagedActor::default();
 
         if let Some(config) = &config {
-            managed_actor.actor_ref.arn = config.name().clone();
+            managed_actor.actor_ref.arn = config.ern().clone();
             managed_actor.parent = config.parent().clone();
             managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
         }
@@ -231,7 +231,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
             0: ActonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
         });
 
-        managed_actor.key = managed_actor.actor_ref.arn.clone();
+        managed_actor.ern = managed_actor.actor_ref.arn.clone();
 
         managed_actor
     }
@@ -262,7 +262,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
         let before_stop_async = value.before_stop_async;
         let halt_signal = value.halt_signal;
         let parent = value.parent;
-        let key = value.key;
+        let key = value.ern;
         let tracker = value.tracker;
         let acton = value.acton;
         let reactors = value.reactors;
@@ -289,7 +289,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
             actor_ref,
             parent,
             halt_signal,
-            key,
+            ern: key,
             acton,
             entity,
             tracker,
@@ -315,7 +315,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
         ManagedActor::<Idle, ManagedEntity> {
             actor_ref,
             parent: Default::default(),
-            key: Default::default(),
+            ern: Default::default(),
             entity: ManagedEntity::default(),
             broker: Default::default(),
             inbox,
