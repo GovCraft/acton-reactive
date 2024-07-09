@@ -53,6 +53,7 @@ pub trait Actor {
     fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
+    fn set_ern(&mut self, ern: Ern<UnixTime>);
     fn ern(&self) -> Ern<UnixTime>;
     fn clone_ref(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
