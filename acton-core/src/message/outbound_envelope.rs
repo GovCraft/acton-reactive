@@ -32,6 +32,7 @@
  */
 
 use std::any::Any;
+use std::cmp::PartialEq;
 use std::sync::Arc;
 
 use acton_ern::{Ern, UnixTime};
@@ -51,10 +52,14 @@ pub struct OutboundEnvelope {
     pub(crate) return_address: ReturnAddress,
 }
 
-// Manually implement PartialEq for OutboundEnvelope
+impl PartialEq for ReturnAddress {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
+} // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {
     fn eq(&self, other: &Self) -> bool {
-        self.sender == other.sender && self.return_address.is_some() == other.return_address.is_some()
+        self.sender == other.sender && self.return_address == other.return_address
     }
 }
 
@@ -65,7 +70,7 @@ impl Eq for OutboundEnvelope {}
 impl std::hash::Hash for OutboundEnvelope {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.sender.hash(state);
-        self.return_address.is_some().hash(state);
+        self.return_address.sender.hash(state);
     }
 }
 
@@ -91,7 +96,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender))]
+    #[instrument(skip(self))]
     pub fn reply(
         &self,
         message: impl ActonMessage + Sync + Send + 'static,
