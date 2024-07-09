@@ -55,7 +55,6 @@ pub struct AudienceMember {
     pub bombers: usize,
 }
 
-#[async_trait]
 impl AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
