@@ -208,8 +208,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     #[instrument(skip(self))]
     pub async fn create_child(&self) -> ManagedActor<Idle, ManagedEntity> {
         let actor = ManagedActor::new(&Some(self.acton.clone()), None).await;
-
-        event!(Level::TRACE, new_actor_key = &actor.ern);
         actor
     }
 
@@ -236,7 +234,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         managed_actor
     }
 
-    #[instrument(skip(self), fields(key = self.key))]
+    #[instrument(skip(self))]
     pub async fn activate(mut self) -> ActorRef {
         let reactors = mem::take(&mut self.reactors);
         let actor_ref = self.actor_ref.clone();
@@ -310,7 +308,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
     fn default() -> Self {
         let (outbox, inbox) = channel(255);
         let mut actor_ref: ActorRef = Default::default();
-        actor_ref.outbox = Some(outbox.clone());
+        actor_ref.outbox = outbox.clone();
 
         ManagedActor::<Idle, ManagedEntity> {
             actor_ref,
