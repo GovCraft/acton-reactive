@@ -117,7 +117,7 @@ impl Actor for ActorRef {
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
         let return_address = ReturnAddress::new(outbox, self.arn.clone());
-        OutboundEnvelope::new(return_address, self.arn.clone())
+        OutboundEnvelope::new(return_address)
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
     fn children(&self) -> DashMap<Ern<UnixTime>, ActorRef> {
