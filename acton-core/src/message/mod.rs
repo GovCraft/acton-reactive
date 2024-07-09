@@ -31,13 +31,17 @@
  *
  */
 
+pub use broker_request::BrokerRequest;
+pub use broker_request_envelope::BrokerRequestEnvelope;
 pub(crate) use envelope::Envelope;
 pub(crate) use event_record::EventRecord;
 pub(crate) use message_error::MessageError;
 pub use outbound_envelope::OutboundEnvelope;
+pub use return_address::ReturnAddress;
+pub use signal::SystemSignal;
 pub(crate) use subscribe_broker::SubscribeBroker;
 pub(crate) use unsubscribe_broker::UnsubscribeBroker;
-pub use broker_request::BrokerRequest;
+
 mod envelope;
 mod event_record;
 mod message_error;
@@ -49,6 +53,3 @@ mod broker_request_envelope;
 mod signal;
 mod return_address;
 
-pub use signal::SystemSignal;
-pub use broker_request_envelope::BrokerRequestEnvelope;
-pub use return_address::ReturnAddress;
