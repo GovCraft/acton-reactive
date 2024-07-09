@@ -31,11 +31,13 @@
  *
  */
 
-mod setup;
+use tracing::{info, trace};
+
+use acton::prelude::*;
 
 use crate::setup::*;
-use acton::prelude::*;
-use tracing::{info, trace};
+
+mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_audience_pool() -> anyhow::Result<()> {
@@ -86,7 +88,7 @@ async fn test_audience_pool() -> anyhow::Result<()> {
         // Description: Emitting a joke message to the audience pool.
         // Context: Pool name.
         trace!("Emitting a joke message to the audience pool.");
-        context.emit_async(Joke,Some("audience")).await;
+        context.emit_async(Joke, Some("audience")).await;
     }
 
     // Event: Terminating Context
