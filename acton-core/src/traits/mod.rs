@@ -33,14 +33,12 @@
 
 pub use actor::Actor;
 pub use acton_message::ActonMessage;
-pub(crate) use load_balancer_strategy::LoadBalancerStrategy;
 
 pub use subscriber::Subscriber;
 pub use subscribable::Subscribable;
 
 mod actor;
 mod acton_message;
-mod load_balancer_strategy;
 mod subscribable;
 mod subscriber;
 
