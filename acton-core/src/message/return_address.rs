@@ -1,10 +1,7 @@
-use std::sync::mpsc;
-use std::sync::mpsc::{channel, Sender};
-
 use acton_ern::prelude::*;
 use derive_new::new;
 
-use crate::common::{Envelope, Outbox};
+use crate::common::Outbox;
 
 #[derive(new, Clone, Debug)]
 pub struct ReturnAddress {
