@@ -79,7 +79,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
     let mut acton: SystemReady = Acton::launch().into();
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("improve_show").unwrap(),
+        Ern::with_root("improve_show").unwrap(),
         None,
         None,
     )?;
@@ -183,7 +183,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
 let mut acton: SystemReady = Acton::launch().into();
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("test_child_actor").unwrap(),
+        Ern::with_root("test_child_actor").unwrap(),
         None,
         None,
     )?;
@@ -192,7 +192,7 @@ let mut acton: SystemReady = Acton::launch().into();
     let parent_actor = acton.create_with_config::<PoolItem>(actor_config);
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("test_child_actor_chile").unwrap(),
+        Ern::with_root("test_child_actor_chile").unwrap(),
         None,
         None,
     )?;
@@ -263,7 +263,7 @@ let mut acton: SystemReady = Acton::launch().into();
     let parent_context = parent_actor.activate(None);
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("test_find_child_actor").unwrap(),
+        Ern::with_root("test_find_child_actor").unwrap(),
         None,
         None,
     )?;
@@ -299,7 +299,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
 let mut acton: SystemReady = Acton::launch().into();
     let actor_config = ActorConfig::new(
-        Arn::with_root("test_actor_mutation").unwrap(),
+        Ern::with_root("test_actor_mutation").unwrap(),
         None,
         None,
     )?;
@@ -356,7 +356,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     initialize_tracing();
     let mut acton: SystemReady = Acton::launch().into();
     let actor_config = ActorConfig::new(
-        Arn::with_root("test_child_count_in_reactor").unwrap(),
+        Ern::with_root("test_child_count_in_reactor").unwrap(),
         None,
         None,
     )?;
@@ -382,7 +382,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
             }
         });
     let actor_config = ActorConfig::new(
-        Arn::with_root("child").unwrap(),
+        Ern::with_root("child").unwrap(),
         None,
         None,
     )?;
