@@ -31,7 +31,9 @@
  *
  */
 use acton::prelude::*;
+
 use crate::setup::*;
+
 mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
