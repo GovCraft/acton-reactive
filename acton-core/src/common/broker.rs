@@ -3,18 +3,18 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use acton_ern::{Ern, UnixTime};
 
+use acton_ern::{Ern, UnixTime};
 use dashmap::DashMap;
 use futures::future::join_all;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use tracing::*;
 
-use crate::actor::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Acton, SystemReady, ActorRef};
+use crate::actor::{ActorConfig, Idle, ManagedActor};
+use crate::common::{Acton, ActorRef, SystemReady};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{Actor, ActonMessage};
+use crate::traits::{ActonMessage, Actor};
 
 #[derive(Default, Debug)]
 pub struct Broker {
