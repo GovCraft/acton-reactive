@@ -213,20 +213,20 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let mut managed_actor: ManagedActor<Idle, ManagedEntity> = ManagedActor::default();
 
         if let Some(config) = &config {
-            managed_actor.actor_ref.arn = config.ern().clone();
+            managed_actor.actor_ref.ern = config.ern().clone();
             managed_actor.parent = config.parent().clone();
             managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
         }
 
         debug_assert!(!managed_actor.inbox.is_closed(), "Actor mailbox is closed in new");
 
-        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.arn);
+        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.ern);
 
         managed_actor.acton = acton.clone().unwrap_or_else(|| SystemReady {
             0: ActonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
         });
 
-        managed_actor.ern = managed_actor.actor_ref.arn.clone();
+        managed_actor.ern = managed_actor.actor_ref.ern.clone();
 
         managed_actor
     }
