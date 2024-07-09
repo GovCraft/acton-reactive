@@ -180,7 +180,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = Acton::launch().into();
 
     let actor_config = ActorConfig::new(
         Ern::with_root("test_child_actor").unwrap(),
@@ -253,7 +253,7 @@ let mut acton: SystemReady = Acton::launch().into();
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = Acton::launch().into();
     // Create the parent actor
     let mut parent_actor = acton.act_on::<PoolItem>();
     parent_actor.on_before_wake(|actor| {
@@ -297,7 +297,7 @@ let mut acton: SystemReady = Acton::launch().into();
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
-let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = Acton::launch().into();
     let actor_config = ActorConfig::new(
         Ern::with_root("test_actor_mutation").unwrap(),
         None,
