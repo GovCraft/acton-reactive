@@ -34,12 +34,15 @@
 use std::any::TypeId;
 use std::future::Future;
 use std::sync::Arc;
+
 use async_trait::async_trait;
-use tracing::*;
-use crate::message::{SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{Actor, ActonMessage};
-use crate::traits::subscriber::Subscriber;
 use dyn_clone::DynClone;
+use tracing::*;
+
+use crate::message::{SubscribeBroker, UnsubscribeBroker};
+use crate::traits::{ActonMessage, Actor};
+use crate::traits::subscriber::Subscriber;
+
 #[async_trait]
 pub trait Subscribable {
     fn subscribe<T: ActonMessage + Send + Sync + 'static>(&self) -> impl Future<Output=()> + Send + Sync + '_
