@@ -34,7 +34,7 @@
 use std::any::Any;
 use std::sync::Arc;
 
-use akton_arn::Arn;
+use acton_ern::{Ern, UnixTime};
 use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
@@ -46,7 +46,7 @@ use crate::traits::ActonMessage;
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
     /// The sender's ARN (Akton Resource Name).
-    pub sender: Arn,
+    pub sender: Ern<UnixTime>,
     /// The optional channel for sending replies.
     pub(crate) return_address: ReturnAddress,
 }
@@ -78,8 +78,8 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A new `OutboundEnvelope` instance.
-    #[instrument(skip(reply_to))]
-    pub fn new(return_address: ReturnAddress, sender: Arn) -> Self {
+    #[instrument(skip(return_address))]
+    pub fn new(return_address: ReturnAddress, sender: Ern<UnixTime>) -> Self {
         OutboundEnvelope { return_address, sender }
     }
 
@@ -119,32 +119,31 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender))]
+    #[instrument(skip(self))]
     async fn reply_message_async(
         &self,
         message: Arc<dyn ActonMessage + Send + Sync>,
     ) {
-        if let Some(reply_to) = &self.return_address {
-            let type_id = (&*message).type_id();
-            if !reply_to.is_closed() {
-                // Reserve capacity
-                match reply_to.reserve().await {
-                    Ok(permit) => {
-                        let envelope = Envelope::new(message, self.return_address.clone());
-                        permit.send(envelope);
-                        trace!("Reply to {} from OutboundEnvelope", &self.sender)
-                    }
-                    Err(_) => {
-                        error!(
+        let reply_to = &self.return_address;
+        let type_id = (&*message).type_id();
+        if !reply_to.address.is_closed() {
+            // Reserve capacity
+            match reply_to.address.reserve().await {
+                Ok(permit) => {
+                    let envelope = Envelope::new(message, self.return_address.clone());
+                    permit.send(envelope);
+                    trace!("Reply to {} from OutboundEnvelope", &self.sender)
+                }
+                Err(_) => {
+                    error!(
                         "Failed to reply to {} from OutboundEnvelope with message type {:?}",
                         &self.sender,
                         &type_id
                     )
-                    }
                 }
-            } else {
-                error!("reply_message_async to is closed for {} with message {:?}", self.sender, message);
             }
+        } else {
+            error!("reply_message_async to is closed for {} with message {:?}", self.sender, message);
         }
     }
 
@@ -156,7 +155,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender))]
+    #[instrument(skip(self))]
     pub async fn reply_async(
         &self,
         message: impl ActonMessage + Sync + Send + 'static,
@@ -172,7 +171,7 @@ impl OutboundEnvelope {
     ///
     /// # Returns
     /// A result indicating success or failure.
-    #[instrument(skip(self), fields(sender = self.sender))]
+    #[instrument(skip(self))]
     pub async fn reply_async_boxed(
         &self,
         message: Arc<dyn ActonMessage + Send + Sync>,
