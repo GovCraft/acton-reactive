@@ -61,7 +61,7 @@ where
     where
         Self: Actor + Subscriber + 'static,
     {
-        let subscriber_id = self.id();
+        let subscriber_id = self.ern();
         let message_type_id = TypeId::of::<M>();
         let message_type_name = std::any::type_name::<M>().to_string();
         let subscription = SubscribeBroker {
@@ -71,14 +71,14 @@ where
             subscriber_context: self.clone_ref(),
         };
         let broker = self.get_broker();
-        let key = self.id().clone();
+        let ern = self.ern().clone();
 
         async move {
             if let Some(emit_broker) = broker {
-                let broker_key = emit_broker.id();
+                let broker_key = emit_broker.ern();
                 debug!(
                           type_id=?message_type_id,
-                          subscribing_actor = key,
+                          subscriber_ern = ern.to_string(),
                           "Subscribing to type_name {} with broker {}",
                           message_type_name,
                           broker_key
@@ -91,11 +91,11 @@ where
     where
         Self: Actor + Subscriber,
     {
-        let subscriber_id = self.id();
+        let subscriber_id = self.ern();
         let subscription = UnsubscribeBroker {
-            subscriber_id,
+            ern: subscriber_id,
             message_type_id: TypeId::of::<M>(),
-            subscriber_context: self.clone_ref(),
+            subscriber_ref: self.clone_ref(),
         };
         let broker = self.get_broker();
         if let Some(broker) = broker {
@@ -106,7 +106,7 @@ where
         }
         trace!(
             type_id = ?TypeId::of::<M>(),
-            repository_actor = self.id(),
+            repository_actor = self.ern().to_string(),
             "Unsubscribed to {}",
             std::any::type_name::<M>()
         );
