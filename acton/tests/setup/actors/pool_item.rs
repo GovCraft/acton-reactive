@@ -71,7 +71,7 @@ impl PoolItem {
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor=actor.ern,"Received Ping event for");
+                tracing::debug!(actor=actor.ern.to_string(),"Received Ping event for");
                 actor.entity.receive_count += 1; // Increment receive_count on Ping event
             })
             .before_stop_async(|actor| {
