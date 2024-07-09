@@ -5,8 +5,8 @@ use std::pin::Pin;
 use acton_ern::Ern;
 use tokio::sync::oneshot;
 
-use crate::actor::{ManagedActor, ActorConfig, Idle};
-use crate::common::{Acton, Broker, BrokerRef, ActorRef};
+use crate::actor::{ActorConfig, Idle, ManagedActor};
+use crate::common::{Acton, ActorRef, Broker, BrokerRef};
 use crate::common::acton_inner::ActonInner;
 
 #[derive(Debug, Clone, Default)]
@@ -38,7 +38,7 @@ impl SystemReady {
     pub async fn spawn_actor_with_setup<State>(
         &mut self,
         config: ActorConfig,
-        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output=ActorRef> + Send + 'static>>,
     ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
@@ -50,7 +50,7 @@ impl SystemReady {
 
     pub async fn spawn_actor<State>(
         &mut self,
-        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output =ActorRef> + Send + 'static>>,
+        setup_fn: impl FnOnce(ManagedActor<Idle, State>) -> Pin<Box<dyn Future<Output=ActorRef> + Send + 'static>>,
     ) -> anyhow::Result<ActorRef>
     where
         State: Default + Send + Debug + 'static,
