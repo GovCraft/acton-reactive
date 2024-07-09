@@ -33,12 +33,12 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use acton_ern::{Ern, UnixTime};
 
+use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::{event, instrument, Level};
+use tracing::instrument;
 
 use crate::common::*;
 use crate::traits::acton_message::ActonMessage;
@@ -81,29 +81,9 @@ pub trait Actor {
         Ok(())
     }
 
-    /// Wakes the actor.
-    async fn wake(&mut self) -> anyhow::Result<()>;
-
-    /// Recreates the actor.
-    async fn recreate(&mut self) -> anyhow::Result<()>;
-
     /// Suspends the actor.
     fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
-    /// Resumes the actor.
-    async fn resume(&mut self) -> anyhow::Result<()>;
-
-    /// Supervises the actor.
-    async fn supervise(&mut self) -> anyhow::Result<()>;
-
-    /// Watches the actor.
-    async fn watch(&mut self) -> anyhow::Result<()>;
-
-    /// Stops watching the actor.
-    async fn unwatch(&mut self) -> anyhow::Result<()>;
-
-    /// Marks the actor as failed.
-    async fn fail(&mut self) -> anyhow::Result<()>;
     fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
         F: Future<Output=()> + Sized + 'static,
