@@ -30,8 +30,9 @@
  *
  *
  */
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::fmt::Debug;
+
 use dyn_clone::DynClone;
 
 /// Trait for Akton messages, providing methods for type erasure.
