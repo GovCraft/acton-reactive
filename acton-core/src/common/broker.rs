@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use acton_ern::Ern;
+use acton_ern::{Ern, UnixTime};
 
 use dashmap::DashMap;
 use futures::future::join_all;
@@ -18,7 +18,7 @@ use crate::traits::{Actor, ActonMessage};
 
 #[derive(Default, Debug)]
 pub struct Broker {
-    subscribers: Arc<DashMap<TypeId, HashSet<(String, ActorRef)>>>,
+    subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
 }
 
 impl Broker {
@@ -54,7 +54,6 @@ impl Broker {
                         .entry(message_type_id)
                         .or_insert_with(HashSet::new)
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
-                    debug!(message_type_name=message_type_name, message_type_id=?message_type_id, subscriber=subscriber_context.arn, "Subscriber added");
                 })
             });
 
@@ -65,13 +64,12 @@ impl Broker {
     }
 
     #[instrument(skip(subscribers))]
-    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(String, ActorRef)>>>, request: BrokerRequest) {
+    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>, request: BrokerRequest) {
         let message_type_id = &request.message.as_ref().type_id();
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();
-                warn!(subscriber_count=subscribers.len(), type_id=?message_type_id, message=?message, "emitting message");
                 subscriber_context.emit(message).await;
             }
         }
