@@ -46,9 +46,6 @@ use crate::traits::ActonMessage;
 /// Represents an outbound envelope for sending messages in the actor system.
 #[derive(Clone, Debug, Default)]
 pub struct OutboundEnvelope {
-    /// The sender's ARN (Akton Resource Name).
-    pub sender: Ern<UnixTime>,
-    /// The optional channel for sending replies.
     pub(crate) return_address: ReturnAddress,
 }
 
@@ -59,7 +56,7 @@ impl PartialEq for ReturnAddress {
 } // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {
     fn eq(&self, other: &Self) -> bool {
-        self.sender == other.sender && self.return_address == other.return_address
+        self.return_address == other.return_address
     }
 }
 
@@ -69,7 +66,6 @@ impl Eq for OutboundEnvelope {}
 // Implement Hash for OutboundEnvelope as it is required for HashSet
 impl std::hash::Hash for OutboundEnvelope {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.sender.hash(state);
         self.return_address.sender.hash(state);
     }
 }
@@ -84,8 +80,8 @@ impl OutboundEnvelope {
     /// # Returns
     /// A new `OutboundEnvelope` instance.
     #[instrument(skip(return_address))]
-    pub fn new(return_address: ReturnAddress, sender: Ern<UnixTime>) -> Self {
-        OutboundEnvelope { return_address, sender }
+    pub fn new(return_address: ReturnAddress) -> Self {
+        OutboundEnvelope { return_address }
     }
 
     /// Sends a reply message synchronously.
@@ -137,18 +133,18 @@ impl OutboundEnvelope {
                 Ok(permit) => {
                     let envelope = Envelope::new(message, self.return_address.clone());
                     permit.send(envelope);
-                    trace!("Reply to {} from OutboundEnvelope", &self.sender)
+                    trace!("Reply to {} from OutboundEnvelope", &self.return_address.sender)
                 }
                 Err(_) => {
                     error!(
                         "Failed to reply to {} from OutboundEnvelope with message type {:?}",
-                        &self.sender,
+                        &self.return_address.sender,
                         &type_id
                     )
                 }
             }
         } else {
-            error!("reply_message_async to is closed for {} with message {:?}", self.sender, message);
+            error!("reply_message_async to is closed for {} with message {:?}", self.return_address.sender, message);
         }
     }
 
