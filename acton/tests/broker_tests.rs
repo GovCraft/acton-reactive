@@ -31,8 +31,11 @@
  *
  */
 use std::sync::Arc;
-use acton::prelude::*;
+
 use tracing::*;
+
+use acton::prelude::*;
+
 use crate::setup::*;
 
 mod setup;
@@ -40,7 +43,7 @@ mod setup;
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_broker() -> anyhow::Result<()> {
     initialize_tracing();
-let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = Acton::launch().into();
     let broker = acton.get_broker();
 
     let actor_config = ActorConfig::new(
@@ -70,8 +73,8 @@ let mut acton: SystemReady = Acton::launch().into();
             Box::pin(async move {})
         })
         .act_on::<Pong>(|actor, event| {
-        info!("SUCCESS! PONG!");
-    });
+            info!("SUCCESS! PONG!");
+        });
 
     counter_actor.context.subscribe::<Pong>().await;
     comedy_show.context.subscribe::<Ping>().await;
