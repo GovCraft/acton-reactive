@@ -22,7 +22,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
     let broker = acton_ready.get_broker();
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("parent")?,
+        Ern::with_root("parent")?,
         None,
         Some(broker.clone()),
     )?;
@@ -30,7 +30,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
     let broker_clone = broker.clone();
     let parent_actor = acton_ready.clone().spawn_actor_with_setup::<Parent>(actor_config, |mut actor| Box::pin(async move {
         let child_actor_config = ActorConfig::new(
-            Arn::with_root("child").expect("Could not create child ARN root"),
+            Ern::with_root("child").expect("Could not create child ARN root"),
             None,
             Some(broker.clone()),
         ).expect("Couldn't create child config");
@@ -84,7 +84,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
     let broker = acton_ready.get_broker();
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("improve_show")?,
+        Ern::with_root("improve_show")?,
         None,
         Some(broker.clone()),
     )?;
