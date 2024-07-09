@@ -53,7 +53,7 @@ pub trait Actor {
     fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef>;
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
-    fn id(&self) -> Ern<UnixTime>;
+    fn ern(&self) -> Ern<UnixTime>;
     fn clone_ref(&self) -> ActorRef;
     /// Emit a message from the actor, possibly to a pool item.
     #[instrument(skip(self), fields(children = self.children().len()))]
@@ -70,7 +70,7 @@ pub trait Actor {
         }
     }
 
-    #[instrument(skip(self), fields(context_key = %self.id()))]
+    #[instrument(skip(self))]
     fn send(&self, message: impl ActonMessage + Send + Sync + 'static, pool_name: Option<String>,
     ) -> Result<(), MessageError>
     where
