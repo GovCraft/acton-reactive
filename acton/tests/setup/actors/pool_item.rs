@@ -78,7 +78,7 @@ impl PoolItem {
                 let parent = &actor.parent.clone().unwrap();
                 let final_count = actor.entity.receive_count;
                 // let parent_envelope = parent.key.clone();
-                let parent_address = parent.arn.clone();
+                let parent_address = parent.ern.clone();
                 let actor_address = actor.ern.clone();
 
 
