@@ -31,14 +31,14 @@
  *
  */
 
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::fmt::Debug;
+
 use acton_ern::{Ern, UnixTime};
+
 use crate::common::ActorRef;
-use crate::traits::ActonMessage;
 
-
-#[derive(Debug,Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct UnsubscribeBroker {
     pub(crate) ern: Ern<UnixTime>,
     pub(crate) message_type_id: TypeId,
