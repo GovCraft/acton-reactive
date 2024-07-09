@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use akton_arn::Arn;
+use acton_ern::Ern;
 
 use dashmap::DashMap;
 use futures::future::join_all;
@@ -24,7 +24,7 @@ pub struct Broker {
 impl Broker {
     #[instrument]
     pub(crate) async fn initialize() -> ActorRef {
-        let actor_config = ActorConfig::new(Arn::with_root("broker_main").unwrap(), None, None)
+        let actor_config = ActorConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
         let mut actor: ManagedActor<Idle, Broker> = ManagedActor::new(&None, Some(actor_config)).await;
