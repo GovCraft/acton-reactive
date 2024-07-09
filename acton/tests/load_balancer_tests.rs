@@ -31,16 +31,17 @@
  *
  */
 
-mod setup;
+use acton::prelude::*;
 
 use crate::setup::*;
-use acton::prelude::*;
+
+mod setup;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_actor_pool_round_robin() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = Acton::launch().into();
     let pool_name = "pool";
 
     // Create the main actor
@@ -102,7 +103,7 @@ async fn test_actor_pool_random() -> anyhow::Result<()> {
         })
         .on_before_stop_async(|actor| {
             let count = actor.state.receive_count;
-            Box::pin(async move{
+            Box::pin(async move {
                 tracing::info!("Processed {} PONGs", count);
             })
         });
