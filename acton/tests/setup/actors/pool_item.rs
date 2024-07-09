@@ -83,7 +83,7 @@ impl PoolItem {
 
 
                 let parent = parent.clone();
-                ActorRef::wrap_future(Self::output_results(final_count, parent_address, actor_address, parent))
+                ActorRef::wrap_future(Self::output_results(final_count, parent_address.to_string(), actor_address.to_string(), parent))
             });
 
         // Activate the actor and return the context
