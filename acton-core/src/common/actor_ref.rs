@@ -33,30 +33,45 @@
 use std::fmt::Debug;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
+use std::sync::mpsc::{channel, Sender};
 
-use akton_arn::Arn;
+use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;
 use dashmap::DashMap;
-use tokio::sync::oneshot;
+use tokio::sync::{mpsc, oneshot};
 use tokio_util::task::TaskTracker;
 use tracing::{info, instrument, trace, warn};
 use crate::actor::{ManagedActor, Idle};
 use crate::common::{BrokerRef, Outbox, OutboundEnvelope, ParentRef};
-use crate::message::SystemSignal;
+use crate::message::{Envelope, ReturnAddress, SystemSignal};
 use crate::traits::{Actor, Subscriber};
 /// Represents the context in which an actor operates.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct ActorRef {
     /// The unique identifier (ARN) for the context.
-    pub arn: String,
+    pub arn: Ern<UnixTime>,
     /// The outbound channel for sending messages.
-    pub(crate) outbox: Option<Outbox>,
+    pub(crate) outbox: Outbox,
     /// The task tracker for the actor.
     tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentRef>>,
     pub broker: Box<Option<BrokerRef>>,
-    children: DashMap<String, ActorRef>,
+    children: DashMap<Ern<UnixTime>, ActorRef>,
+}
+
+impl Default for ActorRef {
+    fn default() -> Self {
+        let (outbox, _) = mpsc::channel(1);
+        ActorRef {
+            arn: Ern::default(),
+            outbox,
+            tracker: TaskTracker::new(),
+            parent: None,
+            broker: Box::new(None),
+            children: DashMap::new(),
+        }
+    }
 }
 
 impl Subscriber for ActorRef {
@@ -101,7 +116,8 @@ impl Actor for ActorRef {
     #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        OutboundEnvelope::new(outbox, self.arn.clone())
+        let return_address = ReturnAddress::new(outbox, self.arn.clone());
+        OutboundEnvelope::new(return_address, self.arn.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
     fn children(&self) -> DashMap<String, ActorRef> {
