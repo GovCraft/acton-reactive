@@ -1,7 +1,9 @@
-use akton_arn::prelude::*;
+use acton_ern::prelude::*;
+use crate::common::Outbox;
+use crate::message::Envelope;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ReturnAddress {
-    pub address: u64,
-    pub sender: Arn,
+    pub address: Outbox,
+    pub sender: Ern<UnixTime>,
 }
