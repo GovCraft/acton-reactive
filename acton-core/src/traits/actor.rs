@@ -33,7 +33,6 @@
 
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
 use acton_ern::{Ern, UnixTime};
 
 use async_trait::async_trait;
@@ -107,13 +106,12 @@ pub trait Actor {
     async fn fail(&mut self) -> anyhow::Result<()>;
     fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
-        F: Future<Output = ()> + Sized + 'static,
+        F: Future<Output=()> + Sized + 'static,
     {
         Box::pin(future)
     }
 
-    fn noop(
-    ) -> Pin<Box<impl Future<Output=()> + Sized>> {
+    fn noop() -> Pin<Box<impl Future<Output=()> + Sized>> {
         Box::pin(async move {})
     }
 }
@@ -128,7 +126,6 @@ pub trait FutureWrapper {
 }
 
 
-
 // Blanket implementation for all types that implement ActorContext
 impl<T> FutureWrapper for T
 where
@@ -136,7 +133,7 @@ where
 {
     fn wrap<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
     where
-        F: Future<Output=()> + 'static
+        F: Future<Output=()> + 'static,
     {
         Box::pin(future)
     }
