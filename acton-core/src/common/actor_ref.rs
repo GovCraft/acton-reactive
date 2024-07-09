@@ -145,15 +145,6 @@ impl Actor for ActorRef {
         self.clone()
     }
 
-    /// Wakes the actor.
-    async fn wake(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
-
-    /// Recreates the actor.
-    async fn recreate(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
 
     /// Suspends the actor.
     fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
@@ -181,30 +172,5 @@ impl Actor for ActorRef {
             info!(actor=self.ern.to_string(), "The actor and its subordinates have been terminated.");
             Ok(())
         }
-    }
-
-    /// Resumes the actor.
-    async fn resume(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
-
-    /// Supervises the actor.
-    async fn supervise(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
-
-    /// Watches the actor.
-    async fn watch(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
-
-    /// Stops watching the actor.
-    async fn unwatch(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
-    }
-
-    /// Marks the actor as failed.
-    async fn fail(&mut self) -> anyhow::Result<()> {
-        unimplemented!()
     }
 }
