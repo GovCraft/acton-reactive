@@ -33,7 +33,7 @@
 
 use std::fmt::Display;
 
-use akton_arn::{Arn, ArnParser};
+use acton_ern::{Ern, ErnParser, UnixTime};
 
 use crate::common::{BrokerRef, ParentRef};
 
@@ -45,10 +45,10 @@ pub struct ActorConfig {
 }
 
 impl ActorConfig {
-    pub fn new(name: Arn, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
+    pub fn new(name: Ern<UnixTime>, parent: Option<ParentRef>, broker: Option<BrokerRef>) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             //get the parent arn
-            let parent_arn = ArnParser::new(&parent.arn).parse()?;
+            let parent_arn = ErnParser::new(&parent.arn).parse()?;
             let child_arn = parent_arn + name;
             Ok(ActorConfig {
                 id: child_arn.to_string(),
