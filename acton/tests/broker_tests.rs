@@ -44,7 +44,7 @@ let mut acton: SystemReady = Acton::launch().into();
     let broker = acton.get_broker();
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("improve_show").unwrap(),
+        Ern::with_root("improve_show").unwrap(),
         None,
         Some(broker.clone()),
     )?;
@@ -52,7 +52,7 @@ let mut acton: SystemReady = Acton::launch().into();
     let mut comedy_show = acton.create_with_config::<Comedian>(actor_config);
 
     let actor_config = ActorConfig::new(
-        Arn::with_root("counter").unwrap(),
+        Ern::with_root("counter").unwrap(),
         None,
         Some(broker.clone()),
     )?;
