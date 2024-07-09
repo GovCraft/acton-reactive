@@ -31,12 +31,16 @@
  *
  */
 
-mod setup;
 use std::any::TypeId;
-use crate::setup::*;
-use acton::prelude::*;
+
 use tracing::*;
+
+use acton::prelude::*;
 use acton_test::prelude::*;
+
+use crate::setup::*;
+
+mod setup;
 
 #[acton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
