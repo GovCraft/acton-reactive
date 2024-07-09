@@ -43,7 +43,6 @@ use rand::Rng;
 use tracing::{debug, error, info, trace};
 
 use acton_core::prelude::*;
-
 use acton_macro::acton_actor;
 
 use crate::setup::*;
