@@ -1,5 +1,7 @@
 use std::any::TypeId;
-use acton_test::prelude::*;
+use std::time::Duration;
+
+use tokio;
 use tokio::runtime::Runtime;
 use tokio::task;
 use tracing::*;
@@ -7,13 +9,11 @@ use tracing::field::debug;
 
 use acton::prelude::*;
 use acton::prelude::Subscriber;
+use acton_test::prelude::*;
 
 use crate::setup::*;
 
 mod setup;
-
-use tokio;
-use std::time::Duration;
 
 #[acton_test]
 async fn test_launch_passing_acton() -> anyhow::Result<()> {
@@ -71,7 +71,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn wait_and_respond(){
+async fn wait_and_respond() {
     tokio::time::sleep(Duration::from_secs(1)).await;
     info!("Waited, then...SUCCESS! PONG!");
 }
