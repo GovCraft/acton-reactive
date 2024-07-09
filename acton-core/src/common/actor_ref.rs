@@ -133,6 +133,10 @@ impl Actor for ActorRef {
         self.tracker.clone()
     }
 
+    fn set_ern(&mut self, ern: Ern<UnixTime>) {
+        self.ern = ern;
+    }
+
     fn ern(&self) -> Ern<UnixTime> {
         self.ern.clone()
     }
