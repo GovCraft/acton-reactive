@@ -36,7 +36,7 @@ use std::time::SystemTime;
 
 use static_assertions::assert_impl_all;
 
-use crate::common::Outbox;
+use crate::message::return_address::ReturnAddress;
 use crate::traits::ActonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
@@ -47,7 +47,7 @@ pub struct Envelope {
     /// The time when the message was sent.
     pub sent_time: SystemTime,
     /// The return address for the message response.
-    pub return_address: Option<Outbox>,
+    pub return_address: ReturnAddress,
 }
 
 impl Envelope {
@@ -62,7 +62,7 @@ impl Envelope {
     /// A new `Envelope` instance.
     pub fn new(
         message: Arc<dyn ActonMessage + Send + Sync + 'static>,
-        return_address: Option<Outbox>,
+        return_address: ReturnAddress,
     ) -> Self {
         Envelope {
             message,
