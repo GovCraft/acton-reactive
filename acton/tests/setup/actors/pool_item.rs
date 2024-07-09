@@ -45,7 +45,6 @@ pub struct PoolItem {
     pub receive_count: usize, // Tracks the number of received events
 }
 
-#[async_trait]
 impl PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
