@@ -34,11 +34,13 @@
 use std::any::type_name_of_val;
 use std::fmt::Debug;
 use std::time::Duration;
+
 use tokio::time::timeout;
 use tracing::{debug, instrument, trace};
+
 use crate::actor::ManagedActor;
 use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
-use crate::message::{BrokerRequestEnvelope, SystemSignal};
+use crate::message::{BrokerRequestEnvelope, ReturnAddress, SystemSignal};
 use crate::traits::Actor;
 
 pub struct Running;
@@ -49,14 +51,11 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     /// # Returns
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
-        if let Some(envelope) = &self.actor_ref.outbox {
-            Option::from(OutboundEnvelope::new(
-                Some(envelope.clone()),
-                self.ern.clone(),
-            ))
-        } else {
-            None
-        }
+        let envelope = &self.actor_ref.outbox;
+        Option::from(OutboundEnvelope::new(
+            ReturnAddress::new(self.actor_ref.outbox.clone(), self.ern.clone()),
+            self.ern.clone(),
+        ))
     }
 
     /// Creates a new parent envelope for the actor.
@@ -99,7 +98,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
                     _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
             } else if let Some(SystemSignal::Terminate) = envelope.message.as_any().downcast_ref::<SystemSignal>() {
-                trace!(actor=self.ern, "Mailbox received {:?} with type_id {:?} for", &envelope.message, &type_id);
                 self.terminate().await;
             }
         }
@@ -113,12 +111,11 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     }
     #[instrument(skip(self))]
     async fn terminate(&mut self) {
-        tracing::trace!(actor=self.ern, "Received SystemSignal::Terminate for");
         for item in &self.actor_ref.children() {
             let child_ref = item.value();
             let _ = child_ref.suspend().await;
         }
-        trace!(actor=self.ern,"All subordinates terminated. Closing mailbox for");
+        trace!(actor=self.ern.to_string(),"All subordinates terminated. Closing mailbox for");
         self.inbox.close();
     }
 }
