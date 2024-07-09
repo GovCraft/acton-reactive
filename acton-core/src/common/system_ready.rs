@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::pin::Pin;
 
-use akton_arn::Arn;
+use acton_ern::Ern;
 use tokio::sync::oneshot;
 
 use crate::actor::{ManagedActor, ActorConfig, Idle};
@@ -19,7 +19,7 @@ impl SystemReady {
     {
         let broker = self.0.broker.clone();
         let acton_ready = self.clone();
-        let config = ActorConfig::new(Arn::default(), None, Some(broker)).unwrap_or_default();
+        let config = ActorConfig::new(Ern::default(), None, Some(broker)).unwrap_or_default();
         ManagedActor::new(&Some(acton_ready), Some(config)).await
     }
 
@@ -56,7 +56,7 @@ impl SystemReady {
         State: Default + Send + Debug + 'static,
     {
         let broker = self.get_broker();
-        let config = ActorConfig::new(Arn::default(), None, Some(broker.clone()))?;
+        let config = ActorConfig::new(Ern::default(), None, Some(broker.clone()))?;
         let acton_ready = self.clone();
         let actor = ManagedActor::new(&Some(acton_ready), Some(config)).await;
         Ok(setup_fn(actor).await)
