@@ -31,6 +31,7 @@
  *
  */
 #![allow(unused)]
+
 use acton::prelude::*;
 
 #[derive(Clone, Debug)]
@@ -45,6 +46,7 @@ pub enum FunnyJoke {
     ChickenCrossesRoad,
     Pun,
 }
+
 #[acton_message]
 pub enum FunnyJokeFor {
     ChickenCrossesRoad(String),
