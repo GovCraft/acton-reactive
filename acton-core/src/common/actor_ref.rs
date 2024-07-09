@@ -120,12 +120,11 @@ impl Actor for ActorRef {
         OutboundEnvelope::new(return_address, self.arn.clone())
     }
     // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
-    fn children(&self) -> DashMap<String, ActorRef> {
-        // event!(Level::TRACE,child_count= self.children.len());
+    fn children(&self) -> DashMap<Ern<UnixTime>, ActorRef> {
         self.children.clone()
     }
 
-    fn find_child(&self, arn: &str) -> Option<ActorRef> {
+    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef> {
         self.children.get(arn).map(|item| item.value().clone())
     }
 
@@ -134,7 +133,7 @@ impl Actor for ActorRef {
         self.tracker.clone()
     }
 
-    fn id(&self) -> String {
+    fn id(&self) -> Ern<UnixTime> {
         self.arn.clone()
     }
 
@@ -163,7 +162,7 @@ impl Actor for ActorRef {
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor=self.arn, "Sending Terminate to");
+            warn!(actor=self.arn.to_string(), "Sending Terminate to");
             actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
@@ -175,7 +174,7 @@ impl Actor for ActorRef {
             // Event: Actor Terminated
             // Description: The actor and its subordinates have been terminated.
             // Context: None
-            info!(actor=self.arn, "The actor and its subordinates have been terminated.");
+            info!(actor=self.arn.to_string(), "The actor and its subordinates have been terminated.");
             Ok(())
         }
     }
