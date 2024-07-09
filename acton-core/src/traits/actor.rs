@@ -71,7 +71,7 @@ pub trait Actor {
     }
 
     #[instrument(skip(self))]
-    fn send(&self, message: impl ActonMessage + Send + Sync + 'static, pool_name: Option<String>,
+    fn send(&self, message: impl ActonMessage + Send + Sync + 'static,
     ) -> Result<(), MessageError>
     where
         Self: Sync,
