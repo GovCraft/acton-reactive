@@ -31,18 +31,19 @@
  *
  */
 
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::fmt::Debug;
-use acton_ern::{Ern, UnixTime};
-use crate::common::ActorRef;
-use crate::traits::ActonMessage;
 
-#[derive(Debug,Clone)]
+use acton_ern::{Ern, UnixTime};
+
+use crate::common::ActorRef;
+
+#[derive(Debug, Clone)]
 pub(crate) struct SubscribeBroker {
     pub(crate) subscriber_id: Ern<UnixTime>,
     pub(crate) message_type_id: TypeId,
     pub(crate) message_type_name: String,
-    pub(crate) subscriber_context: ActorRef
+    pub(crate) subscriber_context: ActorRef,
 }
 // impl AktonMessage for SubscribeBroker {
 //     /// Returns a reference to the signal as `Any`.
