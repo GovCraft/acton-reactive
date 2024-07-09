@@ -35,8 +35,8 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::future::Future;
-use acton_ern::{Ern, UnixTime};
 
+use acton_ern::{Ern, UnixTime};
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
 use tracing::*;
