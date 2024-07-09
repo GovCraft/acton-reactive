@@ -56,7 +56,7 @@ pub struct AudienceMember {
 }
 
 #[async_trait]
-impl PooledActor for AudienceMember {
+impl AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
