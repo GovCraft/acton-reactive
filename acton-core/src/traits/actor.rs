@@ -77,7 +77,6 @@ pub trait Actor {
         Self: Sync,
     {
         let envelope = self.return_address();
-        event!(Level::TRACE, addressed_to = %envelope.sender);
         envelope.reply(message)?;
         Ok(())
     }
