@@ -114,7 +114,7 @@ pub trait Actor {
     /// Wraps a future in a pinned box.
     ///
     /// This method is useful for converting a future into a pinned boxed future,
-    /// which is often required when working with trait objects or storing futures.
+    /// which is required returning from async act_on message handlers.
     ///
     /// # Arguments
     ///
@@ -123,17 +123,6 @@ pub trait Actor {
     /// # Returns
     ///
     /// A pinned boxed future.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use acton_core::prelude::*;
-    ///
-    /// async fn some_async_task() {
-    ///     // Some async work
-    /// }
-    ///
-    /// let boxed_future = Actor::wrap_future(some_async_task());
     /// ```
     fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
