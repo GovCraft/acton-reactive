@@ -20,6 +20,10 @@ use acton_ern::{Ern, ErnParser, UnixTime};
 use crate::common::{BrokerRef, ParentRef};
 use crate::traits::Actor;
 
+/// Configuration for creating an actor.
+///
+/// This struct holds the necessary information to configure an actor,
+/// including its ERN (Entity Resource Name), broker, and parent reference.
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
     ern: Ern<UnixTime>,
@@ -28,13 +32,24 @@ pub struct ActorConfig {
 }
 
 impl ActorConfig {
+    /// Creates a new `ActorConfig` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `ern` - The Entity Resource Name for the actor.
+    /// * `parent` - An optional parent reference.
+    /// * `broker` - An optional broker reference.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the new `ActorConfig` instance or an error.
     pub fn new(
         ern: Ern<UnixTime>,
         parent: Option<ParentRef>,
         broker: Option<BrokerRef>,
     ) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
-            //get the parent arn
+            // Get the parent ERN
             let parent_ern = ErnParser::new(parent.ern().to_string()).parse()?;
             let child_ern = parent_ern + ern;
             Ok(ActorConfig {
@@ -50,12 +65,18 @@ impl ActorConfig {
             })
         }
     }
+
+    /// Returns the ERN of the actor.
     pub(crate) fn ern(&self) -> Ern<UnixTime> {
         self.ern.clone()
     }
+
+    /// Returns a reference to the optional broker.
     pub(crate) fn get_broker(&self) -> &Option<BrokerRef> {
         &self.broker
     }
+
+    /// Returns a reference to the optional parent.
     pub(crate) fn parent(&self) -> &Option<ParentRef> {
         &self.parent
     }
