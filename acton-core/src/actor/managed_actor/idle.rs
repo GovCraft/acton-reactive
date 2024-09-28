@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Govcraft
+ *
+ * Licensed under either of
+ *   * Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *   * MIT license: http://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the applicable License for the specific language governing permissions and
+ * limitations under that License.
+ */
+
 use std::any::TypeId;
 use std::fmt::Debug;
 use std::mem;
@@ -7,12 +23,14 @@ use tokio::sync::mpsc::channel;
 use tracing::{error, event, info, instrument, Level, trace};
 
 use crate::actor::{ActorConfig, ManagedActor, Running};
-use crate::common::{ActonInner, ActorRef, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem, SystemReady};
+use crate::common::{
+    ActonInner, ActorRef, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem,
+    SystemReady,
+};
 use crate::message::EventRecord;
 use crate::prelude::{ActonMessage, Actor};
 
 pub struct Idle;
-
 
 impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, ManagedEntity> {
     #[instrument(skip(self, message_handler))]
@@ -47,16 +65,18 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                 } else {
                     Box::pin({
                         error!(
-                        "Message type mismatch: expected {:?}",
-                        std::any::type_name::<M>()
-                    );
+                            "Message type mismatch: expected {:?}",
+                            std::any::type_name::<M>()
+                        );
                     })
                 };
             },
         );
 
         // Insert the handler into the reactors map.
-        let _ = self.reactors.insert(type_id, ReactorItem::MessageReactor(handler));
+        let _ = self
+            .reactors
+            .insert(type_id, ReactorItem::MessageReactor(handler));
 
         self
     }
@@ -68,7 +88,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     #[instrument(skip(self, message_processor))]
     pub fn act_on_async<M>(
         &mut self,
-        message_processor: impl for<'a> Fn(&'a mut ManagedActor<Running, ManagedEntity>, &'a mut EventRecord<M>) -> FutureBox
+        message_processor: impl for<'a> Fn(
+            &'a mut ManagedActor<Running, ManagedEntity>,
+            &'a mut EventRecord<M>,
+        ) -> FutureBox
         + Send
         + Sync
         + 'static,
@@ -80,14 +103,20 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| -> FutureBox {
+            move |actor: &mut ManagedActor<Running, ManagedEntity>,
+                  envelope: &mut Envelope|
+                  -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
                 trace!(
                 "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
                 type_id, envelope_type_id
             );
                 if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    trace!("Downcast message to name {} and concrete type: {:?}",std::any::type_name::<M>(), type_id);
+                    trace!(
+                        "Downcast message to name {} and concrete type: {:?}",
+                        std::any::type_name::<M>(),
+                        type_id
+                    );
 
                     let message = concrete_msg.clone();
                     let sent_time = envelope.sent_time;
@@ -115,7 +144,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                     // Automatically box and pin the user future.
                     Box::pin(user_future)
                 } else {
-                    error!(type_name=std::any::type_name::<M>(),"Should never get here, message failed to downcast");
+                    error!(
+                        type_name = std::any::type_name::<M>(),
+                        "Should never get here, message failed to downcast"
+                    );
                     // Return an immediately resolving future if downcast fails.
                     Box::pin(async {})
                 }
@@ -128,7 +160,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
             .insert(type_id, ReactorItem::FutureReactor(handler_box));
         self
     }
-
 
     /// Sets the reactor to be called before the actor wakes up.
     ///
@@ -187,12 +218,14 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// - `f`: The asynchronous function to be called.
     pub fn before_stop_async<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox + Send + Sync + 'static,
+        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
+        + Send
+        + Sync
+        + 'static,
     {
         self.before_stop_async = Some(Box::new(f));
         self
     }
-
 
     /// Creates and supervises a new actor with the given ID and state.
     ///
@@ -217,12 +250,17 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
             managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
         }
 
-        debug_assert!(!managed_actor.inbox.is_closed(), "Actor mailbox is closed in new");
+        debug_assert!(
+            !managed_actor.inbox.is_closed(),
+            "Actor mailbox is closed in new"
+        );
 
         trace!("NEW ACTOR: {}", &managed_actor.actor_ref.ern());
 
         managed_actor.acton = acton.clone().unwrap_or_else(|| SystemReady {
-            0: ActonInner { broker: managed_actor.actor_ref.broker.clone().unwrap_or_default() },
+            0: ActonInner {
+                broker: managed_actor.actor_ref.broker.clone().unwrap_or_default(),
+            },
         });
 
         managed_actor.ern = managed_actor.actor_ref.ern();
@@ -238,7 +276,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         let active_actor: ManagedActor<Running, ManagedEntity> = self.into();
         let actor = Box::leak(Box::new(active_actor));
 
-        debug_assert!(!actor.inbox.is_closed(), "Actor mailbox is closed in activate");
+        debug_assert!(
+            !actor.inbox.is_closed(),
+            "Actor mailbox is closed in activate"
+        );
 
         let _ = actor_ref.tracker().spawn(actor.wake(reactors));
         actor_ref.tracker().close();
@@ -247,7 +288,9 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     }
 }
 
-impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, ManagedEntity>> for ManagedActor<Running, ManagedEntity> {
+impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, ManagedEntity>>
+for ManagedActor<Running, ManagedEntity>
+{
     fn from(value: ManagedActor<Idle, ManagedEntity>) -> Self {
         let on_activate = value.on_activate;
         let before_activate = value.before_activate;
@@ -274,9 +317,9 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
         if actor_ref.children().is_empty() {
             trace!(
-                    "child count before Actor creation {}",
-                    actor_ref.children().len()
-                );
+                "child count before Actor creation {}",
+                actor_ref.children().len()
+            );
         }
         // Create and return the new actor in the awake state
         ManagedActor::<Running, ManagedEntity> {
@@ -300,7 +343,9 @@ impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, Ma
     }
 }
 
-impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<Idle, ManagedEntity> {
+impl<ManagedEntity: Default + Send + Debug + 'static> Default
+for ManagedActor<Idle, ManagedEntity>
+{
     fn default() -> Self {
         let (outbox, inbox) = channel(255);
         let mut actor_ref: ActorRef = Default::default();
@@ -327,7 +372,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> Default for ManagedActor<I
         }
     }
 }
-
 
 // Function to downcast the message to the original type.
 pub fn downcast_message<T: 'static>(msg: &dyn ActonMessage) -> Option<&T> {

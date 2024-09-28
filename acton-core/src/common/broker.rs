@@ -1,3 +1,19 @@
+/*
+ * Copyright (c) 2024. Govcraft
+ *
+ * Licensed under either of
+ *   * Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *   * MIT license: http://opensource.org/licenses/MIT
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the applicable License for the specific language governing permissions and
+ * limitations under that License.
+ */
+
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -12,7 +28,7 @@ use futures::StreamExt;
 use tracing::*;
 
 use crate::actor::{ActorConfig, Idle, ManagedActor};
-use crate::common::{Acton, ActorRef, SystemReady};
+use crate::common::{ActonSystem, ActorRef, SystemReady};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActonMessage, Actor};
 
@@ -27,7 +43,8 @@ impl Broker {
         let actor_config = ActorConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
-        let mut actor: ManagedActor<Idle, Broker> = ManagedActor::new(&None, Some(actor_config)).await;
+        let mut actor: ManagedActor<Idle, Broker> =
+            ManagedActor::new(&None, Some(actor_config)).await;
 
         actor
             .act_on_async::<BrokerRequest>(|actor, event| {
@@ -64,7 +81,10 @@ impl Broker {
     }
 
     #[instrument(skip(subscribers))]
-    pub async fn broadcast(subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>, request: BrokerRequest) {
+    pub async fn broadcast(
+        subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
+        request: BrokerRequest,
+    ) {
         let message_type_id = &request.message.as_ref().type_id();
         if let Some(subscribers) = subscribers.get(&message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {

@@ -1,40 +1,23 @@
 /*
+ * Copyright (c) 2024. Govcraft
  *
- *  *
- *  * Copyright (c) 2024 Govcraft.
- *  *
- *  *  Licensed under the Business Source License, Version 1.1 (the "License");
- *  *  you may not use this file except in compliance with the License.
- *  *  You may obtain a copy of the License at
- *  *
- *  *      https://github.com/GovCraft/acton-framework/tree/main/LICENSES
- *  *
- *  *  Change Date: Three years from the release date of this version of the Licensed Work.
- *  *  Change License: Apache License, Version 2.0
- *  *
- *  *  Usage Limitations:
- *  *    - You may use the Licensed Work for non-production purposes only, such as internal testing, development, and experimentation.
- *  *    - You may not use the Licensed Work for any production or commercial purpose, including, but not limited to, the provision of any service to third parties, without a commercial use license from the Licensor, except as stated in the Exemptions section of the License.
- *  *
- *  *  Exemptions:
- *  *    - Open Source Projects licensed under an OSI-approved open source license.
- *  *    - Non-Profit Organizations using the Licensed Work for non-commercial purposes.
- *  *    - Small For-Profit Companies with annual gross revenues not exceeding $2,000,000 USD.
- *  *
- *  *  Unless required by applicable law or agreed to in writing, software
- *  *  distributed under the License is distributed on an "AS IS" BASIS,
- *  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *  See the License for the specific language governing permissions and
- *  *  limitations under the License.
- *  *
+ * Licensed under either of
+ *   * Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *   * MIT license: http://opensource.org/licenses/MIT
  *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the applicable License for the specific language governing permissions and
+ * limitations under that License.
  */
 use std::sync::Once;
 
 use tracing::Level;
-use tracing_subscriber::{EnvFilter, FmtSubscriber};
 use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 pub use actors::*;
 pub use messages::*;
@@ -55,7 +38,7 @@ pub fn initialize_tracing() {
         //     .add_directive(Level::INFO.into()); // Set global log level to INFO
 
         let filter = EnvFilter::new("")
-            .add_directive("acton_core::common::context=error".parse().unwrap())
+            .add_directive("acton_core::common::actor_ref=debug".parse().unwrap())
             .add_directive("acton_core::common::acton=error".parse().unwrap())
             .add_directive("acton_core::pool=error".parse().unwrap())
             .add_directive("acton_core::pool::builder=error".parse().unwrap())
@@ -63,20 +46,44 @@ pub fn initialize_tracing() {
             .add_directive("acton_core::common::supervisor=error".parse().unwrap())
             .add_directive("acton_core::actor::actor=error".parse().unwrap())
             .add_directive("acton_core::common::broker=error".parse().unwrap())
-            .add_directive("acton_core::common::broker[broadcast]=error".parse().unwrap())
+            .add_directive(
+                "acton_core::common::broker[broadcast]=error"
+                    .parse()
+                    .unwrap(),
+            )
             .add_directive("acton_core::actor::managed_actor=info".parse().unwrap())
             .add_directive("acton_core::actor::actor[wake]=error".parse().unwrap())
-            .add_directive("acton_core::actor::actor[terminate_actor]=off".parse().unwrap())
-            .add_directive("acton_core::actor::actor[handle_message]=trace".parse().unwrap())
-            .add_directive("acton_core::actor::actor[suspend_self]=off".parse().unwrap())
+            .add_directive(
+                "acton_core::actor::actor[terminate_actor]=off"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "acton_core::actor::actor[handle_message]=trace"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "acton_core::actor::actor[suspend_self]=off"
+                    .parse()
+                    .unwrap(),
+            )
             .add_directive("acton_core::actor::actor[new]=error".parse().unwrap())
             .add_directive("acton_core::actor::actor[init]=error".parse().unwrap())
             .add_directive("acton_core::actor::actor[activate]=error".parse().unwrap())
             .add_directive("acton_core::actor::idle=off".parse().unwrap())
             .add_directive("acton_core::actor::idle[act_on_async]=off".parse().unwrap())
             .add_directive("acton_core::actor::idle[act_on]=off".parse().unwrap())
-            .add_directive("acton_core::message::outbound_envelope=off".parse().unwrap())
-            .add_directive("acton_core::message::broadcast_envelope=off".parse().unwrap())
+            .add_directive(
+                "acton_core::message::outbound_envelope=off"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "acton_core::message::broadcast_envelope=off"
+                    .parse()
+                    .unwrap(),
+            )
             .add_directive("acton_core::traits::broker_context=error".parse().unwrap())
             .add_directive("acton_core::traits::actor_context=error".parse().unwrap())
             .add_directive("acton_core::traits::subscribable=error".parse().unwrap())
@@ -84,11 +91,14 @@ pub fn initialize_tracing() {
             .add_directive("broker_tests=trace".parse().unwrap())
             .add_directive("launchpad_tests=info".parse().unwrap())
             .add_directive("lifecycle_tests=info".parse().unwrap())
-            .add_directive("actor_tests=info".parse().unwrap())
+            .add_directive("actor_tests=debug".parse().unwrap())
             .add_directive("load_balancer_tests=info".parse().unwrap())
-            .add_directive("acton::tests::setup::actor::pool_item=info".parse().unwrap())
-            .add_directive("messaging_tests=info".parse().unwrap())
-            ;
+            .add_directive(
+                "acton::tests::setup::actor::pool_item=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive("messaging_tests=info".parse().unwrap());
         // .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()

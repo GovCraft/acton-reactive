@@ -1,34 +1,17 @@
 /*
+ * Copyright (c) 2024. Govcraft
  *
- *  *
- *  * Copyright (c) 2024 Govcraft.
- *  *
- *  *  Licensed under the Business Source License, Version 1.1 (the "License");
- *  *  you may not use this file except in compliance with the License.
- *  *  You may obtain a copy of the License at
- *  *
- *  *      https://github.com/GovCraft/acton-framework/tree/main/LICENSES
- *  *
- *  *  Change Date: Three years from the release date of this version of the Licensed Work.
- *  *  Change License: Apache License, Version 2.0
- *  *
- *  *  Usage Limitations:
- *  *    - You may use the Licensed Work for non-production purposes only, such as internal testing, development, and experimentation.
- *  *    - You may not use the Licensed Work for any production or commercial purpose, including, but not limited to, the provision of any service to third parties, without a commercial use license from the Licensor, except as stated in the Exemptions section of the License.
- *  *
- *  *  Exemptions:
- *  *    - Open Source Projects licensed under an OSI-approved open source license.
- *  *    - Non-Profit Organizations using the Licensed Work for non-commercial purposes.
- *  *    - Small For-Profit Companies with annual gross revenues not exceeding $2,000,000 USD.
- *  *
- *  *  Unless required by applicable law or agreed to in writing, software
- *  *  distributed under the License is distributed on an "AS IS" BASIS,
- *  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  *  See the License for the specific language governing permissions and
- *  *  limitations under the License.
- *  *
+ * Licensed under either of
+ *   * Apache License, Version 2.0 (the "License");
+ *     you may not use this file except in compliance with the License.
+ *     You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ *   * MIT license: http://opensource.org/licenses/MIT
  *
- *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the applicable License for the specific language governing permissions and
+ * limitations under that License.
  */
 #![allow(unused)]
 
@@ -36,70 +19,38 @@ use std::any::TypeId;
 use std::pin::Pin;
 use std::time::Duration;
 
-use tracing::{debug, trace};
+use tracing::{debug, info, trace};
 
 use acton::prelude::*;
+use acton_test::prelude::*;
 
 use crate::setup::*;
 
 mod setup;
 
-// #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-// async fn test_broker_subscription() -> anyhow::Result<()> {
-//     init_tracing();
-//
-//
-//     let mut tangle = Akton::<BrokerOwner>::create_with_id("broker_manager");
-//     tangle.act_on::<Pong>(|_,_|{
-//        trace!("PONG");
-//     });
-//     let mut counter = Akton::<Counter>::create_with_id("counter");
-//     counter.act_on::<Ping>(|_,_|{
-//        trace!("PING");
-//     });
-//     let counter = counter.activate(None).await?;
-//     tangle.state.broker = counter.clone();
-//
-//     let tangle_context = tangle.activate(None).await?;
-//     let error_msg = Ping;
-//     // let message_type_id = TypeId::of::<ErrorNotification>();
-//     // let broker_emit_msg = BrokerEmit {message: Box::new(error_msg), message_type_id };
-//     debug!("Broadcasting error through broker");
-//     counter.emit_async(error_msg).await?;
-//
-//     tangle_context.terminate().await?;
-//
-//     Ok(())
-// }
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_async_reactor() -> anyhow::Result<()> {
     initialize_tracing();
 
-    let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = ActonSystem::launch().into();
 
-    let actor_config = ActorConfig::new(
-        Ern::with_root("improve_show").unwrap(),
-        None,
-        None,
-    )?;
-    let mut comedy_show = acton.create_with_config::<Comedian>(actor_config);
+    let actor_config = ActorConfig::new(Ern::with_root("improve_show").unwrap(), None, None)?;
+    let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
 
     comedy_show
-
         .act_on_async::<FunnyJoke>(|actor, record| {
-            actor.state.jokes_told += 1;
-            let context = actor.context.clone();
+            actor.entity.jokes_told += 1;
+            let context = actor.actor_ref.clone();
             Box::pin(async move {
                 trace!("emitting async");
-                context.emit_async(Ping, None).await;
+                context.emit(Ping).await;
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             trace!("Rcvd AudiencReaction");
             match event.message {
-                AudienceReactionMsg::Chuckle => actor.state.funny += 1,
-                AudienceReactionMsg::Groan => actor.state.bombers += 1,
+                AudienceReactionMsg::Chuckle => actor.entity.funny += 1,
+                AudienceReactionMsg::Groan => actor.entity.bombers += 1,
             };
         })
         .act_on::<Ping>(|actor, event| {
@@ -108,58 +59,58 @@ async fn test_async_reactor() -> anyhow::Result<()> {
         .on_stop(|actor| {
             tracing::info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.key,
-                actor.state.jokes_told,
-                actor.state.funny,
-                actor.state.bombers
+                actor.ern,
+                actor.entity.jokes_told,
+                actor.entity.funny,
+                actor.entity.bombers
             );
-            assert_eq!(actor.state.jokes_told, 2);
+            assert_eq!(actor.entity.jokes_told, 2);
         });
 
-    let comedian = comedy_show.activate(None);
+    let comedian = comedy_show.activate().await;
 
-    comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
-    comedian.emit_async(FunnyJoke::Pun, None).await;
+    comedian
+        .emit(FunnyJoke::ChickenCrossesRoad)
+        .await;
+    comedian.emit(FunnyJoke::Pun).await;
     let _ = comedian.suspend().await?;
 
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
 
-    let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = ActonSystem::launch().into();
     // Create an actor for counting
-    let mut counter_actor = acton.act_on::<Counter>();
+    let mut counter_actor = acton.create_actor::<Counter>().await;
     counter_actor
-
         .act_on::<Tally>(|actor, _event| {
             tracing::info!("on tally");
-            actor.state.count += 1; // Increment count on tally event
+            actor.entity.count += 1; // Increment count on tally event
         })
         .on_stop(|actor| {
-            assert_eq!(4, actor.state.count); // Ensure count is 4 when stopping
+            assert_eq!(4, actor.entity.count); // Ensure count is 4 when stopping
             trace!("on stopping");
         });
 
     // Activate the counter actor
-    let counter_actor = counter_actor.activate(None);
+    let counter_actor = counter_actor.activate().await;
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.emit_async(Tally::AddCount, None).await;
+        counter_actor.emit(Tally::AddCount).await;
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = acton.act_on::<Messenger>();
+    let mut messenger_actor = acton.create_actor::<Messenger>().await;
     messenger_actor
-
-        .on_before_wake(|_actor| {
+        .before_activate(|_actor| {
             trace!("*");
         })
-        .on_wake(|_actor| {
+        .on_activate(|_actor| {
             trace!("*");
         })
         .on_stop(|_actor| {
@@ -167,7 +118,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
         });
 
     // Activate the messenger actor
-    let messenger_actor = messenger_actor.activate(None);
+    let messenger_actor = messenger_actor.activate().await;
 
     // Terminate both actor
     counter_actor.suspend().await?;
@@ -176,20 +127,16 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-    let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = ActonSystem::launch().into();
 
-    let actor_config = ActorConfig::new(
-        Ern::with_root("test_child_actor").unwrap(),
-        None,
-        None,
-    )?;
+    let actor_config = ActorConfig::new(Ern::with_root("test_child_actor").unwrap(), None, None)?;
 
     // Create the parent actor
-    let parent_actor = acton.create_with_config::<PoolItem>(actor_config);
+    let parent_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
 
     let actor_config = ActorConfig::new(
         Ern::with_root("test_child_actor_chile").unwrap(),
@@ -197,37 +144,36 @@ async fn test_child_actor() -> anyhow::Result<()> {
         None,
     )?;
 
-    let mut child_actor = acton.create_with_config::<PoolItem>(actor_config);
+    let mut child_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
     let child_id = "child";
     // Set up the child actor with handlers
     child_actor
-
         .act_on::<Ping>(|actor, event| {
             match event.message {
                 Ping => {
-                    actor.state.receive_count += 1; // Increment receive_count on Ping
+                    actor.entity.receive_count += 1; // Increment receive_count on Ping
                 }
             };
         })
-        .on_before_stop(|actor| {
-            tracing::info!("Processed {} PONGs", actor.state.receive_count);
+        .before_stop(|actor| {
+            tracing::info!("Processed {} PONGs", actor.entity.receive_count);
             // Verify that the child actor processed 22 PINGs
             assert_eq!(
-                actor.state.receive_count, 22,
+                actor.entity.receive_count, 22,
                 "Child actor did not process the expected number of PINGs"
             );
         });
 
-    let child_id = child_actor.key.clone();
+    let child_id = child_actor.ern.clone();
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None);
+    let parent_context = parent_actor.activate().await;
     parent_context.supervise(child_actor).await?;
     assert_eq!(
         parent_context.children().len(),
         1,
         "Parent context missing it's child after activation"
     );
-    tracing::info!(child=&child_id,"Searching all children for");
+    tracing::info!(child = &child_id.to_string(), "Searching all children for");
     let found_child = parent_context.find_child(&child_id);
     assert!(
         found_child.is_some(),
@@ -235,12 +181,11 @@ async fn test_child_actor() -> anyhow::Result<()> {
         child_id
     );
     let child = found_child.unwrap();
-    tracing::info!(child=child.key, "Found child");
 
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
         trace!("Emitting PING");
-        child.emit_async(Ping, Some("pool")).await;
+        child.emit(Ping).await;
     }
 
     trace!("Terminating parent actor");
@@ -249,28 +194,25 @@ async fn test_child_actor() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-    let mut acton: SystemReady = Acton::launch().into();
+    let mut acton: SystemReady = ActonSystem::launch().into();
     // Create the parent actor
-    let mut parent_actor = acton.act_on::<PoolItem>();
-    parent_actor.on_before_wake(|actor| {
-        assert_eq!(actor.context.children().len(), 1);
+    let mut parent_actor = acton.create_actor::<PoolItem>().await;
+    parent_actor.before_activate(|actor| {
+        assert_eq!(actor.actor_ref.children().len(), 1);
     });
     // Activate the parent actor
-    let parent_context = parent_actor.activate(None);
+    let parent_context = parent_actor.activate().await;
 
-    let actor_config = ActorConfig::new(
-        Ern::with_root("test_find_child_actor").unwrap(),
-        None,
-        None,
-    )?;
+    let actor_config =
+        ActorConfig::new(Ern::with_root("test_find_child_actor").unwrap(), None, None)?;
 
-    let mut child_actor = acton.create_with_config::<PoolItem>(actor_config);
+    let mut child_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
     // Set up the child actor with handlers
-    let child_id = child_actor.key.clone();
+    let child_id = child_actor.ern.clone();
     // Activate the child actor
     parent_context.supervise(child_actor).await?;
     assert_eq!(
@@ -278,7 +220,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
         1,
         "Parent actor missing it's child"
     );
-    tracing::info!(child=&child_id,"Searching all children for");
+    tracing::info!(child = &child_id.to_string(), "Searching all children for");
     let found_child = parent_context.find_child(&child_id);
     assert!(
         found_child.is_some(),
@@ -286,40 +228,36 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
         child_id
     );
     let child = found_child.unwrap();
-    tracing::info!(child=child.key, "Found child");
-
 
     parent_context.suspend().await?;
 
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton: SystemReady = Acton::launch().into();
-    let actor_config = ActorConfig::new(
-        Ern::with_root("test_actor_mutation").unwrap(),
-        None,
-        None,
-    )?;
+    let mut acton: SystemReady = ActonSystem::launch().into();
+    let actor_config =
+        ActorConfig::new(Ern::with_root("test_actor_mutation").unwrap(), None, None)?;
 
-    let mut comedy_show = acton.create_with_config::<Comedian>(actor_config);
+    let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
 
     comedy_show
-
         .act_on_async::<FunnyJoke>(|actor, record| {
-            actor.state.jokes_told += 1;
+            actor.entity.jokes_told += 1;
             let envelope = actor.new_envelope();
             let message = record.message.clone();
             Box::pin(async move {
                 if let Some(envelope) = envelope {
                     match message {
                         FunnyJoke::ChickenCrossesRoad => {
-                            let _ = envelope.reply_async(AudienceReactionMsg::Chuckle, None).await;
+                            let _ = envelope
+                                .reply_async(AudienceReactionMsg::Chuckle)
+                                .await;
                         }
                         FunnyJoke::Pun => {
-                            let _ = envelope.reply_async(AudienceReactionMsg::Groan, None).await;
+                            let _ = envelope.reply_async(AudienceReactionMsg::Groan).await;
                         }
                     }
                 }
@@ -327,77 +265,104 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             match event.message {
-                AudienceReactionMsg::Chuckle => actor.state.funny += 1,
-                AudienceReactionMsg::Groan => actor.state.bombers += 1,
+                AudienceReactionMsg::Chuckle => actor.entity.funny += 1,
+                AudienceReactionMsg::Groan => actor.entity.bombers += 1,
             };
         })
         .on_stop(|actor| {
             tracing::info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.key,
-                actor.state.jokes_told,
-                actor.state.funny,
-                actor.state.bombers
+                actor.ern,
+                actor.entity.jokes_told,
+                actor.entity.funny,
+                actor.entity.bombers
             );
-            assert_eq!(actor.state.jokes_told, 2);
+            assert_eq!(actor.entity.jokes_told, 2);
         });
 
-    let comedian = comedy_show.activate(None);
+    let comedian = comedy_show.activate().await;
 
-    comedian.emit_async(FunnyJoke::ChickenCrossesRoad, None).await;
-    comedian.emit_async(FunnyJoke::Pun, None).await;
+    comedian
+        .emit(FunnyJoke::ChickenCrossesRoad)
+        .await;
+    comedian.emit(FunnyJoke::Pun).await;
     let _ = comedian.suspend().await?;
 
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[acton_test]
 async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton: SystemReady = Acton::launch().into();
+
+    // Launch the Acton system and await its readiness
+    let mut acton: SystemReady = ActonSystem::launch();
+
+    // Define the actor configuration for the Comedian actor
     let actor_config = ActorConfig::new(
         Ern::with_root("test_child_count_in_reactor").unwrap(),
         None,
         None,
     )?;
 
-    let mut comedy_show = acton.act_on::<Comedian>();
-    comedy_show
+    // Asynchronously create the Comedian actor and await its creation
+    let mut comedy_show = acton.create_actor::<Comedian>().await;
 
-        .act_on::<FunnyJokeFor>(|actor, event_record| {
-            // assert_eq!(actor.context.children().len(), 1);
-            match &event_record.message {
-                FunnyJokeFor::ChickenCrossesRoad(child_id) => {
-                    tracing::info!("got a funny joke for {}", &child_id);
+    // Define the message handler for FunnyJokeFor messages
+    comedy_show.act_on::<FunnyJokeFor>(|actor, event_record| {
+        match &event_record.message {
+            FunnyJokeFor::ChickenCrossesRoad(child_id) => {
+                tracing::info!("Got a funny joke for {}", &child_id);
 
-                    let context = actor.context.find_child(&child_id).clone();
-                    if let Some(context) = context {
-                        trace!("pinging child");
-                        context.emit(Ping, None);
-                    } else {
-                        tracing::error!("no child");
-                    }
+                // Attempt to find the child actor by its ID
+                assert_eq!(actor.actor_ref.children().len(), 1, "Parent actor missing any children");
+
+                tracing::debug!( "Parent actor has child with ID: {:?}", actor.actor_ref.children());
+                assert!(actor.actor_ref.find_child(child_id).is_some(), "No child found with ID {}", &child_id);
+                if let Some(context) = actor.actor_ref.find_child(child_id) {
+                    tracing::trace!("Pinging child");
+                    // Emit a Ping message to the child actor
+                    context.emit(Ping);
+                } else {
+                    tracing::error!("No child found with ID {}", &child_id);
                 }
-                FunnyJokeFor::Pun(_) => {}
             }
-        });
-    let actor_config = ActorConfig::new(
-        Ern::with_root("child").unwrap(),
-        None,
-        None,
-    )?;
+            FunnyJokeFor::Pun(_) => {
+                // Handle other variants if necessary
+            }
+        }
+    });
 
-    let mut child = acton.create_with_config::<Counter>(actor_config);
-    child.act_on::<Ping>(|actor, event| {
+    // Define the actor configuration for the Child (Counter) actor
+    let child_actor_config = ActorConfig::new(Ern::with_root("child").unwrap(), None, None)?;
+
+    // Asynchronously create the Counter actor with the specified configuration and await its creation
+    let mut child = acton.create_actor_with_config::<Counter>(child_actor_config).await;
+    tracing::info!("Created child actor with id: {}", child.ern);
+
+    // Define the message handler for Ping messages in the Child actor
+    child.act_on::<Ping>(|actor, _event| {
         tracing::info!("Received Ping from parent actor");
     });
-    let child_id = child.key.clone();
-    comedy_show.context.supervise(child).await?;
-    let comedian = comedy_show.activate(None);
+
+    // Clone the child actor's key for later use
+    let child_id = child.ern.clone();
+
+    // Supervise the Child actor under the Comedian actor and await the supervision process
+    comedy_show.actor_ref.supervise(child).await?;
+    assert_eq!(comedy_show.actor_ref.children().len(), 1, "Parent actor missing it's child after activation");
+    // Activate the Comedian actor and await its activation
+    let comedian = comedy_show.activate().await;
+
+    // Assert that the Comedian actor has exactly one child
     assert_eq!(comedian.children().len(), 1);
+
+    // Emit a FunnyJokeFor::ChickenCrossesRoad message to the Comedian actor and await the emission
     comedian
-        .emit_async(FunnyJokeFor::ChickenCrossesRoad(child_id), None)
+        .emit(FunnyJokeFor::ChickenCrossesRoad(child_id))
         .await;
+
+    // Suspend the Comedian actor and await the suspension process
     comedian.suspend().await?;
 
     Ok(())
