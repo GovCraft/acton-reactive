@@ -25,10 +25,23 @@ use crate::actor::{ActorConfig, Idle, ManagedActor};
 use crate::common::{ActonSystem, ActorRef, Broker, BrokerRef};
 use crate::common::acton_inner::ActonInner;
 
+/// Represents a ready state of the Acton system.
+///
+/// This struct encapsulates the internal state of the Acton system when it's ready for use.
+/// It provides methods for creating and managing actors within the system.
 #[derive(Debug, Clone, Default)]
 pub struct SystemReady(pub(crate) ActonInner);
 
 impl SystemReady {
+    /// Creates a new actor with default configuration.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `State` - The state type of the actor, which must implement `Default`, `Send`, `Debug`, and have a static lifetime.
+    ///
+    /// # Returns
+    ///
+    /// A `ManagedActor` in the `Idle` state with the specified `State`.
     pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle, State>
     where
         State: Default + Send + Debug + 'static,
@@ -39,6 +52,19 @@ impl SystemReady {
         ManagedActor::new(&Some(acton_ready), Some(config)).await
     }
 
+    /// Creates a new actor with a specified configuration.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `State` - The state type of the actor, which must implement `Default`, `Send`, `Debug`, and have a static lifetime.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The `ActorConfig` to use for creating the actor.
+    ///
+    /// # Returns
+    ///
+    /// A `ManagedActor` in the `Idle` state with the specified `State` and configuration.
     pub async fn create_actor_with_config<State>(
         &mut self,
         config: ActorConfig,
@@ -50,10 +76,29 @@ impl SystemReady {
         ManagedActor::new(&Some(acton_ready), Some(config)).await
     }
 
+    /// Retrieves the broker reference for the system.
+    ///
+    /// # Returns
+    ///
+    /// A clone of the `BrokerRef` associated with this `SystemReady` instance.
     pub fn get_broker(&self) -> BrokerRef {
         self.0.broker.clone()
     }
 
+    /// Spawns an actor with a custom setup function and configuration.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `State` - The state type of the actor, which must implement `Default`, `Send`, `Debug`, and have a static lifetime.
+    ///
+    /// # Arguments
+    ///
+    /// * `config` - The `ActorConfig` to use for creating the actor.
+    /// * `setup_fn` - A function that takes a `ManagedActor` and returns a `Future` resolving to an `ActorRef`.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
     pub async fn spawn_actor_with_setup<State>(
         &mut self,
         config: ActorConfig,
@@ -69,6 +114,19 @@ impl SystemReady {
         Ok(setup_fn(actor).await)
     }
 
+    /// Spawns an actor with a custom setup function and default configuration.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `State` - The state type of the actor, which must implement `Default`, `Send`, `Debug`, and have a static lifetime.
+    ///
+    /// # Arguments
+    ///
+    /// * `setup_fn` - A function that takes a `ManagedActor` and returns a `Future` resolving to an `ActorRef`.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
     pub async fn spawn_actor<State>(
         &mut self,
         setup_fn: impl FnOnce(
@@ -84,7 +142,6 @@ impl SystemReady {
         let actor = ManagedActor::new(&Some(acton_ready), Some(config)).await;
         Ok(setup_fn(actor).await)
     }
-
 }
 
 impl From<ActonSystem> for SystemReady {
