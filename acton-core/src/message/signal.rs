@@ -16,6 +16,9 @@
 use std::fmt::Debug;
 
 /// System-wide signals used to control actor lifecycle events.
+///
+/// This enum represents various signals that can be sent to actors to manage their lifecycle.
+/// It is marked as `#[non_exhaustive]` to allow for future expansion without breaking existing code.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum SystemSignal {
@@ -24,9 +27,27 @@ pub enum SystemSignal {
     // Suspend,
     // Resume,
     /// Signal to terminate the actor.
+    ///
+    /// When an actor receives this signal, it should begin its shutdown process,
+    /// cleaning up resources and preparing to stop execution.
     Terminate,
     // Supervise,
     // Watch,
     // Unwatch,
     // Failed,
+}
+
+impl SystemSignal {
+    /// Returns a string representation of the SystemSignal.
+    ///
+    /// This method is useful for logging and debugging purposes.
+    ///
+    /// # Returns
+    ///
+    /// A string slice representing the signal.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SystemSignal::Terminate => "Terminate",
+        }
+    }
 }
