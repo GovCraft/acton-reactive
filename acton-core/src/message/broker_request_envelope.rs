@@ -22,12 +22,28 @@ use crate::message::BrokerRequest;
 use crate::traits::ActonMessage;
 
 /// Represents an envelope that carries a message within the actor system.
+///
+/// This struct encapsulates a message as an `Arc<dyn ActonMessage>`, allowing for
+/// efficient and thread-safe sharing of the message across the system.
 #[derive(Debug, Clone)]
 pub struct BrokerRequestEnvelope {
+    /// The actual message being carried, wrapped in an Arc for thread-safe sharing.
     pub message: Arc<dyn ActonMessage + Send + Sync + 'static>,
 }
 
 impl From<BrokerRequest> for BrokerRequestEnvelope {
+    /// Converts a `BrokerRequest` into a `BrokerRequestEnvelope`.
+    ///
+    /// This implementation allows for seamless conversion from a `BrokerRequest`
+    /// to a `BrokerRequestEnvelope`, extracting the message from the request.
+    ///
+    /// # Arguments
+    ///
+    /// * `value` - The `BrokerRequest` to convert.
+    ///
+    /// # Returns
+    ///
+    /// A new `BrokerRequestEnvelope` containing the message from the `BrokerRequest`.
     fn from(value: BrokerRequest) -> Self {
         debug!("{:?}", value);
         Self {
@@ -37,6 +53,22 @@ impl From<BrokerRequest> for BrokerRequestEnvelope {
 }
 
 impl BrokerRequestEnvelope {
+    /// Creates a new `BrokerRequestEnvelope` instance.
+    ///
+    /// This method takes a message implementing the `ActonMessage` trait and wraps it
+    /// in a `BrokerRequestEnvelope`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M`: The type of the message, which must implement `ActonMessage + Send + Sync + 'static`.
+    ///
+    /// # Arguments
+    ///
+    /// * `request`: The message to be encapsulated in the `BrokerRequestEnvelope`.
+    ///
+    /// # Returns
+    ///
+    /// A new `BrokerRequestEnvelope` instance containing the provided message.
     pub fn new<M: ActonMessage + Send + Sync + 'static>(request: M) -> Self {
         let message = Arc::new(request);
         Self { message }
