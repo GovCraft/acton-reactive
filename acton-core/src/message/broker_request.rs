@@ -27,12 +27,31 @@ use crate::traits::ActonMessage;
 /// allowing the broker to efficiently route messages to appropriate subscribers.
 #[derive(Debug, Clone)]
 pub struct BrokerRequest {
+    /// The actual message being sent, wrapped in an Arc for thread-safe sharing.
     pub message: Arc<dyn ActonMessage + Send + Sync + 'static>,
+    /// The name of the message type, useful for debugging and logging.
     pub message_type_name: String,
+    /// The TypeId of the message, used for efficient type checking and routing.
     pub message_type_id: TypeId,
 }
 
 impl BrokerRequest {
+    /// Creates a new `BrokerRequest` instance.
+    ///
+    /// This method takes a message implementing the `ActonMessage` trait and wraps it
+    /// in a `BrokerRequest` along with its type information.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `M`: The type of the message, which must implement `ActonMessage + Send + Sync + 'static`.
+    ///
+    /// # Arguments
+    ///
+    /// * `message`: The message to be encapsulated in the `BrokerRequest`.
+    ///
+    /// # Returns
+    ///
+    /// A new `BrokerRequest` instance containing the provided message and its type information.
     pub fn new<M: ActonMessage + Send + Sync + 'static>(message: M) -> Self {
         let message_type_name = std::any::type_name_of_val(&message).to_string();
         let message_type_id = message.type_id();
