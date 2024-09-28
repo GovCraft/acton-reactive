@@ -38,8 +38,9 @@ pub struct Broker {
     /// Each entry in the map contains a set of tuples, where each tuple consists of:
     /// - An `Ern<UnixTime>`: The unique identifier of the subscriber.
     /// - An `ActorRef`: A reference to the subscriber actor.
-    subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
+    subscribers: Subscribers,
 }
+type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>; // Type alias for the subscribers map.
 
 impl Broker {
     #[instrument]
@@ -51,7 +52,7 @@ impl Broker {
             ManagedActor::new(&None, Some(actor_config)).await;
 
         actor
-            .act_on_async::<BrokerRequest>(|actor, event| {
+            .act_on::<BrokerRequest>(|actor, event| {
                 let subscribers = actor.entity.subscribers.clone();
                 let message = event.message.clone();
                 let message_type_id = message.type_id();
@@ -62,7 +63,7 @@ impl Broker {
                     Broker::broadcast(subscribers, message).await;
                 })
             })
-            .act_on_async::<SubscribeBroker>(|actor, event| {
+            .act_on::<SubscribeBroker>(|actor, event| {
                 let message = event.message.clone();
                 let message_type_id = message.message_type_id;
                 let subscriber_context = message.subscriber_context.clone();
@@ -72,7 +73,7 @@ impl Broker {
                 Box::pin(async move {
                     subscribers
                         .entry(message_type_id)
-                        .or_insert_with(HashSet::new)
+                        .or_default()
                         .insert((subscriber_id.clone(), subscriber_context.clone()));
                 })
             });
@@ -92,28 +93,14 @@ impl Broker {
     ///
     /// * `subscribers` - An `Arc<DashMap>` containing the subscribers for different message types.
     /// * `request` - The `BrokerRequest` containing the message to be broadcast.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use std::sync::Arc;
-    /// use dashmap::DashMap;
-    /// use acton_core::common::Broker;
-    /// use acton_core::message::BrokerRequest;
-    ///
-    /// async fn example_broadcast() {
-    ///     let subscribers = Arc::new(DashMap::new());
-    ///     let request = BrokerRequest::new(/* ... */);
-    ///     Broker::broadcast(subscribers, request).await;
-    /// }
     /// ```
     #[instrument(skip(subscribers))]
     pub async fn broadcast(
-        subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
+        subscribers: Subscribers,
         request: BrokerRequest,
     ) {
         let message_type_id = &request.message.as_ref().type_id();
-        if let Some(subscribers) = subscribers.get(&message_type_id) {
+        if let Some(subscribers) = subscribers.get(message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();

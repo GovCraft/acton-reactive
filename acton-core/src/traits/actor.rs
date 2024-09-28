@@ -74,7 +74,7 @@ pub trait Actor {
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit(
         &self,
-        message: impl ActonMessage + Sync + Send,
+        message: impl ActonMessage,
     ) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: Sync,
@@ -99,7 +99,7 @@ pub trait Actor {
     ///
     /// ```
     #[instrument(skip(self))]
-    fn send(&self, message: impl ActonMessage + Send + Sync + 'static) -> Result<(), MessageError>
+    fn send(&self, message: impl ActonMessage + 'static) -> Result<(), MessageError>
     where
         Self: Sync,
     {
@@ -140,13 +140,6 @@ pub trait Actor {
     /// # Returns
     ///
     /// A pinned boxed future that resolves immediately without doing anything.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use acton_core::prelude::*;
-    ///
-    /// let no_op_future = Actor::noop();
     /// ```
     fn noop() -> Pin<Box<impl Future<Output=()> + Sized>> {
         Box::pin(async move {})

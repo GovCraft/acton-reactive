@@ -23,7 +23,7 @@ mod setup;
 #[acton_test]
 async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch().into();
+    let mut acton_ready: SystemReady = ActonSystem::launch();
     let mut pool_item_actor = acton_ready.create_actor::<PoolItem>().await;
 
     pool_item_actor

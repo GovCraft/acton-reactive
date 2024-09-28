@@ -28,66 +28,67 @@ use crate::common::{
     SystemReady,
 };
 use crate::message::EventRecord;
+use crate::prelude::ActonMessage;
 use crate::traits::Actor;
-use crate::prelude::{ActonMessage};
 
 pub struct Idle;
 
 impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, ManagedEntity> {
-    #[instrument(skip(self, message_handler))]
-    pub fn act_on<M: ActonMessage + Clone + 'static>(
-        &mut self,
-        message_handler: impl Fn(&mut ManagedActor<Running, ManagedEntity>, &mut EventRecord<M>)
-        + Send
-        + Sync
-        + 'static,
-    ) -> &mut Self {
-        let type_id = TypeId::of::<M>();
-        trace!(type_name = std::any::type_name::<M>(), type_id = ?type_id);
-        // Create a boxed handler for the message type.
-        let handler: Box<MessageHandler<ManagedEntity>> = Box::new(
-            move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| {
-                let envelope_type_id = envelope.message.as_any().type_id();
-                trace!(
-                "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
-                type_id, envelope_type_id
-            );
-                if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
-                    let message = concrete_msg.clone();
-                    let sent_time = envelope.sent_time;
-                    let return_address = OutboundEnvelope::new(envelope.return_address.clone());
-                    let event_record = &mut EventRecord {
-                        message,
-                        sent_time,
-                        return_address,
-                    };
-                    message_handler(actor, event_record);
-                    Box::pin(())
-                } else {
-                    Box::pin({
-                        error!(
-                            "Message type mismatch: expected {:?}",
-                            std::any::type_name::<M>()
-                        );
-                    })
-                };
-            },
-        );
-
-        // Insert the handler into the reactors map.
-        let _ = self
-            .reactors
-            .insert(type_id, ReactorItem::MessageReactor(handler));
-
-        self
-    }
+    // #[instrument(skip(self, message_handler))]
+    // pub fn act_on<M: ActonMessage + Clone + 'static>(
+    //     &mut self,
+    //     message_handler: impl Fn(&mut ManagedActor<Running, ManagedEntity>, &mut EventRecord<M>)
+    //     + Send
+    //     + Sync
+    //     + 'static,
+    // ) -> &mut Self {
+    //     let type_id = TypeId::of::<M>();
+    //     trace!(type_name = std::any::type_name::<M>(), type_id = ?type_id);
+    //     // Create a boxed handler for the message type.
+    //     let handler: Box<MessageHandler<ManagedEntity>> = Box::new(
+    //         move |actor: &mut ManagedActor<Running, ManagedEntity>, envelope: &mut Envelope| {
+    //             let envelope_type_id = envelope.message.as_any().type_id();
+    //             trace!(
+    //             "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
+    //             type_id, envelope_type_id
+    //         );
+    //             if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
+    //                 let message = concrete_msg.clone();
+    //                 let sent_time = envelope.sent_time;
+    //                 let return_address = OutboundEnvelope::new(envelope.return_address.clone());
+    //                 let event_record = &mut EventRecord {
+    //                     message,
+    //                     sent_time,
+    //                     return_address,
+    //                 };
+    //                 message_handler(actor, event_record);
+    //                 Box::pin(())
+    //             } else {
+    //                 {
+    //                     error!(
+    //                         "Message type mismatch: expected {:?}",
+    //                         std::any::type_name::<M>()
+    //                     );
+    //                 };
+    //                 Box::pin(())
+    //             };
+    //         },
+    //     );
+    // 
+    //     // Insert the handler into the reactors map.
+    //     let _ = self
+    //         .reactors
+    //         .insert(type_id, ReactorItem::MessageReactor(handler));
+    // 
+    //     self
+    // }
 
     /// Adds an asynchronous message handler for a specific message type.
     ///
     /// # Parameters
     /// - `message_processor`: The function to handle the message.
     #[instrument(skip(self, message_processor))]
-    pub fn act_on_async<M>(
+    pub fn act_on<M>(
         &mut self,
         message_processor: impl for<'a> Fn(
             &'a mut ManagedActor<Running, ManagedEntity>,
@@ -237,8 +238,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
     pub async fn create_child(&self) -> ManagedActor<Idle, ManagedEntity> {
-        let actor = ManagedActor::new(&Some(self.acton.clone()), None).await;
-        actor
+        ManagedActor::new(&Some(self.acton.clone()), None).await
     }
 
     #[instrument]
@@ -258,11 +258,9 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
 
         trace!("NEW ACTOR: {}", &managed_actor.actor_ref.ern());
 
-        managed_actor.acton = acton.clone().unwrap_or_else(|| SystemReady {
-            0: ActonInner {
-                broker: managed_actor.actor_ref.broker.clone().unwrap_or_default(),
-            },
-        });
+        managed_actor.acton = acton.clone().unwrap_or_else(|| SystemReady(ActonInner {
+            broker: managed_actor.actor_ref.broker.clone().unwrap_or_default(),
+        }));
 
         managed_actor.ern = managed_actor.actor_ref.ern();
 
@@ -282,7 +280,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
             "Actor mailbox is closed in activate"
         );
 
-        let _ = actor_ref.tracker().spawn(actor.wake(reactors));
+        actor_ref.tracker().spawn(actor.wake(reactors));
         actor_ref.tracker().close();
 
         actor_ref

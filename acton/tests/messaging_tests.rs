@@ -35,6 +35,8 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in sync handler");
             actor.entity.receive_count += 1;
+            ActorRef::noop()
+
         })
         .before_stop(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
@@ -53,6 +55,7 @@ async fn test_basic_messenger() -> anyhow::Result<()> {
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in Messenger handler");
+            ActorRef::noop()
         })
         .before_stop(|actor| {
             info!("Stopping");
@@ -69,7 +72,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     let mut system: SystemReady = ActonSystem::launch();
     let mut actor = system.create_actor::<PoolItem>().await;
     actor
-        .act_on_async::<Ping>(|actor, event| {
+        .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in async handler");
             actor.entity.receive_count += 1;

@@ -27,7 +27,7 @@ mod setup;
 #[acton_test]
 async fn test_broker() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton: SystemReady = ActonSystem::launch().into();
+    let mut acton: SystemReady = ActonSystem::launch();
     let broker = acton.get_broker();
 
     let actor_config = ActorConfig::new(
@@ -46,15 +46,19 @@ async fn test_broker() -> anyhow::Result<()> {
     let mut counter_actor = acton.create_actor_with_config::<Counter>(actor_config).await;
     counter_actor.act_on::<Pong>(|actor, event| {
         info!("Also SUCCESS! PONG!");
+        ActorRef::noop()
+
     });
 
     comedy_show
-        .act_on_async::<Ping>(|actor, event| {
+        .act_on::<Ping>(|actor, event| {
             info!("SUCCESS! PING!");
             Box::pin(async move {})
         })
         .act_on::<Pong>(|actor, event| {
             info!("SUCCESS! PONG!");
+            ActorRef::noop()
+
         });
 
     counter_actor.actor_ref.subscribe::<Pong>().await;
@@ -67,9 +71,9 @@ async fn test_broker() -> anyhow::Result<()> {
     broker.emit(BrokerRequest::new(Ping)).await;
     broker.emit(BrokerRequest::new(Pong)).await;
 
-    let _ = comedian.suspend().await?;
-    let _ = counter.suspend().await?;
-    let _ = broker.suspend().await?;
+    comedian.suspend().await?;
+    counter.suspend().await?;
+    broker.suspend().await?;
 
     Ok(())
 }

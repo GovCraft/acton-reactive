@@ -107,46 +107,11 @@ impl ActorRef {
     ///   hierarchy.
     /// - An error of type [`anyhow::Error`] if any step of the supervision process fails.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use acton_core::prelude::*;
-    /// use anyhow::Result;
-    /// use tracing::info;
-    ///
-    /// #[derive(Default, Debug)]
-    /// struct MyState;
-    ///
-    /// #[derive(Default, Debug)]
-    /// struct MyIdle;
-    ///
-    /// // Assume ManagedActor and ActorRef are properly defined
-    ///
-    /// async fn add_child(actor_ref: &ActorRef) -> Result<()> {
-    ///     let child_actor = ManagedActor::<MyIdle, MyState>::new();
-    ///     actor_ref.supervise(child_actor).await
-    /// }
-    /// ```
-    ///
-    /// # Notes
-    ///
-    /// - The `supervise` method is marked with the [`#[instrument]`] attribute from the `tracing` crate,
-    ///   which provides detailed logging for debugging purposes. The `self` parameter is skipped
-    ///   in the logs to avoid potential clutter or sensitive information leakage.
-    ///
-    /// - Ensure that the `ManagedActor` provided is correctly initialized and compatible with the
-    ///   supervising `ActorRef`.
-    ///
-    /// - The `children` map is assumed to be a thread-safe data structure (e.g., `DashMap`) that
-    ///   allows concurrent access.
-    ///
     /// # Errors
     ///
     /// This method will return an error if:
     /// - The child actor fails to activate.
     /// - Inserting the child context into the `children` map fails.
-    ///
-    /// Ensure that appropriate error handling is in place when using this method.
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
@@ -201,6 +166,7 @@ impl Actor for ActorRef {
         self.clone()
     }
 
+    #[allow(clippy::manual_async_fn)]
     /// Suspends the actor.
     fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {

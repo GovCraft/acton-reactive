@@ -45,11 +45,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     /// # Returns
     /// A clone of the parent's return envelope.
     pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
-        if let Some(parent) = &self.parent {
-            Some(parent.return_address().clone())
-        } else {
-            None
-        }
+        self.parent.as_ref().map(|parent| parent.return_address().clone())
     }
 
     #[instrument(skip(reactors, self))]
@@ -70,10 +66,10 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
                     broker_request_envelope.message.clone(),
                     incoming_envelope.return_address.clone(),
                 );
-                type_id = broker_request_envelope.message.as_any().type_id().clone();
+                type_id = broker_request_envelope.message.as_any().type_id();
             } else {
                 envelope = incoming_envelope;
-                type_id = envelope.message.as_any().type_id().clone();
+                type_id = envelope.message.as_any().type_id();
             }
 
             if let Some(reactor) = reactors.get(&type_id) {

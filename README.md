@@ -1,17 +1,14 @@
-# Acton Distributed Actor Framework
+# Acton Actor Framework
 
-The Acton Distributed Actor Framework is a powerful and flexible Rust-based framework designed to build scalable and
-efficient distributed systems. This framework leverages the actor model, allowing developers to create robust and
-resilient applications with ease.
+The Acton Actor Framework simplifies writing fast, reactive Rust applications.
 
 ## Features
 
-- **Actor-based Architecture**: Utilizes the actor model to encapsulate state and behavior, providing a natural
+- **Actor-based Architecture**: Uses a Tokio-based actor model to for lock-free state and behavior, providing a natural
   concurrency model.
-- **Hierarchical Actor Management**: Supports hierarchical relationships between actors, enabling efficient resource
-  management and security.
 - **Asynchronous Messaging**: Leverages Rust's async/await syntax for high-performance, non-blocking communication.
 - **Extensibility**: Easily extensible to accommodate various use cases and integrate with existing systems.
+- **Type-safe Message Handling**: Ensures compile-time correctness of message passing between actors.
 
 ## Getting Started
 
@@ -26,26 +23,67 @@ acton = { path = "./acton" }
 
 ### Creating and Managing Actors
 
+Here's a simple example of how to create and use actors in the Acton framework:
+
 ```rust
 use acton::prelude::*;
 
-#[derive(Default, Debug)]
-struct MyActor;
+// Define an actor
+#[derive(Default)]
+struct Counter {
+    count: usize,
+}
 
-impl Actor for MyActor {
-    type Context = Context<Self>;
+// Implement the Actor trait
+impl Actor for Counter {}
 
-    fn started(&mut self, ctx: &mut Self::Context) {
-        println!("Actor started!");
+// Define a message
+#[derive(Clone)]
+struct Increment;
+
+// Implement message handling
+#[async_trait]
+impl Handler<Increment> for Counter {
+    async fn handle(&mut self, _msg: Increment, _ctx: &mut ActorContext) {
+        self.count += 1;
+        println!("Count: {}", self.count);
     }
 }
 
-fn main() {
-    let system = System::new("example");
-    let actor = system.actor_of::<MyActor>("my-actor").unwrap();
-    actor.tell(MyMessage, None);
-    system.run();
+#[tokio::main]
+async fn main() {
+    // Create an ActonSystem
+    let system = ActonSystem::launch();
+
+    // Create an actor
+    let counter = system.spawn_actor(Counter::default()).await.unwrap();
+
+    // Send messages to the actor
+    counter.send(Increment).await.unwrap();
+    counter.send(Increment).await.unwrap();
+
+    // Wait for a moment to see the results
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 }
 ```
+
+This example demonstrates:
+1. Defining an actor (`Counter`)
+2. Implementing the `Actor` trait
+3. Defining a message (`Increment`)
+4. Implementing message handling with `Handler<Increment>`
+5. Creating an `ActonSystem`
+6. Spawning an actor
+7. Sending messages to the actor
+
+For more complex examples and advanced usage, please refer to the tests in the `acton/tests/` directory.
+
+## Contributing
+
+Contributions to the Acton Distributed Actor Framework are welcome! Please feel free to submit issues, fork the repository and send pull requests!
+
+## License
+
+This project is licensed under [LICENSE NAME]. See the LICENSE file for details.
 
 

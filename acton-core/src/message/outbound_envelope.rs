@@ -76,14 +76,14 @@ impl OutboundEnvelope {
     #[instrument(skip(self))]
     pub fn reply(
         &self,
-        message: impl ActonMessage + Sync + Send + 'static,
+        message: impl ActonMessage + 'static,
     ) -> Result<(), MessageError> {
         let envelope = self.clone();
         trace!("*");
         // Event: Replying to Message
         // Description: Replying to a message with an optional pool ID.
         // Context: Message details and pool ID.
-        let _ = tokio::task::spawn_blocking(move || {
+        tokio::task::spawn_blocking(move || {
             tracing::trace!(msg = ?message, "Replying to message.");
             let rt = Runtime::new().unwrap();
             rt.block_on(async move {
@@ -104,7 +104,7 @@ impl OutboundEnvelope {
     #[instrument(skip(self))]
     async fn reply_message_async(&self, message: Arc<dyn ActonMessage + Send + Sync>) {
         let reply_to = &self.return_address;
-        let type_id = (&*message).type_id();
+        let type_id = (*message).type_id();
         if !reply_to.address.is_closed() {
             // Reserve capacity
             match reply_to.address.reserve().await {
@@ -140,7 +140,7 @@ impl OutboundEnvelope {
     /// # Returns
     /// A result indicating success or failure.
     #[instrument(skip(self))]
-    pub async fn reply_async(&self, message: impl ActonMessage + Sync + Send + 'static) {
+    pub async fn reply_async(&self, message: impl ActonMessage + 'static) {
         self.reply_message_async(Arc::new(message)).await;
     }
 

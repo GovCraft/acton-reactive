@@ -31,7 +31,7 @@ pub struct PoolItem {
 impl PoolItem {
     // Initialize the actor with a given actor_name and parent context
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
-        let mut acton: SystemReady = ActonSystem::launch().into();
+        let mut acton: SystemReady = ActonSystem::launch();
 
         let broker = acton.get_broker();
 
@@ -56,6 +56,8 @@ impl PoolItem {
             .act_on::<Ping>(|actor, _event| {
                 tracing::debug!(actor = actor.ern.to_string(), "Received Ping event for");
                 actor.entity.receive_count += 1; // Increment receive_count on Ping event
+                ActorRef::noop()
+
             })
             .before_stop_async(|actor| {
                 let parent = &actor.parent.clone().unwrap();

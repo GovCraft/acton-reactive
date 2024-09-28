@@ -17,7 +17,6 @@
 use std::any::TypeId;
 use std::time::Duration;
 
-use tokio;
 use tokio::runtime::Runtime;
 use tokio::task;
 use tracing::field::debug;
@@ -34,7 +33,7 @@ mod setup;
 #[acton_test]
 async fn test_launch_passing_acton() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch().into();
+    let mut acton_ready: SystemReady = ActonSystem::launch();
     let broker = acton_ready.get_broker();
 
     let actor_config = ActorConfig::new(Ern::with_root("parent")?, None, Some(broker.clone()))?;
@@ -58,6 +57,8 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                         Box::pin(async move {
                             child.act_on::<Pong>(|_actor, _msg| {
                                 info!("CHILD SUCCESS! PONG!");
+                                ActorRef::noop()
+
                             });
 
                             let child_context = &child.actor_ref.clone();
@@ -71,8 +72,10 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                 actor
                     .act_on::<Ping>(|_actor, _msg| {
                         info!("SUCCESS! PING!");
+                        ActorRef::noop()
+
                     })
-                    .act_on_async::<Pong>(|actor, _msg| ActorRef::wrap_future(wait_and_respond()));
+                    .act_on::<Pong>(|actor, _msg| ActorRef::wrap_future(wait_and_respond()));
                 let context = &actor.actor_ref.clone();
 
                 context.subscribe::<Ping>().await;
@@ -99,7 +102,7 @@ async fn wait_and_respond() {
 #[acton_test]
 async fn test_launchpad() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch().into();
+    let mut acton_ready: SystemReady = ActonSystem::launch();
 
     let broker = acton_ready.get_broker();
 
@@ -112,8 +115,9 @@ async fn test_launchpad() -> anyhow::Result<()> {
                 actor
                     .act_on::<Ping>(|_actor, _msg| {
                         info!("SUCCESS! PING!");
+                        ActorRef::noop()
                     })
-                    .act_on_async::<Pong>(|_actor, _msg| {
+                    .act_on::<Pong>(|_actor, _msg| {
                         Box::pin(async move {
                             info!("SUCCESS! PONG!");
                         })
@@ -130,7 +134,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
     let counter_actor = acton_ready
         .spawn_actor::<Counter>(|mut actor| {
             Box::pin(async move {
-                actor.act_on_async::<Pong>(|_actor, _msg| {
+                actor.act_on::<Pong>(|_actor, _msg| {
                     Box::pin(async move {
                         info!("SUCCESS! PONG!");
                     })

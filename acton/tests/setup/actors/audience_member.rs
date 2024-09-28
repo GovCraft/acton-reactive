@@ -41,7 +41,7 @@ impl AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
     async fn initialize(&self, config: ActorConfig) -> ActorRef {
-        let mut acton: SystemReady = ActonSystem::launch().into();
+        let mut acton: SystemReady = ActonSystem::launch();
 
         let broker = acton.get_broker();
 
@@ -55,7 +55,7 @@ impl AudienceMember {
                                                                       // let mut actor =
                                                                       //     Acton::<AudienceMember>::create_with_config(config.clone());
 
-        actor.act_on_async::<Joke>(|actor, event| {
+        actor.act_on::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();
             // let parent_sender = actor.new_parent_envelope().sender.value;
             // let event_sender = &event.return_address.sender.value;
