@@ -111,6 +111,30 @@ pub trait Actor {
     /// Suspends the actor.
     fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
+    /// Wraps a future in a pinned box.
+    ///
+    /// This method is useful for converting a future into a pinned boxed future,
+    /// which is often required when working with trait objects or storing futures.
+    ///
+    /// # Arguments
+    ///
+    /// * `future` - The future to be wrapped.
+    ///
+    /// # Returns
+    ///
+    /// A pinned boxed future.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use acton_core::prelude::*;
+    ///
+    /// async fn some_async_task() {
+    ///     // Some async work
+    /// }
+    ///
+    /// let boxed_future = Actor::wrap_future(some_async_task());
+    /// ```
     fn wrap_future<F>(future: F) -> Pin<Box<F>>
     where
         F: Future<Output=()> + Sized + 'static,
@@ -118,6 +142,23 @@ pub trait Actor {
         Box::pin(future)
     }
 
+    /// Creates a no-op (no operation) future.
+    ///
+    /// This method returns a future that does nothing and completes immediately.
+    /// It's useful in situations where you need to provide a future but don't want
+    /// it to perform any actual work.
+    ///
+    /// # Returns
+    ///
+    /// A pinned boxed future that resolves immediately without doing anything.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use acton_core::prelude::*;
+    ///
+    /// let no_op_future = Actor::noop();
+    /// ```
     fn noop() -> Pin<Box<impl Future<Output=()> + Sized>> {
         Box::pin(async move {})
     }
