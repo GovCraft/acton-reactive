@@ -42,7 +42,7 @@ impl PoolItem {
         );
 
         let mut actor = acton.create_actor::<PoolItem>().await;
-        // let mut actor = Akton::<PoolItem>::create_with_config(config.clone());
+        // let mut actor = Acton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(

@@ -18,7 +18,7 @@ use std::fmt::Debug;
 
 use dyn_clone::DynClone;
 
-/// Trait for Akton messages, providing methods for type erasure.
+/// Trait for Acton messages, providing methods for type erasure.
 pub trait ActonMessage: DynClone + Any + Send + Sync + Debug {
     /// Returns a reference to the message as `Any`.
     fn as_any(&self) -> &dyn Any;

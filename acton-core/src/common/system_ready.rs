@@ -85,17 +85,11 @@ impl SystemReady {
         Ok(setup_fn(actor).await)
     }
 
-    fn get_pool_size() -> usize {
-        std::env::var("AKTON_BROKER_POOL_SIZE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(1)
-    }
 }
 
 impl From<ActonSystem> for SystemReady {
-    fn from(acton: ActonSystem) -> Self {
-        let pool_size = SystemReady::get_pool_size();
+    fn from(_acton: ActonSystem) -> Self {
+
 
         let (sender, receiver) = oneshot::channel();
 

@@ -77,28 +77,3 @@ pub trait Actor {
         Box::pin(async move {})
     }
 }
-
-pub trait FutureWrapper {
-    fn wrap<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
-    where
-        F: Future<Output=()> + 'static;
-
-    fn noop() -> Pin<Box<dyn Future<Output=()> + 'static>>;
-}
-
-// Blanket implementation for all types that implement ActorContext
-impl<T> FutureWrapper for T
-where
-    T: Actor,
-{
-    fn wrap<F>(future: F) -> Pin<Box<dyn Future<Output=()> + 'static>>
-    where
-        F: Future<Output=()> + 'static,
-    {
-        Box::pin(future)
-    }
-
-    fn noop() -> Pin<Box<dyn Future<Output=()> + 'static>> {
-        Box::pin(async move {})
-    }
-}

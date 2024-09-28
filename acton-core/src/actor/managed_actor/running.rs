@@ -34,7 +34,6 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     /// # Returns
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
-        let envelope = &self.actor_ref.outbox;
         Option::from(OutboundEnvelope::new(ReturnAddress::new(
             self.actor_ref.outbox.clone(),
             self.ern.clone(),
@@ -57,7 +56,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<ManagedEntity>) {
         (self.on_activate)(self);
 
-        while let Some(mut incoming_envelope) = self.inbox.recv().await {
+        while let Some(incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
             debug!("{}", type_name_of_val(&incoming_envelope.message));
@@ -76,13 +75,11 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
                 envelope = incoming_envelope;
                 type_id = envelope.message.as_any().type_id().clone();
             }
-            let is_target = reactors.len() > 0;
 
             if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
                     ReactorItem::MessageReactor(reactor) => (*reactor)(self, &mut envelope),
                     ReactorItem::FutureReactor(fut) => fut(self, &mut envelope).await,
-                    _ => tracing::warn!("Unknown ReactorItem type for: {:?}", &type_id.clone()),
                 }
             } else if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()

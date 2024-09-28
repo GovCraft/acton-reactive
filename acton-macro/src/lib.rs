@@ -15,19 +15,19 @@
  */
 #![forbid(unsafe_code)]
 // extern crate proc_macro;
-//! Akton Macro Library
+//! Acton Macro Library
 //!
-//! This library provides procedural macros for the Akton actor framework.
-//! It includes macros to derive common traits and boilerplate code for Akton messages.
+//! This library provides procedural macros for the Acton actor framework.
+//! It includes macros to derive common traits and boilerplate code for Acton messages.
 
 use proc_macro::TokenStream;
 
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput};
 
-/// A procedural macro to derive the necessary traits for an Akton message.
+/// A procedural macro to derive the necessary traits for an Acton message.
 ///
-/// This macro will automatically implement `Clone`, `Debug`, `AktonMessage`, and `Sync`
+/// This macro will automatically implement `Clone`, `Debug`, `ActonMessage`, and `Sync`
 /// for the annotated type.
 ///
 /// # Example

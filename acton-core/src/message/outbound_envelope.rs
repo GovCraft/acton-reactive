@@ -14,15 +14,13 @@
  * limitations under that License.
  */
 
-use std::any::Any;
 use std::cmp::PartialEq;
 use std::sync::Arc;
 
-use acton_ern::{Ern, UnixTime};
 use tokio::runtime::Runtime;
 use tracing::{error, instrument, trace};
 
-use crate::common::{Envelope, MessageError, Outbox};
+use crate::common::{Envelope, MessageError};
 use crate::message::return_address::ReturnAddress;
 use crate::traits::ActonMessage;
 
@@ -34,7 +32,7 @@ pub struct OutboundEnvelope {
 
 impl PartialEq for ReturnAddress {
     fn eq(&self, other: &Self) -> bool {
-        todo!()
+        self.sender == other.sender
     }
 } // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {

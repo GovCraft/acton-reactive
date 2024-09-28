@@ -20,7 +20,7 @@ use std::mem;
 
 use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
-use tracing::{error, event, info, instrument, Level, trace};
+use tracing::*;
 
 use crate::actor::{ActorConfig, ManagedActor, Running};
 use crate::common::{
@@ -28,7 +28,8 @@ use crate::common::{
     SystemReady,
 };
 use crate::message::EventRecord;
-use crate::prelude::{ActonMessage, Actor};
+use crate::traits::Actor;
+use crate::prelude::{ActonMessage};
 
 pub struct Idle;
 

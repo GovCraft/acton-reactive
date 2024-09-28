@@ -26,15 +26,14 @@ use tokio::sync::mpsc::Sender;
 use crate::actor::{ManagedActor, Running};
 use crate::common::ActorRef;
 use crate::message::Envelope;
-use crate::traits::ActonMessage;
 
 /// A type alias for a map of reactors, indexed by `TypeId`.
 pub(crate) type ReactorMap<ActorEntity> = DashMap<TypeId, ReactorItem<ActorEntity>>;
 
 /// An enum representing different types of reactors for handling signals, messages, and futures.
 pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
-    /// A signal reactor, which reacts to signals.
-    SignalReactor(Box<SignalHandler<ActorEntity>>),
+    // A signal reactor, which reacts to signals.
+    // SignalReactor(Box<SignalHandler<ActorEntity>>),
     /// A message reactor, which reacts to messages.
     MessageReactor(Box<MessageHandler<ActorEntity>>),
     /// A future reactor, which reacts to futures.
@@ -46,11 +45,7 @@ pub(crate) type MessageHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedA
 + Send
 + Sync
 + 'static;
-/// A type alias for a signal reactor function.
-pub type SignalHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &dyn ActonMessage) -> FutureBox
-+ Send
-+ Sync
-+ 'static;
+
 /// A type alias for a future reactor function.
 pub(crate) type FutureHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedActor<Running, ManagedEntity>, &'b mut Envelope) -> FutureBox
 + Send

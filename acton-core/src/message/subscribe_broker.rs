@@ -25,10 +25,9 @@ use crate::common::ActorRef;
 pub(crate) struct SubscribeBroker {
     pub(crate) subscriber_id: Ern<UnixTime>,
     pub(crate) message_type_id: TypeId,
-    pub(crate) message_type_name: String,
     pub(crate) subscriber_context: ActorRef,
 }
-// impl AktonMessage for SubscribeBroker {
+// impl ActonMessage for SubscribeBroker {
 //     /// Returns a reference to the signal as `Any`.
 //     fn as_any(&self) -> &dyn Any {
 //         self

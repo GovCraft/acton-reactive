@@ -14,11 +14,11 @@
  * limitations under that License.
  */
 #![forbid(unsafe_code)]
-// #![warn(unused)]
+#![forbid(unused)]
 
-//! Akton Main Library
+//! Acton Main Library
 //!
-//! This library provides the main entry point for the Akton actor framework.
+//! This library provides the main entry point for the Acton actor framework.
 //! It includes the prelude module for convenient imports.
 
 /// Prelude module for convenient imports.

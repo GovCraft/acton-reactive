@@ -16,12 +16,57 @@
 
 use crate::common::SystemReady;
 
+/// Represents the Acton system.
+///
+/// The `ActonSystem` struct serves as the central controller for the Acton framework,
+/// managing the initialization and coordination of various system components.
+/// It provides functionality to launch and prepare the system for operation.
+///
+/// # Derives
+///
+/// - [`Default`]: Allows for the creation of a default instance of `ActonSystem`.
+/// - [`Debug`]: Enables formatting of the system for debugging purposes.
+/// - [`Clone`]: Permits cloning of the system instance.
+///
+/// # Examples
+///
+/// Launching the Acton system:
+///
+/// ```rust
+/// use acton_core::prelude::*;
+///
+/// // Initialize and launch the Acton system
+/// let system_ready = ActonSystem::launch();
+///
+/// // The system is now ready for use
+/// // You can proceed with further operations, such as spawning actors
+/// ```
 #[derive(Default, Debug, Clone)]
 pub struct ActonSystem;
 
 impl ActonSystem {
+    /// Launches the Acton system.
+    ///
+    /// This method initializes and starts the Acton system, setting up all necessary
+    /// components and preparing the system for handling tasks and managing actors.
+    ///
+    /// # Returns
+    ///
+    /// A [`SystemReady`] instance indicating that the system has been successfully launched
+    /// and is ready for operation.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use acton_core::prelude::*;
+    ///
+    /// // Launch the Acton system
+    /// let system_ready = ActonSystem::launch();
+    ///
+    /// // Proceed with using the system, such as creating actors or handling tasks
+    /// ```
     pub fn launch() -> SystemReady {
         let system: ActonSystem = Default::default();
-        return system.into();
+        system.into()
     }
 }

@@ -17,12 +17,10 @@
 use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
-use std::future::Future;
 
 use acton_ern::{Ern, UnixTime};
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
-use tracing::*;
 
 pub use idle::Idle;
 
@@ -31,8 +29,7 @@ use crate::common::{
     ParentRef, ReactorMap,
 };
 use crate::message::Envelope;
-use crate::prelude::{ActonMessage, SystemReady};
-use crate::traits::Actor;
+use crate::prelude::SystemReady;
 
 use super::Running;
 

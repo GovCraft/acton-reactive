@@ -74,7 +74,7 @@ with most async Rust code, regardless of the specific async framework being used
 ## Current Usage
 
 While `acton_test` is a standalone crate that can be used for testing any asynchronous Rust code, it is currently being
-actively used and developed as part of the Akton Actor Framework, an open-source project being created by Govcraft.
+actively used and developed as part of the Acton Actor Framework, an open-source project being created by Govcraft.
 
 ## Contributing
 

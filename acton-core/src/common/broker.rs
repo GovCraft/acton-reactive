@@ -15,22 +15,17 @@
  */
 
 use std::any::{Any, TypeId};
-use std::collections::{HashMap, HashSet};
-use std::future::Future;
-use std::pin::Pin;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use acton_ern::{Ern, UnixTime};
 use dashmap::DashMap;
-use futures::future::join_all;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
 use tracing::*;
 
 use crate::actor::{ActorConfig, Idle, ManagedActor};
-use crate::common::{ActonSystem, ActorRef, SystemReady};
-use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{ActonMessage, Actor};
+use crate::common::ActorRef;
+use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker};
+use crate::traits::Actor;
 
 #[derive(Default, Debug)]
 pub struct Broker {
@@ -61,7 +56,6 @@ impl Broker {
             .act_on_async::<SubscribeBroker>(|actor, event| {
                 let message = event.message.clone();
                 let message_type_id = message.message_type_id;
-                let message_type_name = message.message_type_name.clone();
                 let subscriber_context = message.subscriber_context.clone();
                 let subscriber_id = message.subscriber_id.clone();
 

@@ -1,6 +1,6 @@
-# Akton Distributed Actor Framework
+# Acton Distributed Actor Framework
 
-The Akton Distributed Actor Framework is a powerful and flexible Rust-based framework designed to build scalable and
+The Acton Distributed Actor Framework is a powerful and flexible Rust-based framework designed to build scalable and
 efficient distributed systems. This framework leverages the actor model, allowing developers to create robust and
 resilient applications with ease.
 
@@ -15,7 +15,7 @@ resilient applications with ease.
 
 ## Getting Started
 
-To get started with the Akton framework, add the following to your `Cargo.toml`:
+To get started with the Acton framework, add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]

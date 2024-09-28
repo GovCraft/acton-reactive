@@ -14,7 +14,6 @@
  * limitations under that License.
  */
 
-use std::fmt::Display;
 
 use acton_ern::{Ern, ErnParser, UnixTime};
 

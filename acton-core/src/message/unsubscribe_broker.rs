@@ -14,16 +14,16 @@
  * limitations under that License.
  */
 
-use std::any::TypeId;
+// use std::any::TypeId;
 use std::fmt::Debug;
 
-use acton_ern::{Ern, UnixTime};
-
-use crate::common::ActorRef;
+// use acton_ern::{Ern, UnixTime};
+//
+// use crate::common::ActorRef;
 
 #[derive(Debug, Clone)]
 pub(crate) struct UnsubscribeBroker {
-    pub(crate) ern: Ern<UnixTime>,
-    pub(crate) message_type_id: TypeId,
-    pub(crate) subscriber_ref: ActorRef,
+    // ern: Ern<UnixTime>,
+    // message_type_id: TypeId,
+    // subscriber_ref: ActorRef,
 }

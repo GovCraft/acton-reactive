@@ -16,18 +16,17 @@
 use std::fmt::Debug;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
-use std::sync::mpsc::{channel, Sender};
 
 use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;
 use dashmap::DashMap;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::mpsc;
 use tokio_util::task::TaskTracker;
-use tracing::{info, instrument, trace, warn};
+use tracing::{info, instrument, trace, warn, debug};
 
 use crate::actor::{Idle, ManagedActor};
 use crate::common::{BrokerRef, OutboundEnvelope, Outbox, ParentRef};
-use crate::message::{Envelope, ReturnAddress, SystemSignal};
+use crate::message::{ReturnAddress, SystemSignal};
 use crate::traits::{Actor, Subscriber};
 
 /// Represents the context in which an actor operates.
@@ -41,6 +40,7 @@ pub struct ActorRef {
     tracker: TaskTracker,
     /// The actor's optional parent context.
     pub parent: Option<Box<ParentRef>>,
+    /// The system broker for the actor.
     pub broker: Box<Option<BrokerRef>>,
     children: DashMap<String, ActorRef>,
 }
@@ -80,15 +80,82 @@ impl Hash for ActorRef {
 }
 
 impl ActorRef {
+    /// Supervises a child actor by activating it and tracking its context.
+    ///
+    /// This asynchronous method adds a child actor to the supervision hierarchy managed by this
+    /// `ActorRef`. It performs the following steps:
+    ///
+    /// 1. Logs the addition of the child actor with its unique identifier (`ern`).
+    /// 2. Activates the child actor by calling its `activate` method asynchronously.
+    /// 3. Retrieves the `ern` (unique identifier) from the child’s context.
+    /// 4. Inserts the child's context into the `children` map of the supervising actor,
+    ///    using the `ern` as the key.
+    ///
+    /// # Type Parameters
+    ///
+    /// - `State`: Represents the state type associated with the child actor. It must implement
+    ///   the [`Default`], [`Send`], and [`Debug`] traits.
+    ///
+    /// # Parameters
+    ///
+    /// - `child`: A [`ManagedActor`] instance representing the child actor to be supervised.
+    ///
+    /// # Returns
+    ///
+    /// A [`Result`] which is:
+    /// - `Ok(())` if the child actor was successfully supervised and added to the supervision
+    ///   hierarchy.
+    /// - An error of type [`anyhow::Error`] if any step of the supervision process fails.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use acton_core::prelude::*;
+    /// use anyhow::Result;
+    /// use tracing::info;
+    ///
+    /// #[derive(Default, Debug)]
+    /// struct MyState;
+    ///
+    /// #[derive(Default, Debug)]
+    /// struct MyIdle;
+    ///
+    /// // Assume ManagedActor and ActorRef are properly defined
+    ///
+    /// async fn add_child(actor_ref: &ActorRef) -> Result<()> {
+    ///     let child_actor = ManagedActor::<MyIdle, MyState>::new();
+    ///     actor_ref.supervise(child_actor).await
+    /// }
+    /// ```
+    ///
+    /// # Notes
+    ///
+    /// - The `supervise` method is marked with the [`#[instrument]`] attribute from the `tracing` crate,
+    ///   which provides detailed logging for debugging purposes. The `self` parameter is skipped
+    ///   in the logs to avoid potential clutter or sensitive information leakage.
+    ///
+    /// - Ensure that the `ManagedActor` provided is correctly initialized and compatible with the
+    ///   supervising `ActorRef`.
+    ///
+    /// - The `children` map is assumed to be a thread-safe data structure (e.g., `DashMap`) that
+    ///   allows concurrent access.
+    ///
+    /// # Errors
+    ///
+    /// This method will return an error if:
+    /// - The child actor fails to activate.
+    /// - Inserting the child context into the `children` map fails.
+    ///
+    /// Ensure that appropriate error handling is in place when using this method.
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
         child: ManagedActor<Idle, State>,
     ) -> anyhow::Result<()> {
-        tracing::debug!("Adding child actor with id: {}", child.ern);
+        debug!("Adding child actor with id: {}", child.ern);
         let context = child.activate().await;
         let id = context.ern.clone();
-        tracing::debug!("Now have child id in context: {}", id);
+        debug!("Now have child id in context: {}", id);
         self.children.insert(id.to_string(), context);
 
         Ok(())
@@ -111,7 +178,7 @@ impl Actor for ActorRef {
 
     #[instrument(skip(self))]
     fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef> {
-        tracing::debug!("Searching for child with ARN: {}", arn);
+        debug!("Searching for child with ARN: {}", arn);
         self.children.get(&arn.to_string()).map(|item|
         item.value().clone()
         )

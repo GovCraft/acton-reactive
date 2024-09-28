@@ -16,10 +16,8 @@
 
 use std::any::TypeId;
 use std::future::Future;
-use std::sync::Arc;
 
 use async_trait::async_trait;
-use dyn_clone::DynClone;
 use tracing::*;
 
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
@@ -55,7 +53,6 @@ where
         let subscription = SubscribeBroker {
             subscriber_id,
             message_type_id,
-            message_type_name: message_type_name.clone(),
             subscriber_context: self.clone_ref(),
         };
         let broker = self.get_broker();
@@ -79,11 +76,11 @@ where
     where
         Self: Actor + Subscriber,
     {
-        let subscriber_id = self.ern();
+        // let subscriber_id = self.ern();
         let subscription = UnsubscribeBroker {
-            ern: subscriber_id,
-            message_type_id: TypeId::of::<M>(),
-            subscriber_ref: self.clone_ref(),
+            // ern: subscriber_id,
+            // message_type_id: TypeId::of::<M>(),
+            // subscriber_ref: self.clone_ref(),
         };
         let broker = self.get_broker();
         if let Some(broker) = broker {

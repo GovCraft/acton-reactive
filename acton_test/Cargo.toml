@@ -2,7 +2,7 @@
 name = "acton_test"
 version = "1.0.0"
 edition = "2021"
-description = "Testing utilities for Akton actors"
+description = "Testing utilities for Acton actors"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/GovCraft/acton-framework/acton_test"
 authors = ["Roland Rodriguez <roland@govcraft.ai>"]

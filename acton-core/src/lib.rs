@@ -15,19 +15,21 @@
  */
 
 #![forbid(unsafe_code)]
-// #![warn(missing_docs)]
-//#![warn(unused)]
-//! Akton Core Library
+#![forbid(missing_docs)]
+// #![forbid(unused)]
+// #![forbid(dead_code)]
+// #![forbid(unused_imports)]
+//! Acton Core Library
 //!
-//! This library provides the core functionality for the Akton actor framework.
+//! This library provides the core functionality for the Acton actor framework.
 //! It includes common utilities, trait definitions, and prelude exports.
 
-/// Common utilities and structures used throughout the Akton framework.
+/// Common utilities and structures used throughout the Acton framework.
 pub(crate) mod common;
 
 pub(crate) mod actor;
 pub(crate) mod message;
-/// Trait definitions used in the Akton framework.
+/// Trait definitions used in the Acton framework.
 pub(crate) mod traits;
 
 /// Prelude module for convenient imports.
