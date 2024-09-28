@@ -16,6 +16,17 @@
 
 use crate::common::BrokerRef;
 
+/// Trait for types that can subscribe to a broker.
+///
+/// Implementors of this trait can be associated with a broker,
+/// allowing them to participate in the publish-subscribe messaging system.
 pub trait Subscriber {
+    /// Retrieves the broker associated with this subscriber.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<BrokerRef>` which is:
+    /// - `Some(BrokerRef)` if a broker is associated with this subscriber.
+    /// - `None` if no broker is currently associated.
     fn get_broker(&self) -> Option<BrokerRef>;
 }
