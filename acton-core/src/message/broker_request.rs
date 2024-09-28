@@ -21,7 +21,10 @@ use tracing::*;
 
 use crate::traits::ActonMessage;
 
-/// Represents an envelope that carries a message within the actor system.
+/// Represents a request to the broker for message distribution.
+///
+/// This struct encapsulates a message along with its type information,
+/// allowing the broker to efficiently route messages to appropriate subscribers.
 #[derive(Debug, Clone)]
 pub struct BrokerRequest {
     pub message: Arc<dyn ActonMessage + Send + Sync + 'static>,
