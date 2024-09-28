@@ -24,18 +24,35 @@ use crate::message::{SubscribeBroker, UnsubscribeBroker};
 use crate::traits::{ActonMessage, Actor};
 use crate::traits::subscriber::Subscriber;
 
+/// Trait for types that can subscribe to and unsubscribe from messages.
 #[async_trait]
 pub trait Subscribable {
+    /// Subscribes the implementing type to messages of type `T`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The type of message to subscribe to. Must implement `ActonMessage + Send + Sync + 'static`.
+    ///
+    /// # Returns
+    ///
+    /// A `Future` that resolves to `()` when the subscription is complete.
     fn subscribe<T: ActonMessage + Send + Sync + 'static>(
         &self,
     ) -> impl Future<Output=()> + Send + Sync + '_
     where
         Self: Actor + Subscriber;
+
+    /// Unsubscribes the implementing type from messages of type `T`.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `T`: The type of message to unsubscribe from. Must implement `ActonMessage`.
     fn unsubscribe<T: ActonMessage>(&self)
     where
         Self: Actor + Subscriber + Send + Sync + 'static;
 }
 
+/// Implementation of `Subscribable` for any type that implements `ActonMessage + Send + Sync + 'static`.
 #[async_trait]
 impl<T> Subscribable for T
 where
