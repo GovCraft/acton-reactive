@@ -97,24 +97,6 @@ pub trait Actor {
     /// - `Ok(())` if the message was successfully sent.
     /// - An error of type `MessageError` if the send operation failed.
     ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use acton_core::prelude::*;
-    ///
-    /// struct MyActor;
-    /// impl Actor for MyActor {
-    ///     // ... other trait implementations ...
-    /// }
-    ///
-    /// #[derive(Debug)]
-    /// struct MyMessage(String);
-    /// impl ActonMessage for MyMessage {}
-    ///
-    /// // In some method of MyActor:
-    /// fn send_message(&self) -> Result<(), MessageError> {
-    ///     self.send(MyMessage("Hello, World!".to_string()))
-    /// }
     /// ```
     #[instrument(skip(self))]
     fn send(&self, message: impl ActonMessage + Send + Sync + 'static) -> Result<(), MessageError>
