@@ -31,14 +31,46 @@ use crate::traits::acton_message::ActonMessage;
 pub trait Actor {
     /// Returns the actor's return address.
     fn return_address(&self) -> OutboundEnvelope;
+
+    /// Returns a map of the actor's children.
     fn children(&self) -> DashMap<String, ActorRef>;
+
+    /// Finds a child actor by its ERN.
+    ///
+    /// # Arguments
+    ///
+    /// * `arn` - The ERN of the child actor to find.
+    ///
+    /// # Returns
+    ///
+    /// An `Option<ActorRef>` containing the child actor if found, or `None` if not found.
     fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef>;
+
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
+
+    /// Sets the actor's ERN.
+    ///
+    /// # Arguments
+    ///
+    /// * `ern` - The new ERN to set for the actor.
     fn set_ern(&mut self, ern: Ern<UnixTime>);
+
+    /// Returns the actor's ERN.
     fn ern(&self) -> Ern<UnixTime>;
+
+    /// Creates a clone of the actor's reference.
     fn clone_ref(&self) -> ActorRef;
-    /// Emit a message from the actor, possibly to a pool item.
+
+    /// Emits a message from the actor, possibly to a pool item.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The message to emit, implementing `ActonMessage`.
+    ///
+    /// # Returns
+    ///
+    /// A `Future` that resolves when the message has been emitted.
     #[instrument(skip(self), fields(children = self.children().len()))]
     fn emit(
         &self,
