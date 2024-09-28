@@ -63,7 +63,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
 
                             let child_context = &child.actor_ref.clone();
                             child_context.subscribe::<Pong>().await;
-                            child.activate().await
+                            child.start().await
                         })
                     })
                     .await
@@ -81,7 +81,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                 context.subscribe::<Ping>().await;
                 context.subscribe::<Pong>().await;
 
-                actor.activate().await
+                actor.start().await
             })
         })
         .await?;
@@ -126,7 +126,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
                 actor.actor_ref.subscribe::<Ping>().await;
                 actor.actor_ref.subscribe::<Pong>().await;
 
-                actor.activate().await
+                actor.start().await
             })
         })
         .await?;
@@ -142,7 +142,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
 
                 actor.actor_ref.subscribe::<Pong>().await;
 
-                actor.activate().await
+                actor.start().await
             })
         })
         .await?;

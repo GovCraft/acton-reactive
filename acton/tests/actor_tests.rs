@@ -19,6 +19,7 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use tracing::{debug, info, trace};
+use tracing_subscriber::fmt::writer::EitherWriter::A;
 
 use acton::prelude::*;
 use acton_test::prelude::*;
@@ -26,27 +27,6 @@ use acton_test::prelude::*;
 use crate::setup::*;
 
 mod setup;
-
-#[acton_test]
-async fn test_demo() -> anyhow::Result<()> {
-    // start the acton system
-    let mut acton_system: SystemReady = ActonSystem::launch();
-
-    // create an actor
-    let mut actor = acton_system.create_actor::<Comedian>().await;
-
-    //configure the actor
-    actor.act_on::<Ping>(|actor, event| {
-        info!("Received Ping");
-
-        // message handlers always return a Box::pin to a future even if you're not doing any async work
-        // in the handler. In cases like these you can
-        // You have a few ways to do this:
-        // You can wrap a f
-        ActorRef::noop()
-    });
-    Ok(())
-}
 
 #[acton_test]
 async fn test_async_reactor() -> anyhow::Result<()> {
@@ -78,7 +58,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
             trace!("PING");
             ActorRef::noop()
         })
-        .on_stop(|actor| {
+        .on_stopped(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
                 actor.ern,
@@ -87,9 +67,11 @@ async fn test_async_reactor() -> anyhow::Result<()> {
                 actor.entity.bombers
             );
             assert_eq!(actor.entity.jokes_told, 2);
+            ActorRef::noop()
+
         });
 
-    let comedian = comedy_show.activate().await;
+    let comedian = comedy_show.start().await;
 
     comedian
         .emit(FunnyJoke::ChickenCrossesRoad)
@@ -115,13 +97,15 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
             ActorRef::noop()
         }
         )
-        .on_stop(|actor| {
+        .on_stopped(|actor| {
             assert_eq!(4, actor.entity.count); // Ensure count is 4 when stopping
             trace!("on stopping");
+            ActorRef::noop()
+
         });
 
     // Activate the counter actor
-    let counter_actor = counter_actor.activate().await;
+    let counter_actor = counter_actor.start().await;
 
     // Emit AddCount event four times
     for _ in 0..4 {
@@ -131,18 +115,17 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Create an actor for messaging
     let mut messenger_actor = acton.create_actor::<Messenger>().await;
     messenger_actor
-        .before_activate(|_actor| {
+        .on_started(|actor| {
             trace!("*");
+            ActorRef::noop()
         })
-        .on_activate(|_actor| {
+        .on_stopped(|_actor| {
             trace!("*");
-        })
-        .on_stop(|_actor| {
-            trace!("*");
+            ActorRef::noop()
         });
 
     // Activate the messenger actor
-    let messenger_actor = messenger_actor.activate().await;
+    let messenger_actor = messenger_actor.start().await;
 
     // Terminate both actor
     counter_actor.suspend().await?;
@@ -180,18 +163,19 @@ async fn test_child_actor() -> anyhow::Result<()> {
             };
             ActorRef::noop()
         })
-        .before_stop(|actor| {
+        .on_stopped(|actor| {
             info!("Processed {} PONGs", actor.entity.receive_count);
             // Verify that the child actor processed 22 PINGs
             assert_eq!(
                 actor.entity.receive_count, 22,
                 "Child actor did not process the expected number of PINGs"
             );
+            ActorRef::noop()
         });
 
     let child_id = child_actor.ern.clone();
     // Activate the parent actor
-    let parent_context = parent_actor.activate().await;
+    let parent_context = parent_actor.start().await;
     parent_context.supervise(child_actor).await?;
     assert_eq!(
         parent_context.children().len(),
@@ -226,11 +210,8 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     let mut acton: SystemReady = ActonSystem::launch();
     // Create the parent actor
     let mut parent_actor = acton.create_actor::<PoolItem>().await;
-    parent_actor.before_activate(|actor| {
-        assert_eq!(actor.actor_ref.children().len(), 1);
-    });
     // Activate the parent actor
-    let parent_context = parent_actor.activate().await;
+    let parent_context = parent_actor.start().await;
 
     let actor_config =
         ActorConfig::new(Ern::with_root("test_find_child_actor").unwrap(), None, None)?;
@@ -295,7 +276,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             };
             ActorRef::noop()
         })
-        .on_stop(|actor| {
+        .on_stopped(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
                 actor.ern,
@@ -304,9 +285,10 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                 actor.entity.bombers
             );
             assert_eq!(actor.entity.jokes_told, 2);
+            ActorRef::noop()
         });
 
-    let comedian = comedy_show.activate().await;
+    let comedian = comedy_show.start().await;
 
     comedian
         .emit(FunnyJoke::ChickenCrossesRoad)
@@ -370,7 +352,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     comedy_show.actor_ref.supervise(child).await?;
     assert_eq!(comedy_show.actor_ref.children().len(), 1, "Parent actor missing it's child after activation");
     // Activate the Comedian actor and await its activation
-    let comedian = comedy_show.activate().await;
+    let comedian = comedy_show.start().await;
 
     // Assert that the Comedian actor has exactly one child
     assert_eq!(comedian.children().len(), 1);

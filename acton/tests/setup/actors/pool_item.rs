@@ -59,7 +59,7 @@ impl PoolItem {
                 ActorRef::noop()
 
             })
-            .before_stop_async(|actor| {
+            .on_stopped(|actor| {
                 let parent = &actor.parent.clone().unwrap();
                 let final_count = actor.entity.receive_count;
                 // let parent_envelope = parent.key.clone();
@@ -76,7 +76,7 @@ impl PoolItem {
             });
 
         // Activate the actor and return the context
-        actor.activate().await
+        actor.start().await
     }
 }
 

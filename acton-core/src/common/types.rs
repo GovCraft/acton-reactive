@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
-use crate::actor::{ManagedActor, Running};
+use crate::actor::{Idle, ManagedActor, Running};
 use crate::common::ActorRef;
 use crate::message::Envelope;
 
@@ -63,14 +63,14 @@ pub(crate) type HaltSignal = AtomicBool;
 
 /// A type alias for a lifecycle reactor function.
 pub(crate) type LifecycleHandler<ActorEntity, ManagedEntity> =
-dyn Fn(&ManagedActor<ActorEntity, ManagedEntity>) + Send;
+dyn Fn(&mut ManagedActor<ActorEntity, ManagedEntity>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<ManagedEntity> =
 Box<dyn Fn(&ManagedActor<Running, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 
 /// A type alias for an idle lifecycle reactor function.
-pub(crate) type IdleLifecycleHandler<ActorEntity, ManagedEntity> =
-dyn Fn(&ManagedActor<ActorEntity, ManagedEntity>) + Send;
+pub(crate) type IdleLifecycleHandler<ManagedEntity> =
+Box<dyn Fn(&ManagedActor<Idle, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 pub type BrokerRef = ActorRef;
 pub type ParentRef = ActorRef;

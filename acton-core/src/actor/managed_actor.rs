@@ -24,14 +24,9 @@ use tokio_util::task::TaskTracker;
 
 pub use idle::Idle;
 
-use crate::common::{
-    ActorRef, AsyncLifecycleHandler, BrokerRef, HaltSignal, IdleLifecycleHandler, LifecycleHandler,
-    ParentRef, ReactorMap,
-};
+use crate::common::{ActorRef, AsyncLifecycleHandler, BrokerRef, HaltSignal, IdleLifecycleHandler, ParentRef, ReactorMap};
 use crate::message::Envelope;
 use crate::prelude::SystemReady;
-
-use super::Running;
 
 mod idle;
 pub mod running;
@@ -53,16 +48,16 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
     pub(crate) tracker: TaskTracker,
 
     pub inbox: Receiver<Envelope>,
-    /// Reactor called before the actor wakes up.
-    pub(crate) before_activate: Box<IdleLifecycleHandler<Idle, ManagedEntity>>,
-    /// Reactor called when the actor wakes up.
-    pub(crate) on_activate: Box<LifecycleHandler<Running, ManagedEntity>>,
-    /// Reactor called just before the actor stops.
-    pub(crate) before_stop: Box<LifecycleHandler<Running, ManagedEntity>>,
-    /// Reactor called when the actor stops.
-    pub(crate) on_stop: Box<LifecycleHandler<Running, ManagedEntity>>,
-    /// Asynchronous reactor called just before the actor stops.
-    pub(crate) before_stop_async: Option<AsyncLifecycleHandler<ManagedEntity>>,
+    /// Reactor called when the actor wakes up but before listening begins.
+    pub(crate) on_starting: AsyncLifecycleHandler<ManagedEntity>,
+    /// Reactor called when the actor wakes up but before listening begins.
+    pub(crate) on_start: AsyncLifecycleHandler<ManagedEntity>,
+    /// Reactor called just before the actor stops listening for messages.
+    pub(crate) on_before_stop: AsyncLifecycleHandler<ManagedEntity>,
+    /// Reactor called when the actor stops listening for messages.
+    pub(crate) on_stopped: AsyncLifecycleHandler<ManagedEntity>,
+    // /// Asynchronous reactor called just before the actor stops.
+    // pub(crate) before_stop: AsyncLifecycleHandler<ManagedEntity>,
     /// Map of reactors for handling different message types.
     pub(crate) reactors: ReactorMap<ManagedEntity>,
     _actor_state: std::marker::PhantomData<ActorState>,

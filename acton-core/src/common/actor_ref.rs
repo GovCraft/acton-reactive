@@ -118,7 +118,7 @@ impl ActorRef {
         child: ManagedActor<Idle, State>,
     ) -> anyhow::Result<()> {
         debug!("Adding child actor with id: {}", child.ern);
-        let context = child.activate().await;
+        let context = child.start().await;
         let id = context.ern.clone();
         debug!("Now have child id in context: {}", id);
         self.children.insert(id.to_string(), context);

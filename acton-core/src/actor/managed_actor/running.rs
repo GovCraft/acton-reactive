@@ -18,6 +18,7 @@ use std::any::type_name_of_val;
 use std::fmt::Debug;
 use std::time::Duration;
 
+use futures::future::join_all;
 use tokio::time::timeout;
 use tracing::{debug, instrument, trace};
 
@@ -50,7 +51,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
 
     #[instrument(skip(reactors, self))]
     pub(crate) async fn wake(&mut self, reactors: ReactorMap<ManagedEntity>) {
-        (self.on_activate)(self);
+        (self.on_start)(self);
 
         while let Some(incoming_envelope) = self.inbox.recv().await {
             let type_id;
@@ -80,30 +81,30 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
             } else if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
+                (self.on_before_stop)(self);
                 self.terminate().await;
             }
         }
-        (self.before_stop)(self);
-        if let Some(ref on_before_stop_async) = self.before_stop_async {
-            if timeout(Duration::from_secs(5), on_before_stop_async(self))
-                .await
-                .is_err()
-            {
-                tracing::error!("on_before_stop_async timed out or failed");
-            }
-        }
-        (self.on_stop)(self);
+        (self.on_stopped)(self);
     }
     #[instrument(skip(self))]
     async fn terminate(&mut self) {
-        for item in &self.actor_ref.children() {
-            let child_ref = item.value();
-            let _ = child_ref.suspend().await;
-        }
+        // Collect suspend futures for all children
+        let suspend_futures: Vec<_> = self.actor_ref.children().iter().map(|item| {
+            let child_ref = item.value().clone(); // Clone to take ownership
+            async move {
+                let _ = child_ref.suspend().await;
+            }
+        }).collect();
+
+        // Wait for all children to suspend concurrently
+        join_all(suspend_futures).await;
+
         trace!(
-            actor = self.ern.to_string(),
-            "All subordinates terminated. Closing mailbox for"
-        );
+        actor = self.ern.to_string(),
+        "All subordinates terminated. Closing mailbox for"
+    );
+
         self.inbox.close();
     }
 }

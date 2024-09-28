@@ -65,8 +65,8 @@ async fn test_broker() -> anyhow::Result<()> {
     comedy_show.actor_ref.subscribe::<Ping>().await;
     comedy_show.actor_ref.subscribe::<Pong>().await;
 
-    let comedian = comedy_show.activate().await;
-    let counter = counter_actor.activate().await;
+    let comedian = comedy_show.start().await;
+    let counter = counter_actor.start().await;
 
     broker.emit(BrokerRequest::new(Ping)).await;
     broker.emit(BrokerRequest::new(Pong)).await;

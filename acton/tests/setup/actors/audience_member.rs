@@ -76,6 +76,6 @@ impl AudienceMember {
         // Description: Activating the AudienceMember actor.
         // Context: None
         trace!("Activating the AudienceMember actor.");
-        actor.activate().await
+        actor.start().await
     }
 }

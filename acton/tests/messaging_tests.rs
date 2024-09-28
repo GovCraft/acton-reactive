@@ -18,12 +18,13 @@ use std::any::TypeId;
 
 use tracing::*;
 
-use acton::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;
 
 mod setup;
+
+use acton::prelude::*;
 
 #[acton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
@@ -38,10 +39,12 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             ActorRef::noop()
 
         })
-        .before_stop(|actor| {
+        .on_stopped(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
+            ActorRef::noop()
+
         });
-    let actor_ref = actor.activate().await;
+    let actor_ref = actor.start().await;
     actor_ref.emit(Ping).await;
     actor_ref.suspend().await?;
     Ok(())
@@ -57,10 +60,12 @@ async fn test_basic_messenger() -> anyhow::Result<()> {
             info!(type_name = type_name, "Received in Messenger handler");
             ActorRef::noop()
         })
-        .before_stop(|actor| {
+        .on_stopped(|actor| {
             info!("Stopping");
+            ActorRef::noop()
+
         });
-    let actor_ref = actor.activate().await;
+    let actor_ref = actor.start().await;
     actor_ref.emit(Ping).await;
     actor_ref.suspend().await?;
     Ok(())
@@ -78,10 +83,12 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
             actor.entity.receive_count += 1;
             ActorRef::noop()
         })
-        .before_stop(|actor| {
+        .on_stopped(|actor| {
             info!("Processed {} Pings", actor.entity.receive_count);
+            ActorRef::noop()
+
         });
-    let context = actor.activate().await;
+    let context = actor.start().await;
     context.emit(Ping).await;
     context.suspend().await?;
     Ok(())

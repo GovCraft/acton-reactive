@@ -27,17 +27,18 @@ async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
     let mut pool_item_actor = acton_ready.create_actor::<PoolItem>().await;
 
     pool_item_actor
-        .before_activate(|_actor| {
-            tracing::info!("Actor waking up");
-        })
-        .on_activate(|actor| {
+        .on_started(|actor| {
             tracing::info!("Actor woke up with key: {}", actor.ern);
+            ActorRef::noop()
+
         })
-        .on_stop(|actor| {
+        .on_stopped(|actor| {
             tracing::info!("Actor stopping with key: {}", actor.ern);
+            ActorRef::noop()
+
         });
 
-    let actor_context = pool_item_actor.activate().await;
+    let actor_context = pool_item_actor.start().await;
     actor_context.suspend().await?;
     Ok(())
 }

@@ -19,11 +19,13 @@ use std::future::Future;
 use std::pin::Pin;
 
 use acton_ern::Ern;
+use futures::future::join_all;
 use tokio::sync::oneshot;
 
 use crate::actor::{ActorConfig, Idle, ManagedActor};
 use crate::common::{ActonSystem, ActorRef, Broker, BrokerRef};
 use crate::common::acton_inner::ActonInner;
+use crate::traits::Actor;
 
 /// Represents a ready state of the Acton system.
 ///
@@ -49,7 +51,9 @@ impl SystemReady {
         let broker = self.0.broker.clone();
         let acton_ready = self.clone();
         let config = ActorConfig::new(Ern::default(), None, Some(broker)).unwrap_or_default();
-        ManagedActor::new(&Some(acton_ready), Some(config)).await
+        let new_actor =ManagedActor::new(&Some(acton_ready), Some(config)).await;
+        self.0.roots.insert(new_actor.ern.clone(), new_actor.actor_ref.clone());
+        new_actor
     }
 
     /// Creates a new actor with a specified configuration.
@@ -114,6 +118,28 @@ impl SystemReady {
         Ok(setup_fn(actor).await)
     }
 
+    /// Shuts down the Acton system, stopping all actors and their children.
+    pub async fn shutdown(&mut self) -> anyhow::Result<()> {
+        debug_assert!(self.0.roots.len() > 0, "No actors to shutdown");
+        // Collect all suspend futures into a vector
+        let suspend_futures = self.0.roots.iter().map(|item| {
+            let root_actor = item.value().clone(); // Clone to take ownership
+            async move {
+                root_actor.suspend().await
+            }
+        });
+
+        // Wait for all actors to suspend concurrently
+        let results: Vec<anyhow::Result<()>> = join_all(suspend_futures).await;
+
+        // Check for any errors
+        for result in results {
+            result?;
+        }
+
+        Ok(())
+    }
+
     /// Spawns an actor with a custom setup function and default configuration.
     ///
     /// # Type Parameters
@@ -146,8 +172,6 @@ impl SystemReady {
 
 impl From<ActonSystem> for SystemReady {
     fn from(_acton: ActonSystem) -> Self {
-
-
         let (sender, receiver) = oneshot::channel();
 
         tokio::spawn(async move {
@@ -160,6 +184,6 @@ impl From<ActonSystem> for SystemReady {
                 .block_on(async { receiver.await.expect("Broker initialization failed") })
         });
 
-        SystemReady(ActonInner { broker })
+        SystemReady(ActonInner { broker, ..Default::default() })
     }
 }

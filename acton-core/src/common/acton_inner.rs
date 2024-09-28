@@ -14,9 +14,12 @@
  * limitations under that License.
  */
 
-use crate::common::BrokerRef;
+use acton_ern::{Ern, UnixTime};
+use dashmap::DashMap;
+use crate::common::{ActorRef, BrokerRef};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ActonInner {
     pub(crate) broker: BrokerRef,
+    pub(crate) roots: DashMap<Ern<UnixTime>, ActorRef>
 }

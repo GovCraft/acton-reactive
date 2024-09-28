@@ -4,8 +4,9 @@ resolver = "2"
 members = [
     "acton-core",
     "acton-macro",
-    "acton",
     "acton_test",
+    "acton",
+    "acton/examples/basic"
 ]
 
 
