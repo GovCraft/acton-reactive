@@ -27,8 +27,17 @@ use crate::common::ActorRef;
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker};
 use crate::traits::Actor;
 
+/// A broker that manages subscriptions and broadcasts messages to subscribers.
+///
+/// The `Broker` struct is responsible for maintaining a list of subscribers for different message types
+/// and broadcasting messages to the appropriate subscribers.
 #[derive(Default, Debug)]
 pub struct Broker {
+    /// A thread-safe map of subscribers, keyed by message type ID.
+    ///
+    /// Each entry in the map contains a set of tuples, where each tuple consists of:
+    /// - An `Ern<UnixTime>`: The unique identifier of the subscriber.
+    /// - An `ActorRef`: A reference to the subscriber actor.
     subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
 }
 
@@ -74,6 +83,30 @@ impl Broker {
         context
     }
 
+    /// Broadcasts a message to all subscribers of a specific message type.
+    ///
+    /// This function iterates through all subscribers for the given message type and emits
+    /// the message to each subscriber asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `subscribers` - An `Arc<DashMap>` containing the subscribers for different message types.
+    /// * `request` - The `BrokerRequest` containing the message to be broadcast.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use dashmap::DashMap;
+    /// use acton_core::common::Broker;
+    /// use acton_core::message::BrokerRequest;
+    ///
+    /// async fn example_broadcast() {
+    ///     let subscribers = Arc::new(DashMap::new());
+    ///     let request = BrokerRequest::new(/* ... */);
+    ///     Broker::broadcast(subscribers, request).await;
+    /// }
+    /// ```
     #[instrument(skip(subscribers))]
     pub async fn broadcast(
         subscribers: Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>,
