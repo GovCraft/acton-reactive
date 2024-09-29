@@ -19,7 +19,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use futures::future::join_all;
-use tokio::time::timeout;
+use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace};
 
 use crate::actor::ManagedAgent;
@@ -86,13 +86,12 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
                 terminate_requested = true;
                 debug!("Termination signal received, waiting for remaining messages...");
                 (self.before_stop)(self).await;
+                //give the before_stop a chance to process the termination signal
+                sleep(Duration::from_millis(10)).await;
                 self.inbox.close();
-                break;
             }
-        }
-        loop {
-            // Check if termination has been requested and the inbox is empty
             if terminate_requested && self.inbox.is_empty() && self.inbox.is_closed() {
+                self.inbox.close();
                 self.terminate().await;
                 break;
             }
