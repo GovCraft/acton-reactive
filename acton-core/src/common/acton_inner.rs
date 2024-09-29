@@ -16,10 +16,11 @@
 
 use acton_ern::{Ern, UnixTime};
 use dashmap::DashMap;
-use crate::common::{ActorRef, BrokerRef};
+use tokio_util::task::TaskTracker;
+use crate::common::{AgentHandle, BrokerRef};
 
 #[derive(Debug, Clone, Default)]
 pub(crate) struct ActonInner {
     pub(crate) broker: BrokerRef,
-    pub(crate) roots: DashMap<Ern<UnixTime>, ActorRef>
+    pub(crate) roots: DashMap<Ern<UnixTime>, AgentHandle>
 }

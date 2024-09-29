@@ -24,15 +24,15 @@ use tokio_util::task::TaskTracker;
 
 pub use idle::Idle;
 
-use crate::common::{ActorRef, AsyncLifecycleHandler, BrokerRef, HaltSignal, IdleLifecycleHandler, ParentRef, ReactorMap};
+use crate::common::{AgentHandle, AsyncLifecycleHandler, BrokerRef, HaltSignal, ParentRef, ReactorMap};
 use crate::message::Envelope;
-use crate::prelude::SystemReady;
+use crate::prelude::AgentRuntime;
 
 mod idle;
-pub mod running;
+pub mod started;
 
-pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'static> {
-    pub actor_ref: ActorRef,
+pub struct ManagedAgent<AgentState, ManagedAgent: Default + Send + Debug + 'static> {
+    pub handle: AgentHandle,
 
     pub parent: Option<ParentRef>,
 
@@ -40,35 +40,33 @@ pub struct ManagedActor<ActorState, ManagedEntity: Default + Send + Debug + 'sta
 
     pub halt_signal: HaltSignal,
 
-    pub ern: Ern<UnixTime>,
-    pub acton: SystemReady,
+    pub id: Ern<UnixTime>,
+    pub runtime: AgentRuntime,
 
-    pub entity: ManagedEntity,
+    pub model: ManagedAgent,
 
     pub(crate) tracker: TaskTracker,
 
     pub inbox: Receiver<Envelope>,
     /// Reactor called when the actor wakes up but before listening begins.
-    pub(crate) on_starting: AsyncLifecycleHandler<ManagedEntity>,
+    pub(crate) before_start: AsyncLifecycleHandler<ManagedAgent>,
     /// Reactor called when the actor wakes up but before listening begins.
-    pub(crate) on_start: AsyncLifecycleHandler<ManagedEntity>,
+    pub(crate) after_start: AsyncLifecycleHandler<ManagedAgent>,
     /// Reactor called just before the actor stops listening for messages.
-    pub(crate) on_before_stop: AsyncLifecycleHandler<ManagedEntity>,
+    pub(crate) before_stop: AsyncLifecycleHandler<ManagedAgent>,
     /// Reactor called when the actor stops listening for messages.
-    pub(crate) on_stopped: AsyncLifecycleHandler<ManagedEntity>,
-    // /// Asynchronous reactor called just before the actor stops.
-    // pub(crate) before_stop: AsyncLifecycleHandler<ManagedEntity>,
+    pub(crate) after_stop: AsyncLifecycleHandler<ManagedAgent>,
     /// Map of reactors for handling different message types.
-    pub(crate) reactors: ReactorMap<ManagedEntity>,
-    _actor_state: std::marker::PhantomData<ActorState>,
+    pub(crate) reactors: ReactorMap<ManagedAgent>,
+    _actor_state: std::marker::PhantomData<AgentState>,
 }
 
 impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug
-for ManagedActor<ActorState, ManagedEntity>
+for ManagedAgent<ActorState, ManagedEntity>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("ManagedActor")
-            .field("key", &self.ern)
+            .field("key", &self.id)
             .finish()
     }
 }

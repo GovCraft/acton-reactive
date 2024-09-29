@@ -22,18 +22,19 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 use tokio_util::task::TaskTracker;
-use tracing::{info, instrument, trace, warn, debug};
+use tracing::{debug, info, instrument, trace, warn};
 
-use crate::actor::{Idle, ManagedActor};
+use crate::actor::{Idle, ManagedAgent};
 use crate::common::{BrokerRef, OutboundEnvelope, Outbox, ParentRef};
-use crate::message::{ReturnAddress, SystemSignal};
-use crate::traits::{Actor, Subscriber};
+use crate::message::{BrokerRequest, ReturnAddress, SystemSignal};
+use crate::prelude::ActonMessage;
+use crate::traits::{Actor, Broker, Subscriber};
 
 /// Represents the context in which an actor operates.
 #[derive(Debug, Clone)]
-pub struct ActorRef {
+pub struct AgentHandle {
     /// The unique identifier (ARN) for the context.
-    ern: Ern<UnixTime>,
+    pub(crate) id: Ern<UnixTime>,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Outbox,
     /// The task tracker for the actor.
@@ -42,14 +43,14 @@ pub struct ActorRef {
     pub parent: Option<Box<ParentRef>>,
     /// The system broker for the actor.
     pub broker: Box<Option<BrokerRef>>,
-    children: DashMap<String, ActorRef>,
+    children: DashMap<String, AgentHandle>,
 }
 
-impl Default for ActorRef {
+impl Default for AgentHandle {
     fn default() -> Self {
         let (outbox, _) = mpsc::channel(1);
-        ActorRef {
-            ern: Ern::default(),
+        AgentHandle {
+            id: Ern::default(),
             outbox,
             tracker: TaskTracker::new(),
             parent: None,
@@ -59,27 +60,27 @@ impl Default for ActorRef {
     }
 }
 
-impl Subscriber for ActorRef {
+impl Subscriber for AgentHandle {
     fn get_broker(&self) -> Option<BrokerRef> {
         *self.broker.clone()
     }
 }
 
-impl PartialEq for ActorRef {
+impl PartialEq for AgentHandle {
     fn eq(&self, other: &Self) -> bool {
-        self.ern == other.ern
+        self.id == other.id
     }
 }
 
-impl Eq for ActorRef {}
+impl Eq for AgentHandle {}
 
-impl Hash for ActorRef {
+impl Hash for AgentHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.ern.hash(state);
+        self.id.hash(state);
     }
 }
 
-impl ActorRef {
+impl AgentHandle {
     /// Supervises a child actor by activating it and tracking its context.
     ///
     /// This asynchronous method adds a child actor to the supervision hierarchy managed by this
@@ -98,7 +99,7 @@ impl ActorRef {
     ///
     /// # Parameters
     ///
-    /// - `child`: A [`ManagedActor`] instance representing the child actor to be supervised.
+    /// - `child`: A [`ManagedAgent`] instance representing the child actor to be supervised.
     ///
     /// # Returns
     ///
@@ -115,11 +116,11 @@ impl ActorRef {
     #[instrument(skip(self))]
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
-        child: ManagedActor<Idle, State>,
+        child: ManagedAgent<Idle, State>,
     ) -> anyhow::Result<()> {
-        debug!("Adding child actor with id: {}", child.ern);
+        debug!("Adding child actor with id: {}", child.id);
         let context = child.start().await;
-        let id = context.ern.clone();
+        let id = context.id.clone();
         debug!("Now have child id in context: {}", id);
         self.children.insert(id.to_string(), context);
 
@@ -127,22 +128,32 @@ impl ActorRef {
     }
 }
 
+impl Broker for AgentHandle {
+    fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output=()> + Send + Sync + '_ {
+        async move {
+            if let Some(broker) = self.broker.as_ref() {
+                broker.send_message(BrokerRequest::new(message)).await;
+            }
+        }
+    }
+}
+
 #[async_trait]
-impl Actor for ActorRef {
+impl Actor for AgentHandle {
     /// Returns the return address for the actor.
     #[instrument(skip(self))]
     fn return_address(&self) -> OutboundEnvelope {
         let outbox = self.outbox.clone();
-        let return_address = ReturnAddress::new(outbox, self.ern.clone());
+        let return_address = ReturnAddress::new(outbox, self.id.clone());
         OutboundEnvelope::new(return_address)
     }
-    // #[instrument(Level::TRACE, skip(self), fields(child_count = self.children.len()))]
-    fn children(&self) -> DashMap<String, ActorRef> {
+
+    fn children(&self) -> DashMap<String, AgentHandle> {
         self.children.clone()
     }
 
     #[instrument(skip(self))]
-    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef> {
+    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<AgentHandle> {
         debug!("Searching for child with ARN: {}", arn);
         self.children.get(&arn.to_string()).map(|item|
         item.value().clone()
@@ -153,31 +164,26 @@ impl Actor for ActorRef {
     fn tracker(&self) -> TaskTracker {
         self.tracker.clone()
     }
-
-    fn set_ern(&mut self, ern: Ern<UnixTime>) {
-        self.ern = ern;
+    fn id(&self) -> Ern<UnixTime> {
+        self.id.clone()
     }
 
-    fn ern(&self) -> Ern<UnixTime> {
-        self.ern.clone()
-    }
-
-    fn clone_ref(&self) -> ActorRef {
+    fn clone_ref(&self) -> AgentHandle {
         self.clone()
     }
 
     #[allow(clippy::manual_async_fn)]
     /// Suspends the actor.
-    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
+    fn stop(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
-            let tracker = self.tracker().clone();
+            let tracker = self.tracker();
 
             let actor = self.return_address().clone();
 
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor = self.ern.to_string(), "Sending Terminate to");
+            warn!(actor = self.id.to_string(), "Sending Terminate to");
             actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
@@ -190,7 +196,7 @@ impl Actor for ActorRef {
             // Description: The actor and its subordinates have been terminated.
             // Context: None
             info!(
-                actor = self.ern.to_string(),
+                actor = self.id.to_string(),
                 "The actor and its subordinates have been terminated."
             );
             Ok(())

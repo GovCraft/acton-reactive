@@ -40,8 +40,8 @@ pub struct AudienceMember {
 impl AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn initialize(&self, config: ActorConfig) -> ActorRef {
-        let mut acton: SystemReady = ActonSystem::launch();
+    async fn initialize(&self, config: ActorConfig) -> AgentHandle {
+        let mut acton: AgentRuntime = ActonApp::launch();
 
         let broker = acton.get_broker();
 
@@ -51,7 +51,7 @@ impl AudienceMember {
             Some(broker.clone()),
         );
 
-        let mut actor = acton.create_actor::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config).await;
+        let mut actor = acton.initialize::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config).await;
                                                                       // let mut actor =
                                                                       //     Acton::<AudienceMember>::create_with_config(config.clone());
 

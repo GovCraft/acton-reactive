@@ -25,7 +25,7 @@ use crate::message::OutboundEnvelope;
 /// # Type Parameters
 /// - `S`: The type of the message contained in the event.
 #[derive(Clone, Debug)]
-pub struct EventRecord<S> {
+pub struct MessageEnvelope<S> {
     /// The message contained in the event.
     pub message: S,
     /// The time when the message was sent.
@@ -35,4 +35,4 @@ pub struct EventRecord<S> {
 }
 
 // Ensures that EventRecord<u32> implements the Send trait.
-assert_impl_all!(EventRecord<u32>: Send);
+assert_impl_all!(MessageEnvelope<u32>: Send);

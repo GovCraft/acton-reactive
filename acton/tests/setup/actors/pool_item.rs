@@ -30,8 +30,8 @@ pub struct PoolItem {
 
 impl PoolItem {
     // Initialize the actor with a given actor_name and parent context
-    async fn initialize(&self, config: ActorConfig) -> ActorRef {
-        let mut acton: SystemReady = ActonSystem::launch();
+    async fn initialize(&self, config: ActorConfig) -> AgentHandle {
+        let mut acton: AgentRuntime = ActonApp::launch();
 
         let broker = acton.get_broker();
 
@@ -41,33 +41,33 @@ impl PoolItem {
             Some(broker.clone()),
         );
 
-        let mut actor = acton.create_actor::<PoolItem>().await;
+        let mut actor = acton.initialize::<PoolItem>().await;
         // let mut actor = Acton::<PoolItem>::create_with_config(config.clone());
 
         // Log the mailbox state immediately after actor creation
         tracing::trace!(
             "Actor initialized with key: {}, mailbox closed: {}",
-            actor.ern,
+            actor.id,
             actor.inbox.is_closed()
         );
 
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor = actor.ern.to_string(), "Received Ping event for");
-                actor.entity.receive_count += 1; // Increment receive_count on Ping event
-                ActorRef::noop()
+                tracing::debug!(actor = actor.id.to_string(), "Received Ping event for");
+                actor.model.receive_count += 1; // Increment receive_count on Ping event
+                AgentReply::immediate()
 
             })
-            .on_stopped(|actor| {
+            .after_stop(|actor| {
                 let parent = &actor.parent.clone().unwrap();
-                let final_count = actor.entity.receive_count;
+                let final_count = actor.model.receive_count;
                 // let parent_envelope = parent.key.clone();
-                let parent_address = parent.ern();
-                let actor_address = actor.ern.clone();
+                let parent_address = parent.id();
+                let actor_address = actor.id.clone();
 
                 let parent = parent.clone();
-                ActorRef::wrap_future(Self::output_results(
+                AgentReply::from_async(Self::output_results(
                     final_count,
                     parent_address.to_string(),
                     actor_address.to_string(),
@@ -85,7 +85,7 @@ impl PoolItem {
         final_count: usize,
         parent_address: String,
         actor_address: String,
-        parent: ActorRef,
+        parent: AgentHandle,
     ) {
         tracing::debug!(
             "Reporting {} complete to {} from {}.",
@@ -93,6 +93,6 @@ impl PoolItem {
             parent_address,
             actor_address,
         );
-        parent.emit(StatusReport::Complete(final_count)).await
+        parent.send_message(StatusReport::Complete(final_count)).await
     }
 }

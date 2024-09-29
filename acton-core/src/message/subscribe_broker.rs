@@ -19,13 +19,13 @@ use std::fmt::Debug;
 
 use acton_ern::{Ern, UnixTime};
 
-use crate::common::ActorRef;
+use crate::common::AgentHandle;
 
 #[derive(Debug, Clone)]
 pub(crate) struct SubscribeBroker {
     pub(crate) subscriber_id: Ern<UnixTime>,
     pub(crate) message_type_id: TypeId,
-    pub(crate) subscriber_context: ActorRef,
+    pub(crate) subscriber_context: AgentHandle,
 }
 // impl ActonMessage for SubscribeBroker {
 //     /// Returns a reference to the signal as `Any`.

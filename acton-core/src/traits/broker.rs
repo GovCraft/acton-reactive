@@ -14,11 +14,23 @@
  * limitations under that License.
  */
 
-pub use actor_config::ActorConfig;
-pub use managed_agent::Idle;
-pub(crate) use managed_agent::ManagedAgent;
-pub(crate) use managed_agent::started::Started;
+use std::fmt::Debug;
+use std::future::Future;
 
-mod managed_agent;
+use async_trait::async_trait;
+use tracing::instrument;
 
-mod actor_config;
+use crate::common::BrokerRef;
+use crate::message::BrokerRequest;
+use crate::prelude::ActonMessage;
+use crate::traits::{Actor, Subscriber};
+
+/// A broker is a message broker that can broadcast messages to all connected clients.
+#[async_trait]
+pub trait Broker: Clone + Debug + Default {
+    /// Broadcast a message from the broker.
+    fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output=()> + Send + Sync + '_;
+}
+
+
+

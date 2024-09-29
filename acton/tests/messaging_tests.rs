@@ -29,67 +29,67 @@ use acton::prelude::*;
 #[acton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut system: SystemReady = ActonSystem::launch();
-    let mut actor = system.create_actor::<PoolItem>().await;
+    let mut system: AgentRuntime = ActonApp::launch();
+    let mut actor = system.initialize::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in sync handler");
-            actor.entity.receive_count += 1;
-            ActorRef::noop()
+            actor.model.receive_count += 1;
+            AgentReply::immediate()
 
         })
-        .on_stopped(|actor| {
-            info!("Processed {} Pings", actor.entity.receive_count);
-            ActorRef::noop()
+        .after_stop(|actor| {
+            info!("Processed {} Pings", actor.model.receive_count);
+            AgentReply::immediate()
 
         });
     let actor_ref = actor.start().await;
-    actor_ref.emit(Ping).await;
-    actor_ref.suspend().await?;
+    actor_ref.send_message(Ping).await;
+    actor_ref.stop().await?;
     Ok(())
 }
 #[acton_test]
 async fn test_basic_messenger() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut system: SystemReady = ActonSystem::launch();
-    let mut actor = system.create_actor::<Messenger>().await;
+    let mut system: AgentRuntime = ActonApp::launch();
+    let mut actor = system.initialize::<Messenger>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in Messenger handler");
-            ActorRef::noop()
+            AgentReply::immediate()
         })
-        .on_stopped(|actor| {
+        .after_stop(|actor| {
             info!("Stopping");
-            ActorRef::noop()
+            AgentReply::immediate()
 
         });
     let actor_ref = actor.start().await;
-    actor_ref.emit(Ping).await;
-    actor_ref.suspend().await?;
+    actor_ref.send_message(Ping).await;
+    actor_ref.stop().await?;
     Ok(())
 }
 
 #[acton_test]
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut system: SystemReady = ActonSystem::launch();
-    let mut actor = system.create_actor::<PoolItem>().await;
+    let mut system: AgentRuntime = ActonApp::launch();
+    let mut actor = system.initialize::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
             info!(type_name = type_name, "Received in async handler");
-            actor.entity.receive_count += 1;
-            ActorRef::noop()
+            actor.model.receive_count += 1;
+            AgentReply::immediate()
         })
-        .on_stopped(|actor| {
-            info!("Processed {} Pings", actor.entity.receive_count);
-            ActorRef::noop()
+        .after_stop(|actor| {
+            info!("Processed {} Pings", actor.model.receive_count);
+            AgentReply::immediate()
 
         });
     let context = actor.start().await;
-    context.emit(Ping).await;
-    context.suspend().await?;
+    context.send_message(Ping).await;
+    context.stop().await?;
     Ok(())
 }

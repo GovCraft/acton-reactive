@@ -22,8 +22,8 @@ use acton_ern::Ern;
 use futures::future::join_all;
 use tokio::sync::oneshot;
 
-use crate::actor::{ActorConfig, Idle, ManagedActor};
-use crate::common::{ActonSystem, ActorRef, Broker, BrokerRef};
+use crate::actor::{ActorConfig, Idle, ManagedAgent};
+use crate::common::{ActonApp, AgentBroker, AgentHandle, BrokerRef};
 use crate::common::acton_inner::ActonInner;
 use crate::traits::Actor;
 
@@ -32,9 +32,9 @@ use crate::traits::Actor;
 /// This struct encapsulates the internal state of the Acton system when it's ready for use.
 /// It provides methods for creating and managing actors within the system.
 #[derive(Debug, Clone, Default)]
-pub struct SystemReady(pub(crate) ActonInner);
+pub struct AgentRuntime(pub(crate) ActonInner);
 
-impl SystemReady {
+impl AgentRuntime {
     /// Creates a new actor with default configuration.
     ///
     /// # Type Parameters
@@ -44,16 +44,21 @@ impl SystemReady {
     /// # Returns
     ///
     /// A `ManagedActor` in the `Idle` state with the specified `State`.
-    pub async fn create_actor<State>(&mut self) -> ManagedActor<Idle, State>
+    pub async fn initialize<State>(&mut self) -> ManagedAgent<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
         let broker = self.0.broker.clone();
         let acton_ready = self.clone();
         let config = ActorConfig::new(Ern::default(), None, Some(broker)).unwrap_or_default();
-        let new_actor =ManagedActor::new(&Some(acton_ready), Some(config)).await;
-        self.0.roots.insert(new_actor.ern.clone(), new_actor.actor_ref.clone());
+        let new_actor = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
+        self.0.roots.insert(new_actor.id.clone(), new_actor.handle.clone());
         new_actor
+    }
+
+    /// Retrieves the number of actors currently running in the system.
+    pub fn agent_count(&self) -> usize {
+        self.0.roots.len()
     }
 
     /// Creates a new actor with a specified configuration.
@@ -72,12 +77,14 @@ impl SystemReady {
     pub async fn create_actor_with_config<State>(
         &mut self,
         config: ActorConfig,
-    ) -> ManagedActor<Idle, State>
+    ) -> ManagedAgent<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
         let acton_ready = self.clone();
-        ManagedActor::new(&Some(acton_ready), Some(config)).await
+        let new_agent = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
+        self.0.roots.insert(new_agent.id.clone(), new_agent.handle.clone());
+        new_agent
     }
 
     /// Retrieves the broker reference for the system.
@@ -107,25 +114,26 @@ impl SystemReady {
         &mut self,
         config: ActorConfig,
         setup_fn: impl FnOnce(
-            ManagedActor<Idle, State>,
-        ) -> Pin<Box<dyn Future<Output=ActorRef> + Send + 'static>>,
-    ) -> anyhow::Result<ActorRef>
+            ManagedAgent<Idle, State>,
+        ) -> Pin<Box<dyn Future<Output=AgentHandle> + Send + 'static>>,
+    ) -> anyhow::Result<AgentHandle>
     where
         State: Default + Send + Debug + 'static,
     {
         let acton_ready = self.clone();
-        let actor = ManagedActor::new(&Some(acton_ready), Some(config)).await;
-        Ok(setup_fn(actor).await)
+        let new_agent = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
+        let handle = setup_fn(new_agent).await;
+        self.0.roots.insert(handle.id.clone(), handle.clone());
+        Ok(handle)
     }
 
     /// Shuts down the Acton system, stopping all actors and their children.
-    pub async fn shutdown(&mut self) -> anyhow::Result<()> {
-        debug_assert!(self.0.roots.len() > 0, "No actors to shutdown");
+    pub async fn shutdown_all(&mut self) -> anyhow::Result<()> {
         // Collect all suspend futures into a vector
         let suspend_futures = self.0.roots.iter().map(|item| {
             let root_actor = item.value().clone(); // Clone to take ownership
             async move {
-                root_actor.suspend().await
+                root_actor.stop().await
             }
         });
 
@@ -136,6 +144,7 @@ impl SystemReady {
         for result in results {
             result?;
         }
+        self.0.broker.stop().await?;
 
         Ok(())
     }
@@ -156,26 +165,28 @@ impl SystemReady {
     pub async fn spawn_actor<State>(
         &mut self,
         setup_fn: impl FnOnce(
-            ManagedActor<Idle, State>,
-        ) -> Pin<Box<dyn Future<Output=ActorRef> + Send + 'static>>,
-    ) -> anyhow::Result<ActorRef>
+            ManagedAgent<Idle, State>,
+        ) -> Pin<Box<dyn Future<Output=AgentHandle> + Send + 'static>>,
+    ) -> anyhow::Result<AgentHandle>
     where
         State: Default + Send + Debug + 'static,
     {
         let broker = self.get_broker();
         let config = ActorConfig::new(Ern::default(), None, Some(broker.clone()))?;
-        let acton_ready = self.clone();
-        let actor = ManagedActor::new(&Some(acton_ready), Some(config)).await;
-        Ok(setup_fn(actor).await)
+        let runtime = self.clone();
+        let new_agent = ManagedAgent::new(&Some(runtime), Some(config)).await;
+        let handle = setup_fn(new_agent).await;
+        self.0.roots.insert(handle.id.clone(), handle.clone());
+        Ok(handle)
     }
 }
 
-impl From<ActonSystem> for SystemReady {
-    fn from(_acton: ActonSystem) -> Self {
+impl From<ActonApp> for AgentRuntime {
+    fn from(_acton: ActonApp) -> Self {
         let (sender, receiver) = oneshot::channel();
 
         tokio::spawn(async move {
-            let broker = Broker::initialize().await;
+            let broker = AgentBroker::initialize().await;
             let _ = sender.send(broker);
         });
 
@@ -184,6 +195,6 @@ impl From<ActonSystem> for SystemReady {
                 .block_on(async { receiver.await.expect("Broker initialization failed") })
         });
 
-        SystemReady(ActonInner { broker, ..Default::default() })
+        AgentRuntime(ActonInner { broker: broker.clone(), ..Default::default() })
     }
 }

@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use tracing::*;
 
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{ActonMessage, Actor};
+use crate::traits::{ActonMessage, Actor, Broker};
 use crate::traits::subscriber::Subscriber;
 
 /// Trait for types that can subscribe to and unsubscribe from messages.
@@ -64,7 +64,7 @@ where
     where
         Self: Actor + Subscriber + 'static,
     {
-        let subscriber_id = self.ern();
+        let subscriber_id = self.id();
         let message_type_id = TypeId::of::<M>();
         let message_type_name = std::any::type_name::<M>().to_string();
         let subscription = SubscribeBroker {
@@ -73,11 +73,12 @@ where
             subscriber_context: self.clone_ref(),
         };
         let broker = self.get_broker();
-        let ern = self.ern().clone();
+        let ern = self.id().clone();
 
         async move {
+            debug!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "Subscribing to type_name {}", message_type_name);
             if let Some(emit_broker) = broker {
-                let broker_key = emit_broker.ern();
+                let broker_key = emit_broker.id();
                 debug!(
                     type_id=?message_type_id,
                     subscriber_ern = ern.to_string(),
@@ -85,7 +86,9 @@ where
                     message_type_name,
                     broker_key
                 );
-                emit_broker.emit(subscription).await;
+                emit_broker.send_message(subscription).await;
+            } else {
+                tracing::error!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "No broker found for type_name {}", message_type_name);
             }
         }
     }
@@ -103,12 +106,12 @@ where
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
-                broker.emit(subscription).await;
+                broker.send_message(subscription).await;
             });
         }
         trace!(
             type_id = ?TypeId::of::<M>(),
-            repository_actor = self.ern().to_string(),
+            repository_actor = self.id().to_string(),
             "Unsubscribed to {}",
             std::any::type_name::<M>()
         );

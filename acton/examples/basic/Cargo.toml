@@ -1,8 +1,0 @@
-[package]
-name = "basic"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-acton = {path = "../../../acton"}
-tokio = "1.40.0"

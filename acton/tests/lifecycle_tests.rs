@@ -23,22 +23,21 @@ mod setup;
 #[acton_test]
 async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch();
-    let mut pool_item_actor = acton_ready.create_actor::<PoolItem>().await;
+    let mut acton_ready: AgentRuntime = ActonApp::launch();
+    let mut pool_item_actor = acton_ready.initialize::<PoolItem>().await;
 
     pool_item_actor
-        .on_started(|actor| {
-            tracing::info!("Actor woke up with key: {}", actor.ern);
-            ActorRef::noop()
+        .after_start(|actor| {
+            tracing::info!("Actor woke up with key: {}", actor.id);
+            AgentReply::immediate()
 
         })
-        .on_stopped(|actor| {
-            tracing::info!("Actor stopping with key: {}", actor.ern);
-            ActorRef::noop()
-
+        .after_stop(|actor| {
+            tracing::info!("Actor stopping with key: {}", actor.id);
+            AgentReply::immediate()
         });
 
     let actor_context = pool_item_actor.start().await;
-    actor_context.suspend().await?;
+    actor_context.stop().await?;
     Ok(())
 }

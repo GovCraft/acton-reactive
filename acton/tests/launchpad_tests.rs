@@ -19,11 +19,11 @@ use std::time::Duration;
 
 use tokio::runtime::Runtime;
 use tokio::task;
-use tracing::field::debug;
 use tracing::*;
+use tracing::field::debug;
 
-use acton::prelude::Subscriber;
 use acton::prelude::*;
+use acton::prelude::Subscriber;
 use acton_test::prelude::*;
 
 use crate::setup::*;
@@ -33,7 +33,7 @@ mod setup;
 #[acton_test]
 async fn test_launch_passing_acton() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch();
+    let mut acton_ready: AgentRuntime = ActonApp::launch();
     let broker = acton_ready.get_broker();
 
     let actor_config = ActorConfig::new(Ern::with_root("parent")?, None, Some(broker.clone()))?;
@@ -48,20 +48,19 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                     None,
                     Some(broker.clone()),
                 )
-                .expect("Couldn't create child config");
+                    .expect("Couldn't create child config");
 
-                let mut acton = acton_ready.clone();
+                let mut acton = actor.runtime.clone();
 
                 let child_context = acton
                     .spawn_actor_with_setup::<Parent>(child_actor_config, |mut child| {
                         Box::pin(async move {
                             child.act_on::<Pong>(|_actor, _msg| {
                                 info!("CHILD SUCCESS! PONG!");
-                                ActorRef::noop()
-
+                                AgentReply::immediate()
                             });
 
-                            let child_context = &child.actor_ref.clone();
+                            let child_context = &child.handle.clone();
                             child_context.subscribe::<Pong>().await;
                             child.start().await
                         })
@@ -72,11 +71,10 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                 actor
                     .act_on::<Ping>(|_actor, _msg| {
                         info!("SUCCESS! PING!");
-                        ActorRef::noop()
-
+                        AgentReply::immediate()
                     })
-                    .act_on::<Pong>(|actor, _msg| ActorRef::wrap_future(wait_and_respond()));
-                let context = &actor.actor_ref.clone();
+                    .act_on::<Pong>(|actor, _msg| AgentReply::from_async(wait_and_respond()));
+                let context = &actor.handle.clone();
 
                 context.subscribe::<Ping>().await;
                 context.subscribe::<Pong>().await;
@@ -86,11 +84,10 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
         })
         .await?;
 
-    broker_clone.emit(BrokerRequest::new(Ping)).await;
-    broker_clone.emit(BrokerRequest::new(Pong)).await;
+    broker_clone.broadcast(Ping).await;
+    broker_clone.broadcast(Pong).await;
 
-    parent_actor.suspend().await?;
-    broker_clone.suspend().await?;
+    acton_ready.shutdown_all().await?;
     Ok(())
 }
 
@@ -102,20 +99,20 @@ async fn wait_and_respond() {
 #[acton_test]
 async fn test_launchpad() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton_ready: SystemReady = ActonSystem::launch();
+    let mut app: AgentRuntime = ActonApp::launch();
 
-    let broker = acton_ready.get_broker();
+    let broker = app.get_broker();
 
     let actor_config =
         ActorConfig::new(Ern::with_root("improve_show")?, None, Some(broker.clone()))?;
 
-    let comedian_actor = acton_ready
+    let comedian_actor = app
         .spawn_actor::<Comedian>(|mut actor| {
             Box::pin(async move {
                 actor
                     .act_on::<Ping>(|_actor, _msg| {
                         info!("SUCCESS! PING!");
-                        ActorRef::noop()
+                        AgentReply::immediate()
                     })
                     .act_on::<Pong>(|_actor, _msg| {
                         Box::pin(async move {
@@ -123,15 +120,15 @@ async fn test_launchpad() -> anyhow::Result<()> {
                         })
                     });
 
-                actor.actor_ref.subscribe::<Ping>().await;
-                actor.actor_ref.subscribe::<Pong>().await;
+                actor.handle.subscribe::<Ping>().await;
+                actor.handle.subscribe::<Pong>().await;
 
                 actor.start().await
             })
         })
         .await?;
 
-    let counter_actor = acton_ready
+    let counter_actor = app
         .spawn_actor::<Counter>(|mut actor| {
             Box::pin(async move {
                 actor.act_on::<Pong>(|_actor, _msg| {
@@ -140,18 +137,18 @@ async fn test_launchpad() -> anyhow::Result<()> {
                     })
                 });
 
-                actor.actor_ref.subscribe::<Pong>().await;
+                actor.handle.subscribe::<Pong>().await;
 
                 actor.start().await
             })
         })
         .await?;
 
-    broker.emit(BrokerRequest::new(Ping)).await;
-    broker.emit(BrokerRequest::new(Pong)).await;
+    assert!(app.agent_count() > 0, "No agents were spawned");
 
-    broker.suspend().await?;
-    comedian_actor.suspend().await?;
-    counter_actor.suspend().await?;
+    broker.broadcast(Ping).await;
+    broker.broadcast(Pong).await;
+
+    app.shutdown_all().await?;
     Ok(())
 }

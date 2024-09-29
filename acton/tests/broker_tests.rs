@@ -27,8 +27,8 @@ mod setup;
 #[acton_test]
 async fn test_broker() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton: SystemReady = ActonSystem::launch();
-    let broker = acton.get_broker();
+    let mut app: AgentRuntime = ActonApp::launch();
+    let broker = app.get_broker();
 
     let actor_config = ActorConfig::new(
         Ern::with_root("improve_show").unwrap(),
@@ -36,44 +36,43 @@ async fn test_broker() -> anyhow::Result<()> {
         Some(broker.clone()),
     )?;
 
-    let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
+    let mut comedy_show = app.create_actor_with_config::<Comedian>(actor_config).await;
 
     let actor_config = ActorConfig::new(
         Ern::with_root("counter").unwrap(),
         None,
         Some(broker.clone()),
     )?;
-    let mut counter_actor = acton.create_actor_with_config::<Counter>(actor_config).await;
+    let mut counter_actor = app.create_actor_with_config::<Counter>(actor_config).await;
     counter_actor.act_on::<Pong>(|actor, event| {
         info!("Also SUCCESS! PONG!");
-        ActorRef::noop()
+        AgentReply::immediate()
 
     });
 
     comedy_show
-        .act_on::<Ping>(|actor, event| {
+        .act_on::<Ping>(|agent, event| {
             info!("SUCCESS! PING!");
-            Box::pin(async move {})
+            AgentReply::immediate()
         })
         .act_on::<Pong>(|actor, event| {
             info!("SUCCESS! PONG!");
-            ActorRef::noop()
+            AgentReply::immediate()
 
         });
 
-    counter_actor.actor_ref.subscribe::<Pong>().await;
-    comedy_show.actor_ref.subscribe::<Ping>().await;
-    comedy_show.actor_ref.subscribe::<Pong>().await;
+    counter_actor.handle.subscribe::<Pong>().await;
+    comedy_show.handle.subscribe::<Ping>().await;
+    comedy_show.handle.subscribe::<Pong>().await;
 
-    let comedian = comedy_show.start().await;
-    let counter = counter_actor.start().await;
+    let _ = comedy_show.start().await;
+    let _ = counter_actor.start().await;
 
-    broker.emit(BrokerRequest::new(Ping)).await;
-    broker.emit(BrokerRequest::new(Pong)).await;
+    broker.broadcast(Ping).await;
+    broker.broadcast(Pong).await;
 
-    comedian.suspend().await?;
-    counter.suspend().await?;
-    broker.suspend().await?;
+    broker.stop().await?;
+    app.shutdown_all().await?;
 
     Ok(())
 }

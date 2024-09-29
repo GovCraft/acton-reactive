@@ -18,19 +18,20 @@ use std::any::TypeId;
 use std::fmt::Debug;
 use std::mem;
 
+use acton_ern::{Ern, UnixTime};
 use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
 use tracing::*;
 
-use crate::actor::{ActorConfig, ManagedActor, Running};
-use crate::common::{ActonInner, ActorRef, AsyncLifecycleHandler, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem, SystemReady};
-use crate::message::EventRecord;
+use crate::actor::{ActorConfig, ManagedAgent, Started};
+use crate::common::{ActonInner, AgentHandle, AgentRuntime, AsyncLifecycleHandler, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
+use crate::message::MessageEnvelope;
 use crate::prelude::ActonMessage;
 use crate::traits::Actor;
 
 pub struct Idle;
 
-impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, ManagedEntity> {
+impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Idle, Agent> {
     /// Adds an asynchronous message handler for a specific message type.
     ///
     /// # Parameters
@@ -39,8 +40,8 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     pub fn act_on<M>(
         &mut self,
         message_processor: impl for<'a> Fn(
-            &'a mut ManagedActor<Running, ManagedEntity>,
-            &'a mut EventRecord<M>,
+            &'a mut ManagedAgent<Started, Agent>,
+            &'a mut MessageEnvelope<M>,
         ) -> FutureBox
         + Send
         + Sync
@@ -53,7 +54,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         trace!(type_name=std::any::type_name::<M>(),type_id=?type_id);
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
-            move |actor: &mut ManagedActor<Running, ManagedEntity>,
+            move |actor: &mut ManagedAgent<Started, Agent>,
                   envelope: &mut Envelope|
                   -> FutureBox {
                 let envelope_type_id = envelope.message.as_any().type_id();
@@ -73,14 +74,14 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
                     let mut event_record = {
                         if let Some(parent) = &actor.parent {
                             let return_address = parent.return_address();
-                            EventRecord {
+                            MessageEnvelope {
                                 message,
                                 sent_time,
                                 return_address,
                             }
                         } else {
-                            let return_address = actor.actor_ref.return_address();
-                            EventRecord {
+                            let return_address = actor.handle.return_address();
+                            MessageEnvelope {
                                 message,
                                 sent_time,
                                 return_address,
@@ -111,46 +112,34 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
         self
     }
 
-    // /// Sets the reactor to be called before the actor wakes up.
-    // ///
-    // /// # Parameters
-    // /// - `life_cycle_event_reactor`: The function to be called.
-    // pub fn before_activate(
-    //     &mut self,
-    //     life_cycle_event_reactor: impl Fn(&ManagedActor<Idle, ManagedEntity>) + Send + Sync + 'static,
-    // ) -> &mut Self {
-    //     self.on_activate = Box::new(life_cycle_event_reactor);
-    //     self
-    // }
-
     /// Sets the reactor to be called when the actor wakes up.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_started<F>(&mut self, f: F) -> &mut Self
+    pub fn after_start<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
         + Send
         + Sync
         + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_start = Box::new(f);
+        self.after_start = Box::new(f);
         self
     }
     /// Sets the reactor to be called when the actor wakes up.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_starting<F>(&mut self, f: F) -> &mut Self
+    pub fn before_start<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
         + Send
         + Sync
         + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_starting = Box::new(f);
+        self.before_start = Box::new(f);
         self
     }
 
@@ -158,47 +147,32 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_stopped<F>(&mut self, f: F) -> &mut Self
+    pub fn after_stop<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
         + Send
         + Sync
         + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_stopped = Box::new(f);
+        self.after_stop = Box::new(f);
         self
     }
     /// Sets the reactor to be called just before the actor stops processing messages in its mailbox.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn on_before_stop<F>(&mut self, f: F) -> &mut Self
+    pub fn before_stop<F>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
         + Send
         + Sync
         + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.on_before_stop = Box::new(f);
+        self.before_stop = Box::new(f);
         self
     }
-
-    // /// Sets the asynchronous reactor to be called just before the actor stops.
-    // ///
-    // /// # Parameters
-    // /// - `f`: The asynchronous function to be called.
-    // pub fn before_stop<F>(&mut self, f: F) -> &mut Self
-    // where
-    //     F: for<'b> Fn(&'b ManagedActor<Running, ManagedEntity>) -> FutureBox
-    //     + Send
-    //     + Sync
-    //     + 'static,
-    // {
-    //     self.before_stop = Box::new(f);
-    //     self
-    // }
 
     /// Creates and supervises a new actor with the given ID and state.
     ///
@@ -208,18 +182,21 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     /// # Returns
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
-    pub async fn create_child(&self) -> ManagedActor<Idle, ManagedEntity> {
-        ManagedActor::new(&Some(self.acton.clone()), None).await
+    pub async fn create_child(&self) -> ManagedAgent<Idle, Agent> {
+        ManagedAgent::new(&Some(self.runtime.clone()), None).await
     }
 
     #[instrument]
-    pub(crate) async fn new(acton: &Option<SystemReady>, config: Option<ActorConfig>) -> Self {
-        let mut managed_actor: ManagedActor<Idle, ManagedEntity> = ManagedActor::default();
+    pub(crate) async fn new(acton: &Option<AgentRuntime>, config: Option<ActorConfig>) -> Self {
+        let mut managed_actor: ManagedAgent<Idle, Agent> = ManagedAgent::default();
 
         if let Some(config) = &config {
-            managed_actor.actor_ref.set_ern(config.ern());
+            managed_actor.handle.id = config.ern();
             managed_actor.parent = config.parent().clone();
-            managed_actor.actor_ref.broker = Box::new(config.get_broker().clone());
+            managed_actor.handle.broker = Box::new(config.get_broker().clone());
+            if let Some(broker) = config.get_broker().clone() {
+                managed_actor.broker = broker;
+            }
         }
 
         debug_assert!(
@@ -227,31 +204,31 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
             "Actor mailbox is closed in new"
         );
 
-        trace!("NEW ACTOR: {}", &managed_actor.actor_ref.ern());
+        trace!("NEW ACTOR: {}", &managed_actor.handle.id());
 
-        managed_actor.acton = acton.clone().unwrap_or_else(|| SystemReady(ActonInner {
-            broker: managed_actor.actor_ref.broker.clone().unwrap_or_default(),
+        managed_actor.runtime = acton.clone().unwrap_or_else(|| AgentRuntime(ActonInner {
+            broker: managed_actor.handle.broker.clone().unwrap_or_default(),
             ..Default::default()
         }));
 
-        managed_actor.ern = managed_actor.actor_ref.ern();
+        managed_actor.id = managed_actor.handle.id();
 
         managed_actor
     }
 
     #[instrument(skip(self))]
-    pub async fn start(mut self) -> ActorRef {
+    pub async fn start(mut self) -> AgentHandle {
         let reactors = mem::take(&mut self.reactors);
-        let actor_ref = self.actor_ref.clone();
+        let actor_ref = self.handle.clone();
 
-        let active_actor: ManagedActor<Running, ManagedEntity> = self.into();
+        let active_actor: ManagedAgent<Started, Agent> = self.into();
         let actor = Box::leak(Box::new(active_actor));
 
         debug_assert!(
             !actor.inbox.is_closed(),
             "Actor mailbox is closed in activate"
         );
-        (actor.on_starting)(&actor).await;
+        (actor.before_start)(actor).await;
         actor_ref.tracker().spawn(actor.wake(reactors));
         actor_ref.tracker().close();
 
@@ -259,20 +236,19 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Idle, Managed
     }
 }
 
-impl<ManagedEntity: Default + Send + Debug + 'static> From<ManagedActor<Idle, ManagedEntity>>
-for ManagedActor<Running, ManagedEntity>
+impl<Agent: Default + Send + Debug + 'static> From<ManagedAgent<Idle, Agent>>
+for ManagedAgent<Started, Agent>
 {
-    fn from(value: ManagedActor<Idle, ManagedEntity>) -> Self {
-        let on_starting = value.on_starting;
-        let on_activate = value.on_start;
-        let on_stop = value.on_stopped;
-        let on_before_stop = value.on_before_stop;
-        // let before_stop = value.before_stop;
+    fn from(value: ManagedAgent<Idle, Agent>) -> Self {
+        let on_starting = value.before_start;
+        let on_start = value.after_start;
+        let on_stopped = value.after_stop;
+        let on_before_stop = value.before_stop;
         let halt_signal = value.halt_signal;
         let parent = value.parent;
-        let key = value.ern;
+        let id = value.id;
         let tracker = value.tracker;
-        let acton = value.acton;
+        let acton = value.runtime;
         let reactors = value.reactors;
 
         debug_assert!(
@@ -281,32 +257,31 @@ for ManagedActor<Running, ManagedEntity>
         );
 
         let inbox = value.inbox;
-        let actor_ref = value.actor_ref;
-        let entity = value.entity;
+        let handle = value.handle;
+        let agent = value.model;
         let broker = value.broker;
 
         // tracing::trace!("Mailbox is not closed, proceeding with conversion");
-        if actor_ref.children().is_empty() {
+        if handle.children().is_empty() {
             trace!(
                 "child count before Actor creation {}",
-                actor_ref.children().len()
+                handle.children().len()
             );
         }
-        // Create and return the new actor in the awake state
-        ManagedActor::<Running, ManagedEntity> {
-            actor_ref,
+        // Create and return the new actor in the running state
+        ManagedAgent::<Started, Agent> {
+            handle,
             parent,
             halt_signal,
-            ern: key,
-            acton,
-            entity,
+            id,
+            runtime: acton,
+            model: agent,
             tracker,
             inbox,
-            on_before_stop,
-            on_starting,
-            on_start: on_activate,
-            // before_stop,
-            on_stopped: on_stop,
+            before_start: on_starting,
+            after_start: on_start,
+            before_stop: on_before_stop,
+            after_stop: on_stopped,
             broker,
             reactors,
             _actor_state: Default::default(),
@@ -315,36 +290,37 @@ for ManagedActor<Running, ManagedEntity>
 }
 
 impl<ManagedEntity: Default + Send + Debug + 'static> Default
-for ManagedActor<Idle, ManagedEntity>
+for ManagedAgent<Idle, ManagedEntity>
 {
     fn default() -> Self {
         let (outbox, inbox) = channel(255);
-        let mut actor_ref: ActorRef = Default::default();
-        actor_ref.outbox = outbox.clone();
+        let id: Ern<UnixTime> = Default::default();
+        let mut handle: AgentHandle = Default::default();
+        handle.id = id.clone();
+        handle.outbox = outbox.clone();
 
-        ManagedActor::<Idle, ManagedEntity> {
-            actor_ref,
-            parent: Default::default(),
-            ern: Default::default(),
-            entity: ManagedEntity::default(),
-            broker: Default::default(),
+        ManagedAgent::<Idle, ManagedEntity> {
+            handle,
+            id,
             inbox,
-            acton: Default::default(),
+            before_start: Box::new(|a: &'_ ManagedAgent<Started, ManagedEntity>| default_handler(a)),
+            after_start: Box::new(|a: &'_ ManagedAgent<Started, ManagedEntity>| default_handler(a)),
+            before_stop: Box::new(|a: &'_ ManagedAgent<Started, ManagedEntity>| default_handler(a)),
+            after_stop: Box::new(|a: &'_ ManagedAgent<Started, ManagedEntity>| default_handler(a)),
+            model: ManagedEntity::default(),
+            broker: Default::default(),
+            parent: Default::default(),
+            runtime: Default::default(),
             halt_signal: Default::default(),
             tracker: Default::default(),
-            on_starting: Box::new(|a: &'_ ManagedActor<Running, ManagedEntity>| default_handler(a)),
-            on_start: Box::new(|a: &'_ ManagedActor<Running, ManagedEntity>| default_handler(a)),
-            on_before_stop: Box::new(|a: &'_ ManagedActor<Running, ManagedEntity>| default_handler(a)),
-            on_stopped: Box::new(|a: &'_ ManagedActor<Running, ManagedEntity>| default_handler(a)),
-            reactors: DashMap::new(),
-
+            reactors: Default::default(),
             _actor_state: Default::default(),
         }
     }
 }
 
 fn default_handler<ManagedEntity: Debug + Send + Default>(
-    _actor: &'_ ManagedActor<Running, ManagedEntity>,
+    _actor: &'_ ManagedAgent<Started, ManagedEntity>,
 ) -> FutureBox {
     Box::pin(async {})
 }

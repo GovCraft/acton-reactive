@@ -17,7 +17,7 @@
 pub use broker_request::BrokerRequest;
 pub use broker_request_envelope::BrokerRequestEnvelope;
 pub(crate) use envelope::Envelope;
-pub(crate) use event_record::EventRecord;
+pub(crate) use message_envelope::MessageEnvelope;
 pub(crate) use message_error::MessageError;
 pub use outbound_envelope::OutboundEnvelope;
 pub use return_address::ReturnAddress;
@@ -28,7 +28,7 @@ pub(crate) use unsubscribe_broker::UnsubscribeBroker;
 mod broker_request;
 mod broker_request_envelope;
 mod envelope;
-mod event_record;
+mod message_envelope;
 mod message_error;
 mod outbound_envelope;
 mod return_address;

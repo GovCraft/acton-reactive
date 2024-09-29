@@ -50,7 +50,7 @@ impl ActorConfig {
     ) -> anyhow::Result<ActorConfig> {
         if let Some(parent) = parent {
             // Get the parent ERN
-            let parent_ern = ErnParser::new(parent.ern().to_string()).parse()?;
+            let parent_ern = ErnParser::new(parent.id().to_string()).parse()?;
             let child_ern = parent_ern + ern;
             Ok(ActorConfig {
                 ern: child_ern,

@@ -16,51 +16,70 @@
 
 use std::any::{Any, TypeId};
 use std::collections::HashSet;
+use std::future::Future;
+use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use acton_ern::{Ern, UnixTime};
+use async_trait::async_trait;
 use dashmap::DashMap;
 use tracing::*;
 
-use crate::actor::{ActorConfig, Idle, ManagedActor};
-use crate::common::ActorRef;
+use crate::actor::{ActorConfig, Idle, ManagedAgent};
+use crate::common::{AgentHandle, BrokerRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker};
-use crate::traits::Actor;
+use crate::prelude::ActonMessage;
+use crate::traits::{Actor, Broker};
 
 /// A broker that manages subscriptions and broadcasts messages to subscribers.
 ///
 /// The `Broker` struct is responsible for maintaining a list of subscribers for different message types
 /// and broadcasting messages to the appropriate subscribers.
-#[derive(Default, Debug)]
-pub struct Broker {
+#[derive(Default, Debug, Clone)]
+pub struct AgentBroker {
     /// A thread-safe map of subscribers, keyed by message type ID.
     ///
     /// Each entry in the map contains a set of tuples, where each tuple consists of:
     /// - An `Ern<UnixTime>`: The unique identifier of the subscriber.
     /// - An `ActorRef`: A reference to the subscriber actor.
     subscribers: Subscribers,
+    agent_handle: AgentHandle,
 }
-type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, ActorRef)>>>; // Type alias for the subscribers map.
+type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, AgentHandle)>>>; // Type alias for the subscribers map.
+// Implement Deref and DerefMut to access AgentHandle's methods directly
+impl Deref for AgentBroker {
+    type Target = AgentHandle;
 
-impl Broker {
+    fn deref(&self) -> &Self::Target {
+        &self.agent_handle
+    }
+}
+
+impl DerefMut for AgentBroker {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.agent_handle
+    }
+}
+impl AgentBroker {
     #[instrument]
-    pub(crate) async fn initialize() -> ActorRef {
+    pub(crate) async fn initialize() -> BrokerRef {
         let actor_config = ActorConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
-        let mut actor: ManagedActor<Idle, Broker> =
-            ManagedActor::new(&None, Some(actor_config)).await;
+        let mut actor: ManagedAgent<Idle, AgentBroker> =
+            ManagedAgent::new(&None, Some(actor_config)).await;
 
         actor
             .act_on::<BrokerRequest>(|actor, event| {
-                let subscribers = actor.entity.subscribers.clone();
+                let subscribers = actor.model.subscribers.clone();
                 let message = event.message.clone();
                 let message_type_id = message.type_id();
                 let message_type_name = message.message_type_name.clone();
-                debug!(message_type_name=message_type_name, message_type_id=?message_type_id);
+
 
                 Box::pin(async move {
-                    Broker::broadcast(subscribers, message).await;
+                    debug!( "broadcasting message: {:?}", message);
+                    AgentBroker::broadcast(subscribers, message).await;
                 })
             })
             .act_on::<SubscribeBroker>(|actor, event| {
@@ -68,8 +87,9 @@ impl Broker {
                 let message_type_id = message.message_type_id;
                 let subscriber_context = message.subscriber_context.clone();
                 let subscriber_id = message.subscriber_id.clone();
+                debug!("subscribe message received from subscriber: {:?}", subscriber_id.to_string());
 
-                let subscribers = actor.entity.subscribers.clone();
+                let subscribers = actor.model.subscribers.clone();
                 Box::pin(async move {
                     subscribers
                         .entry(message_type_id)
@@ -102,9 +122,10 @@ impl Broker {
         let message_type_id = &request.message.as_ref().type_id();
         if let Some(subscribers) = subscribers.get(message_type_id) {
             for (_, subscriber_context) in subscribers.value().clone() {
+                debug!( "broadcasting message to subscriber: {:?}", subscriber_context.id().to_string());
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();
-                subscriber_context.emit(message).await;
+                subscriber_context.send_message(message).await;
             }
         }
     }

@@ -33,7 +33,7 @@ pub trait Actor {
     fn return_address(&self) -> OutboundEnvelope;
 
     /// Returns a map of the actor's children.
-    fn children(&self) -> DashMap<String, ActorRef>;
+    fn children(&self) -> DashMap<String, AgentHandle>;
 
     /// Finds a child actor by its ERN.
     ///
@@ -44,23 +44,16 @@ pub trait Actor {
     /// # Returns
     ///
     /// An `Option<ActorRef>` containing the child actor if found, or `None` if not found.
-    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<ActorRef>;
+    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<AgentHandle>;
 
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
 
-    /// Sets the actor's ERN.
-    ///
-    /// # Arguments
-    ///
-    /// * `ern` - The new ERN to set for the actor.
-    fn set_ern(&mut self, ern: Ern<UnixTime>);
-
     /// Returns the actor's ERN.
-    fn ern(&self) -> Ern<UnixTime>;
+    fn id(&self) -> Ern<UnixTime>;
 
     /// Creates a clone of the actor's reference.
-    fn clone_ref(&self) -> ActorRef;
+    fn clone_ref(&self) -> AgentHandle;
 
     /// Emits a message from the actor, possibly to a pool item.
     ///
@@ -72,7 +65,7 @@ pub trait Actor {
     ///
     /// A `Future` that resolves when the message has been emitted.
     #[instrument(skip(self), fields(children = self.children().len()))]
-    fn emit(
+    fn send_message(
         &self,
         message: impl ActonMessage,
     ) -> impl Future<Output=()> + Send + Sync + '_
@@ -85,63 +78,8 @@ pub trait Actor {
         }
     }
 
-    /// Sends a message synchronously from the actor.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The message to be sent, implementing `ActonMessage`.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` which is:
-    /// - `Ok(())` if the message was successfully sent.
-    /// - An error of type `MessageError` if the send operation failed.
-    ///
-    /// ```
-    #[instrument(skip(self))]
-    fn send(&self, message: impl ActonMessage + 'static) -> Result<(), MessageError>
-    where
-        Self: Sync,
-    {
-        let envelope = self.return_address();
-        envelope.reply(message)?;
-        Ok(())
-    }
-
     /// Suspends the actor.
-    fn suspend(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
+    fn stop(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
 
-    /// Wraps a future in a pinned box.
-    ///
-    /// This method is useful for converting a future into a pinned boxed future,
-    /// which is required returning from async act_on message handlers.
-    ///
-    /// # Arguments
-    ///
-    /// * `future` - The future to be wrapped.
-    ///
-    /// # Returns
-    ///
-    /// A pinned boxed future.
-    /// ```
-    fn wrap_future<F>(future: F) -> Pin<Box<F>>
-    where
-        F: Future<Output=()> + Sized + 'static,
-    {
-        Box::pin(future)
-    }
 
-    /// Creates a no-op (no operation) future.
-    ///
-    /// This method returns a future that does nothing and completes immediately.
-    /// It's useful in situations where you need to provide a future but don't want
-    /// it to perform any actual work.
-    ///
-    /// # Returns
-    ///
-    /// A pinned boxed future that resolves immediately without doing anything.
-    /// ```
-    fn noop() -> Pin<Box<impl Future<Output=()> + Sized>> {
-        Box::pin(async move {})
-    }
 }

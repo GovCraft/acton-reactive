@@ -32,52 +32,52 @@ mod setup;
 async fn test_async_reactor() -> anyhow::Result<()> {
     initialize_tracing();
 
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
 
     let actor_config = ActorConfig::new(Ern::with_root("improve_show").unwrap(), None, None)?;
     let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
 
     comedy_show
         .act_on::<FunnyJoke>(|actor, record| {
-            actor.entity.jokes_told += 1;
-            let context = actor.actor_ref.clone();
+            actor.model.jokes_told += 1;
+            let context = actor.handle.clone();
             Box::pin(async move {
                 trace!("emitting async");
-                context.emit(Ping).await;
+                context.send_message(Ping).await;
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             trace!("Received Audience Reaction");
             match event.message {
-                AudienceReactionMsg::Chuckle => actor.entity.funny += 1,
-                AudienceReactionMsg::Groan => actor.entity.bombers += 1,
+                AudienceReactionMsg::Chuckle => actor.model.funny += 1,
+                AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
-            ActorRef::noop()
+            AgentReply::immediate()
         })
         .act_on::<Ping>(|actor, event| {
             trace!("PING");
-            ActorRef::noop()
+            AgentReply::immediate()
         })
-        .on_stopped(|actor| {
+        .after_stop(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.ern,
-                actor.entity.jokes_told,
-                actor.entity.funny,
-                actor.entity.bombers
+                actor.id,
+                actor.model.jokes_told,
+                actor.model.funny,
+                actor.model.bombers
             );
-            assert_eq!(actor.entity.jokes_told, 2);
-            ActorRef::noop()
+            assert_eq!(actor.model.jokes_told, 2);
+            AgentReply::immediate()
 
         });
 
     let comedian = comedy_show.start().await;
 
     comedian
-        .emit(FunnyJoke::ChickenCrossesRoad)
+        .send_message(FunnyJoke::ChickenCrossesRoad)
         .await;
-    comedian.emit(FunnyJoke::Pun).await;
-    comedian.suspend().await?;
+    comedian.send_message(FunnyJoke::Pun).await;
+    comedian.stop().await?;
 
     Ok(())
 }
@@ -87,20 +87,20 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
 
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
     // Create an actor for counting
-    let mut counter_actor = acton.create_actor::<Counter>().await;
+    let mut counter_actor = acton.initialize::<Counter>().await;
     counter_actor
         .act_on::<Tally>(|actor, _event| {
             info!("on tally");
-            actor.entity.count += 1; // Increment count on tally event
-            ActorRef::noop()
+            actor.model.count += 1; // Increment count on tally event
+            AgentReply::immediate()
         }
         )
-        .on_stopped(|actor| {
-            assert_eq!(4, actor.entity.count); // Ensure count is 4 when stopping
+        .after_stop(|actor| {
+            assert_eq!(4, actor.model.count); // Ensure count is 4 when stopping
             trace!("on stopping");
-            ActorRef::noop()
+            AgentReply::immediate()
 
         });
 
@@ -109,27 +109,27 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.emit(Tally::AddCount).await;
+        counter_actor.send_message(Tally::AddCount).await;
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = acton.create_actor::<Messenger>().await;
+    let mut messenger_actor = acton.initialize::<Messenger>().await;
     messenger_actor
-        .on_started(|actor| {
+        .after_start(|actor| {
             trace!("*");
-            ActorRef::noop()
+            AgentReply::immediate()
         })
-        .on_stopped(|_actor| {
+        .after_stop(|_actor| {
             trace!("*");
-            ActorRef::noop()
+            AgentReply::immediate()
         });
 
     // Activate the messenger actor
     let messenger_actor = messenger_actor.start().await;
 
     // Terminate both actor
-    counter_actor.suspend().await?;
-    messenger_actor.suspend().await?;
+    counter_actor.stop().await?;
+    messenger_actor.stop().await?;
 
     Ok(())
 }
@@ -138,7 +138,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 async fn test_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
 
     let actor_config = ActorConfig::new(Ern::with_root("test_child_actor").unwrap(), None, None)?;
 
@@ -158,22 +158,22 @@ async fn test_child_actor() -> anyhow::Result<()> {
         .act_on::<Ping>(|actor, event| {
             match event.message {
                 Ping => {
-                    actor.entity.receive_count += 1; // Increment receive_count on Ping
+                    actor.model.receive_count += 1; // Increment receive_count on Ping
                 }
             };
-            ActorRef::noop()
+            AgentReply::immediate()
         })
-        .on_stopped(|actor| {
-            info!("Processed {} PONGs", actor.entity.receive_count);
+        .after_stop(|actor| {
+            info!("Processed {} PONGs", actor.model.receive_count);
             // Verify that the child actor processed 22 PINGs
             assert_eq!(
-                actor.entity.receive_count, 22,
+                actor.model.receive_count, 22,
                 "Child actor did not process the expected number of PINGs"
             );
-            ActorRef::noop()
+            AgentReply::immediate()
         });
 
-    let child_id = child_actor.ern.clone();
+    let child_id = child_actor.id.clone();
     // Activate the parent actor
     let parent_context = parent_actor.start().await;
     parent_context.supervise(child_actor).await?;
@@ -194,11 +194,11 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
         trace!("Emitting PING");
-        child.emit(Ping).await;
+        child.send_message(Ping).await;
     }
 
     trace!("Terminating parent actor");
-    parent_context.suspend().await?;
+    parent_context.stop().await?;
 
     Ok(())
 }
@@ -207,9 +207,9 @@ async fn test_child_actor() -> anyhow::Result<()> {
 async fn test_find_child_actor() -> anyhow::Result<()> {
     // Initialize tracing for logging purposes
     initialize_tracing();
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
     // Create the parent actor
-    let mut parent_actor = acton.create_actor::<PoolItem>().await;
+    let mut parent_actor = acton.initialize::<PoolItem>().await;
     // Activate the parent actor
     let parent_context = parent_actor.start().await;
 
@@ -218,7 +218,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 
     let mut child_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
     // Set up the child actor with handlers
-    let child_id = child_actor.ern.clone();
+    let child_id = child_actor.id.clone();
     // Activate the child actor
     parent_context.supervise(child_actor).await?;
     assert_eq!(
@@ -235,7 +235,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     );
     let child = found_child.unwrap();
 
-    parent_context.suspend().await?;
+    parent_context.stop().await?;
 
     Ok(())
 }
@@ -243,7 +243,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 #[acton_test]
 async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
     let actor_config =
         ActorConfig::new(Ern::with_root("test_actor_mutation").unwrap(), None, None)?;
 
@@ -251,7 +251,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
 
     comedy_show
         .act_on::<FunnyJoke>(|actor, record| {
-            actor.entity.jokes_told += 1;
+            actor.model.jokes_told += 1;
             let envelope = actor.new_envelope();
             let message = record.message.clone();
             Box::pin(async move {
@@ -271,30 +271,30 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             match event.message {
-                AudienceReactionMsg::Chuckle => actor.entity.funny += 1,
-                AudienceReactionMsg::Groan => actor.entity.bombers += 1,
+                AudienceReactionMsg::Chuckle => actor.model.funny += 1,
+                AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
-            ActorRef::noop()
+            AgentReply::immediate()
         })
-        .on_stopped(|actor| {
+        .after_stop(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.ern,
-                actor.entity.jokes_told,
-                actor.entity.funny,
-                actor.entity.bombers
+                actor.id,
+                actor.model.jokes_told,
+                actor.model.funny,
+                actor.model.bombers
             );
-            assert_eq!(actor.entity.jokes_told, 2);
-            ActorRef::noop()
+            assert_eq!(actor.model.jokes_told, 2);
+            AgentReply::immediate()
         });
 
     let comedian = comedy_show.start().await;
 
     comedian
-        .emit(FunnyJoke::ChickenCrossesRoad)
+        .send_message(FunnyJoke::ChickenCrossesRoad)
         .await;
-    comedian.emit(FunnyJoke::Pun).await;
-    comedian.suspend().await?;
+    comedian.send_message(FunnyJoke::Pun).await;
+    comedian.stop().await?;
 
     Ok(())
 }
@@ -304,11 +304,11 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     initialize_tracing();
 
     // Launch the Acton system and await its readiness
-    let mut acton: SystemReady = ActonSystem::launch();
+    let mut acton: AgentRuntime = ActonApp::launch();
 
 
     // Asynchronously create the Comedian actor and await its creation
-    let mut comedy_show = acton.create_actor::<Comedian>().await;
+    let mut comedy_show = acton.initialize::<Comedian>().await;
 
     // Define the message handler for FunnyJokeFor messages
     comedy_show.act_on::<FunnyJokeFor>(|actor, event_record| {
@@ -316,20 +316,20 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
             info!("Got a funny joke for {}", &child_id);
 
             // Attempt to find the child actor by its ID
-            assert_eq!(actor.actor_ref.children().len(), 1, "Parent actor missing any children");
-            debug!( "Parent actor has child with ID: {:?}", actor.actor_ref.children());
-            assert!(actor.actor_ref.find_child(&child_id).is_some(), "No child found with ID {}", &child_id);
-            return if let Some(context) = actor.actor_ref.find_child(&child_id) {
+            assert_eq!(actor.handle.children().len(), 1, "Parent actor missing any children");
+            debug!( "Parent actor has child with ID: {:?}", actor.handle.children());
+            assert!(actor.handle.find_child(&child_id).is_some(), "No child found with ID {}", &child_id);
+            return if let Some(context) = actor.handle.find_child(&child_id) {
                 trace!("Pinging child {}", &child_id);
                 // Emit a Ping message to the child actor
                 let context = context.clone();
-                ActorRef::wrap_future(async move {context.emit(Ping).await})
+                AgentReply::from_async(async move {context.send_message(Ping).await})
             } else {
                 tracing::error!("No child found with ID {}", &child_id);
-                ActorRef::noop()
+                AgentReply::immediate()
             }
         }
-        ActorRef::noop()
+        AgentReply::immediate()
     });
 
     // Define the actor configuration for the Child (Counter) actor
@@ -337,20 +337,20 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
     // Asynchronously create the Counter actor with the specified configuration and await its creation
     let mut child = acton.create_actor_with_config::<Counter>(child_actor_config).await;
-    info!("Created child actor with id: {}", child.ern);
+    info!("Created child actor with id: {}", child.id);
 
     // Define the message handler for Ping messages in the Child actor
     child.act_on::<Ping>(|actor, _event| {
         info!("Received Ping from parent actor");
-        ActorRef::noop()
+        AgentReply::immediate()
     });
 
     // Clone the child actor's key for later use
-    let child_id = child.ern.clone();
+    let child_id = child.id.clone();
 
     // Supervise the Child actor under the Comedian actor and await the supervision process
-    comedy_show.actor_ref.supervise(child).await?;
-    assert_eq!(comedy_show.actor_ref.children().len(), 1, "Parent actor missing it's child after activation");
+    comedy_show.handle.supervise(child).await?;
+    assert_eq!(comedy_show.handle.children().len(), 1, "Parent actor missing it's child after activation");
     // Activate the Comedian actor and await its activation
     let comedian = comedy_show.start().await;
 
@@ -359,11 +359,11 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
     // Emit a FunnyJokeFor::ChickenCrossesRoad message to the Comedian actor and await the emission
     comedian
-        .emit(FunnyJokeFor::ChickenCrossesRoad(child_id))
+        .send_message(FunnyJokeFor::ChickenCrossesRoad(child_id))
         .await;
 
     // Suspend the Comedian actor and await the suspension process
-    comedian.suspend().await?;
+    comedian.stop().await?;
 
     Ok(())
 }

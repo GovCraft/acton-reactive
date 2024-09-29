@@ -22,22 +22,22 @@ use futures::future::join_all;
 use tokio::time::timeout;
 use tracing::{debug, instrument, trace};
 
-use crate::actor::ManagedActor;
+use crate::actor::ManagedAgent;
 use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
 use crate::message::{BrokerRequestEnvelope, ReturnAddress, SystemSignal};
 use crate::traits::Actor;
 
-pub struct Running;
+pub struct Started;
 
-impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, ManagedEntity> {
+impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
     /// Creates a new outbound envelope for the actor.
     ///
     /// # Returns
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
         Option::from(OutboundEnvelope::new(ReturnAddress::new(
-            self.actor_ref.outbox.clone(),
-            self.ern.clone(),
+            self.handle.outbox.clone(),
+            self.id.clone(),
         )))
     }
 
@@ -50,12 +50,13 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
     }
 
     #[instrument(skip(reactors, self))]
-    pub(crate) async fn wake(&mut self, reactors: ReactorMap<ManagedEntity>) {
-        (self.on_start)(self);
-
+    pub(crate) async fn wake(&mut self, reactors: ReactorMap<Agent>) {
+        (self.after_start)(self).await;
+        let mut terminate_requested = false;
         while let Some(incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
+
             debug!("{}", type_name_of_val(&incoming_envelope.message));
             // Special case for BrokerRequestEnvelope
             if let Some(broker_request_envelope) = incoming_envelope
@@ -81,19 +82,28 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
             } else if let Some(SystemSignal::Terminate) =
                 envelope.message.as_any().downcast_ref::<SystemSignal>()
             {
-                (self.on_before_stop)(self);
+                // Set the termination flag
+                terminate_requested = true;
+                debug!("Termination signal received, waiting for remaining messages...");
+                self.inbox.close();
+                (self.before_stop)(self);
+            }
+            // Check if termination has been requested and the inbox is empty
+            if terminate_requested && self.inbox.is_empty() && self.inbox.is_closed() {
                 self.terminate().await;
+                break;
             }
         }
-        (self.on_stopped)(self);
+        (self.after_stop)(self).await;
     }
     #[instrument(skip(self))]
     async fn terminate(&mut self) {
+
         // Collect suspend futures for all children
-        let suspend_futures: Vec<_> = self.actor_ref.children().iter().map(|item| {
+        let suspend_futures: Vec<_> = self.handle.children().iter().map(|item| {
             let child_ref = item.value().clone(); // Clone to take ownership
             async move {
-                let _ = child_ref.suspend().await;
+                let _ = child_ref.stop().await;
             }
         }).collect();
 
@@ -101,7 +111,7 @@ impl<ManagedEntity: Default + Send + Debug + 'static> ManagedActor<Running, Mana
         join_all(suspend_futures).await;
 
         trace!(
-        actor = self.ern.to_string(),
+        actor = self.id.to_string(),
         "All subordinates terminated. Closing mailbox for"
     );
 

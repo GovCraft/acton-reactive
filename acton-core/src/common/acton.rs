@@ -14,7 +14,7 @@
  * limitations under that License.
  */
 
-use crate::common::SystemReady;
+use crate::common::AgentRuntime;
 
 /// Represents the Acton system.
 ///
@@ -22,9 +22,9 @@ use crate::common::SystemReady;
 /// managing the initialization and coordination of various system components.
 /// It provides functionality to launch and prepare the system for operation.
 #[derive(Default, Debug, Clone)]
-pub struct ActonSystem;
+pub struct ActonApp;
 
-impl ActonSystem {
+impl ActonApp {
     /// Launches the Acton system.
     ///
     /// This method initializes and starts the Acton system, setting up all necessary
@@ -32,10 +32,10 @@ impl ActonSystem {
     ///
     /// # Returns
     ///
-    /// A [`SystemReady`] instance indicating that the system has been successfully launched
+    /// A [`AgentRuntime`] instance indicating that the system has been successfully launched
     /// and is ready for operation.
-    pub fn launch() -> SystemReady {
-        let system: ActonSystem = Default::default();
+    pub fn launch() -> AgentRuntime {
+        let system: ActonApp = Default::default();
         system.into()
     }
 }
