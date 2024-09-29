@@ -16,6 +16,7 @@
 
 use std::any::TypeId;
 use std::fmt::Debug;
+use std::future::Future;
 use std::mem;
 
 use acton_ern::{Ern, UnixTime};
