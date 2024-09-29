@@ -64,12 +64,12 @@ async fn main() {
             // Send a message to the Printer via the broker
             let broker = agent.broker.clone();
             let message = envelope.message.0.clone();
-            AgentReply::from_async(async move { broker.broadcast(StatusUpdate::Updated("DataCollector".to_string(), message)).await })
+            Box::pin(async move { broker.broadcast(StatusUpdate::Updated("DataCollector".to_string(), message)).await })
         })
         .after_start(|agent| {
             let broker = agent.broker.clone();
 
-            AgentReply::from_async(async move {
+            Box::pin(async move {
                 broker.broadcast(StatusUpdate::Ready("DataCollector".to_string(), "ready to collect data".to_string())).await;
             })
         });
@@ -85,19 +85,18 @@ async fn main() {
             let message = format!("Aggregator updated sum: {}", sum);
 
             // Send the aggregated result to the broker using an async operation
-            AgentReply::from_async(async move { broker.broadcast(StatusUpdate::Updated("Aggregator".to_string(), sum)).await })
-            // AgentReply::immediate()
+            Box::pin(async move { broker.broadcast(StatusUpdate::Updated("Aggregator".to_string(), sum)).await })
         })
         .after_start(|agent| {
             let broker = agent.broker.clone();
-            AgentReply::from_async(async move {
+            Box::pin(async move {
                 broker.broadcast(StatusUpdate::Ready("Aggregator".to_string(), "ready to sum data".to_string())).await;
             })
         })
         .before_stop(|agent| {
             let broker = agent.broker.clone();
             let sum = agent.model.sum;
-            AgentReply::from_async(async move {
+            Box::pin(async move {
                 broker.broadcast(StatusUpdate::Done(sum)).await;
             })
         });
@@ -149,7 +148,7 @@ async fn main() {
             // Because the agent in lifecycle hooks is not mutable
             // and writing to the out field would require mutability in this case
             let broker = agent.broker.clone();
-            AgentReply::from_async(async move { broker.broadcast(StatusUpdate::Ready("Printer".to_string(), "ready to display messages".to_string())).await })
+            Box::pin(async move { broker.broadcast(StatusUpdate::Ready("Printer".to_string(), "ready to display messages".to_string())).await })
         });
 
     // Subscribe agents to broker messages
