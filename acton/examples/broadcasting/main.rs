@@ -109,7 +109,7 @@ async fn main() {
                     let _ = execute!(
                 agent.model.out, //out is a shared IO resource
                 SetForegroundColor(Color::DarkYellow),        // Set text color
-                Print("\u{2713} "),  // Print message
+                Print("\u{2713}  "),  // Print message
                 SetForegroundColor(Color::Yellow),         // Set text color
                 Print(format!("{}", who)),  // Print message
                 SetForegroundColor(Color::DarkYellow),         // Set text color
@@ -120,11 +120,11 @@ async fn main() {
                 StatusUpdate::Updated(who, what) => {
                     let _ = execute!(
                 agent.model.out, //out is a shared IO resource
-                SetForegroundColor(Color::DarkMagenta),        // Set text color
-                Print("Printer received (update): "),  // Print message
-                SetForegroundColor(Color::DarkGreen),         // Set text color
+                SetForegroundColor(Color::DarkCyan),        // Set text color
+                Print("\u{2139}  "),  // Print message
+                SetForegroundColor(Color::Cyan),         // Set text color
                 Print(format!("{}", who)),  // Print message
-                SetForegroundColor(Color::Green),         // Set text color
+                SetForegroundColor(Color::DarkCyan),         // Set text color
                 Print(format!(" is {}!\n", what)),  // Print message
                 ResetColor                             // Reset colors back to default
             );
@@ -133,9 +133,9 @@ async fn main() {
                     let _ = execute!(
                 agent.model.out, //out is a shared IO resource
                 SetForegroundColor(Color::DarkMagenta),        // Set text color
-                Print("Printer received (done): "),  // Print message
-                SetForegroundColor(Color::Magenta),         // Set text color
-                Print(format!("Final sum {}!\n", sum)),  // Print message
+                Print("\u{1F680} "),  // Print message
+                SetForegroundColor(Color::Red),         // Set text color
+                Print(format!("Final sum {}!\n\n", sum)),  // Print message
                 ResetColor                             // Reset colors back to default
             );
                 }
