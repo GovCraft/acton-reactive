@@ -106,40 +106,35 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Idle, Agent> {
         );
 
         // Insert the handler into the reactors map.
-        let _ = &self
-            .reactors
-            .insert(type_id, ReactorItem::FutureReactor(handler_box));
+        self.reactors.insert(type_id, ReactorItem::FutureReactor(handler_box));
         self
     }
+
 
     /// Sets the reactor to be called when the actor wakes up.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn after_start<F>(&mut self, f: F) -> &mut Self
+    pub fn after_start<F, Fut>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
-        + Send
-        + Sync
-        + 'static,
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output=()> + Send + Sync + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.after_start = Box::new(f);
+        self.after_start = Box::new(move |agent| Box::pin(f(agent)) as FutureBox);
         self
     }
     /// Sets the reactor to be called when the actor wakes up.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn before_start<F>(&mut self, f: F) -> &mut Self
+    pub fn before_start<F, Fut>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
-        + Send
-        + Sync
-        + 'static,
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output=()> + Send + Sync + 'static,
     {
         // Create a boxed handler that can be stored in the HashMap.
-        self.before_start = Box::new(f);
+        self.before_start = Box::new(move |agent| Box::pin(f(agent)) as FutureBox);
         self
     }
 
@@ -147,30 +142,24 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Idle, Agent> {
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn after_stop<F>(&mut self, f: F) -> &mut Self
+    pub fn after_stop<F, Fut>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
-        + Send
-        + Sync
-        + 'static,
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output=()> + Send + Sync + 'static,
     {
-        // Create a boxed handler that can be stored in the HashMap.
-        self.after_stop = Box::new(f);
+        self.after_stop = Box::new(move |agent| Box::pin(f(agent)) as FutureBox);
         self
     }
     /// Sets the reactor to be called just before the actor stops processing messages in its mailbox.
     ///
     /// # Parameters
     /// - `life_cycle_event_reactor`: The function to be called.
-    pub fn before_stop<F>(&mut self, f: F) -> &mut Self
+    pub fn before_stop<F, Fut>(&mut self, f: F) -> &mut Self
     where
-        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> FutureBox
-        + Send
-        + Sync
-        + 'static,
+        F: for<'b> Fn(&'b ManagedAgent<Started, Agent>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output=()> + Send + Sync + 'static,
     {
-        // Create a boxed handler that can be stored in the HashMap.
-        self.before_stop = Box::new(f);
+        self.before_stop = Box::new(move |agent| Box::pin(f(agent)) as FutureBox);
         self
     }
 
