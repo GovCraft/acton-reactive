@@ -85,15 +85,19 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
                 // Set the termination flag
                 terminate_requested = true;
                 debug!("Termination signal received, waiting for remaining messages...");
+                (self.before_stop)(self).await;
                 self.inbox.close();
-                (self.before_stop)(self);
+                break;
             }
+        }
+        loop {
             // Check if termination has been requested and the inbox is empty
             if terminate_requested && self.inbox.is_empty() && self.inbox.is_closed() {
                 self.terminate().await;
                 break;
             }
         }
+
         (self.after_stop)(self).await;
     }
     #[instrument(skip(self))]
