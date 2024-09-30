@@ -14,25 +14,9 @@
  * limitations under that License.
  */
 
-use std::time::SystemTime;
-
-use static_assertions::assert_impl_all;
-
-use crate::message::OutboundEnvelope;
-
-/// Represents a record of an event within the actor system.
-///
-/// # Type Parameters
-/// - `S`: The type of the message contained in the event.
-#[derive(Clone, Debug)]
-pub struct MessageEnvelope<S> {
-    /// The message contained in the event.
-    pub message: S,
-    /// The time when the message was sent.
-    pub sent_time: SystemTime,
-    /// The return address for the message response.
-    pub return_address: OutboundEnvelope,
+#[derive(Default, Debug, Clone)]
+pub(crate) struct CartItem {
+    pub(crate) name: String,
+    pub(crate) quantity: usize,
+    pub(crate) price: usize,
 }
-
-// Ensures that EventRecord<u32> implements the Send trait.
-assert_impl_all!(MessageEnvelope<u32>: Send);

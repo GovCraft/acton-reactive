@@ -259,11 +259,11 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
                     match message {
                         FunnyJoke::ChickenCrossesRoad => {
                             let _ = envelope
-                                .reply_async(AudienceReactionMsg::Chuckle)
+                                .send(AudienceReactionMsg::Chuckle)
                                 .await;
                         }
                         FunnyJoke::Pun => {
-                            let _ = envelope.reply_async(AudienceReactionMsg::Groan).await;
+                            let _ = envelope.send(AudienceReactionMsg::Groan).await;
                         }
                     }
                 }

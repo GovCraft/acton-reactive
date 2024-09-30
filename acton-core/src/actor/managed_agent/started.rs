@@ -21,10 +21,11 @@ use std::time::Duration;
 use futures::future::join_all;
 use tokio::time::{sleep, timeout};
 use tracing::{debug, instrument, trace};
+use tracing::field::debug;
 
 use crate::actor::ManagedAgent;
 use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
-use crate::message::{BrokerRequestEnvelope, ReturnAddress, SystemSignal};
+use crate::message::{BrokerRequestEnvelope, MessageAddress, SystemSignal};
 use crate::traits::Actor;
 
 pub struct Started;
@@ -35,7 +36,7 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
     /// # Returns
     /// An optional `OutboundEnvelope` if the context's outbox is available.
     pub fn new_envelope(&self) -> Option<OutboundEnvelope> {
-        Option::from(OutboundEnvelope::new(ReturnAddress::new(
+        Option::from(OutboundEnvelope::new(MessageAddress::new(
             self.handle.outbox.clone(),
             self.id.clone(),
         )))
@@ -46,7 +47,7 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
     /// # Returns
     /// A clone of the parent's return envelope.
     pub fn new_parent_envelope(&self) -> Option<OutboundEnvelope> {
-        self.parent.as_ref().map(|parent| parent.return_address().clone())
+        self.parent.as_ref().map(|parent| parent.create_envelope(None).clone())
     }
 
     #[instrument(skip(reactors, self))]
@@ -56,8 +57,8 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
         while let Some(incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
-
-            debug!("{}", type_name_of_val(&incoming_envelope.message));
+            debug!("envelope sender is {}", incoming_envelope.reply_to.sender.root);
+            trace!("{}", type_name_of_val(&incoming_envelope.message));
             // Special case for BrokerRequestEnvelope
             if let Some(broker_request_envelope) = incoming_envelope
                 .message
@@ -66,7 +67,8 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
             {
                 envelope = Envelope::new(
                     broker_request_envelope.message.clone(),
-                    incoming_envelope.return_address.clone(),
+                    incoming_envelope.reply_to.clone(),
+                    incoming_envelope.recipient.clone()
                 );
                 type_id = broker_request_envelope.message.as_any().type_id();
             } else {
@@ -84,7 +86,7 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
             {
                 // Set the termination flag
                 terminate_requested = true;
-                debug!("Termination signal received, waiting for remaining messages...");
+                trace!("Termination signal received, waiting for remaining messages...");
                 (self.before_stop)(self).await;
                 //give the before_stop a chance to process the termination signal
                 sleep(Duration::from_millis(10)).await;

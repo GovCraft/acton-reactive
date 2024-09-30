@@ -21,17 +21,19 @@ use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
-use tracing::instrument;
+use tracing::*;
 
 use crate::common::*;
+use crate::message::MessageAddress;
 use crate::traits::acton_message::ActonMessage;
 
 /// Trait for actor context, defining common methods for actor management.
 #[async_trait]
 pub trait Actor {
-    /// Returns the actor's return address.
-    fn return_address(&self) -> OutboundEnvelope;
-
+    /// Returns the message address for this agent.
+    fn reply_address(&self) -> MessageAddress;
+    /// Returns an envelope for the specified recipient and message, ready to send.
+    fn create_envelope(&self, recipient_address: Option<MessageAddress>) -> OutboundEnvelope;
     /// Returns a map of the actor's children.
     fn children(&self) -> DashMap<String, AgentHandle>;
 
@@ -73,8 +75,9 @@ pub trait Actor {
         Self: Sync,
     {
         async move {
-            let envelope = self.return_address();
-            envelope.reply_async(message).await;
+            let envelope = self.create_envelope(None);
+            debug!("Envelope sender is {:?}", envelope.return_address.sender.root.to_string());
+            envelope.send(message).await;
         }
     }
 

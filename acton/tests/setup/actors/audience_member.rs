@@ -69,7 +69,7 @@ impl AudienceMember {
                     AudienceReactionMsg::Groan
                 }
             };
-            Box::pin(async move { sender.reply_async(reaction).await })
+            Box::pin(async move { sender.send(reaction).await })
         });
 
         // Event: Activating AudienceMember

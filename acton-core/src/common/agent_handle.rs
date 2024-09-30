@@ -22,11 +22,11 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::actor::{Idle, ManagedAgent};
 use crate::common::{BrokerRef, OutboundEnvelope, Outbox, ParentRef};
-use crate::message::{BrokerRequest, ReturnAddress, SystemSignal};
+use crate::message::{BrokerRequest, MessageAddress, SystemSignal};
 use crate::prelude::ActonMessage;
 use crate::traits::{Actor, Broker, Subscriber};
 
@@ -140,12 +140,22 @@ impl Broker for AgentHandle {
 
 #[async_trait]
 impl Actor for AgentHandle {
-    /// Returns the return address for the actor.
+    /// Returns the message address for this agent.
+    fn reply_address(&self) -> MessageAddress {
+        MessageAddress::new(self.outbox.clone(), self.id.clone())
+    }
+
+    /// Returns an envelope for the specified recipient and message, ready to send.
     #[instrument(skip(self))]
-    fn return_address(&self) -> OutboundEnvelope {
-        let outbox = self.outbox.clone();
-        let return_address = ReturnAddress::new(outbox, self.id.clone());
-        OutboundEnvelope::new(return_address)
+    fn create_envelope(&self, recipient_address: Option<MessageAddress>) -> OutboundEnvelope {
+        trace!( "self id is {}", self.id);
+        let return_address = self.reply_address();
+        trace!( "return_address is {}", return_address.sender.root);
+        if let Some(recipient) = recipient_address {
+            OutboundEnvelope::new_with_recipient(return_address, recipient)
+        } else {
+            OutboundEnvelope::new(return_address)
+        }
     }
 
     fn children(&self) -> DashMap<String, AgentHandle> {
@@ -173,12 +183,13 @@ impl Actor for AgentHandle {
     }
 
     #[allow(clippy::manual_async_fn)]
+    #[instrument(skip(self))]
     /// Suspends the actor.
     fn stop(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
         async move {
             let tracker = self.tracker();
 
-            let actor = self.return_address().clone();
+            let actor = self.create_envelope(None).clone();
 
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.

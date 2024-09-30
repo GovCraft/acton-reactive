@@ -21,6 +21,7 @@ use std::pin::Pin;
 use acton_ern::Ern;
 use futures::future::join_all;
 use tokio::sync::oneshot;
+use tracing::trace;
 
 use crate::actor::{ActorConfig, Idle, ManagedAgent};
 use crate::common::{ActonApp, AgentBroker, AgentHandle, BrokerRef};
@@ -48,10 +49,9 @@ impl AgentRuntime {
     where
         State: Default + Send + Debug + 'static,
     {
-        let broker = self.0.broker.clone();
+        // let broker = self.0.broker.clone();
         let acton_ready = self.clone();
-        let config = ActorConfig::new(Ern::default(), None, Some(broker)).unwrap_or_default();
-        let new_actor = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
+        let new_actor = ManagedAgent::new(&Some(acton_ready), None).await;
         self.0.roots.insert(new_actor.id.clone(), new_actor.handle.clone());
         new_actor
     }
@@ -83,6 +83,7 @@ impl AgentRuntime {
     {
         let acton_ready = self.clone();
         let new_agent = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
+        trace!("Created new actor with id {}", new_agent.id);
         self.0.roots.insert(new_agent.id.clone(), new_agent.handle.clone());
         new_agent
     }

@@ -38,6 +38,7 @@ pub fn initialize_tracing() {
         //     .add_directive(Level::INFO.into()); // Set global log level to INFO
 
         let filter = EnvFilter::new("")
+            .add_directive("acton_core::actor::managed_agent::started[wake]=warn".parse().unwrap())
             .add_directive("acton_core::common::actor_ref=debug".parse().unwrap())
             .add_directive("acton_core::common::acton=error".parse().unwrap())
             .add_directive("acton_core::pool=error".parse().unwrap())
@@ -72,10 +73,14 @@ pub fn initialize_tracing() {
             .add_directive("acton_core::actor::actor[init]=error".parse().unwrap())
             .add_directive("acton_core::actor::actor[activate]=error".parse().unwrap())
             .add_directive("acton_core::actor::idle=off".parse().unwrap())
-            .add_directive("acton_core::actor::idle[act_on_async]=off".parse().unwrap())
-            .add_directive("acton_core::actor::idle[act_on]=off".parse().unwrap())
+            .add_directive("acton_core::actor::idle[act_on]=warn".parse().unwrap())
             .add_directive(
-                "acton_core::message::outbound_envelope=off"
+                "acton_core::message::message_envelope=trace"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive(
+                "acton_core::message::outbound_envelope=debug"
                     .parse()
                     .unwrap(),
             )
@@ -92,6 +97,7 @@ pub fn initialize_tracing() {
             .add_directive("launchpad_tests=info".parse().unwrap())
             .add_directive("lifecycle_tests=info".parse().unwrap())
             .add_directive("actor_tests=debug".parse().unwrap())
+            .add_directive("direct_messaging_tests=debug".parse().unwrap())
             .add_directive("load_balancer_tests=info".parse().unwrap())
             .add_directive(
                 "acton::tests::setup::actor::pool_item=info"
@@ -108,6 +114,7 @@ pub fn initialize_tracing() {
             .compact()
             .with_line_number(true)
             .without_time()
+            .with_target(false)
             .with_env_filter(filter)
             .finish();
 

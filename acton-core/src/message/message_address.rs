@@ -19,13 +19,14 @@ use derive_new::new;
 
 use crate::common::Outbox;
 
+/// Message address with a sender id
 #[derive(new, Clone, Debug)]
-pub struct ReturnAddress {
-    pub address: Outbox,
-    pub sender: Ern<UnixTime>,
+pub struct MessageAddress {
+    pub(crate) address: Outbox,
+    pub(crate) sender: Ern<UnixTime>,
 }
 
-impl Default for ReturnAddress {
+impl Default for MessageAddress {
     fn default() -> Self {
         let (outbox, _) = tokio::sync::mpsc::channel(1);
         Self::new(outbox, Ern::default())
@@ -39,7 +40,7 @@ mod tests {
 
     #[test]
     fn test_return_address() {
-        let return_address = ReturnAddress::default();
+        let return_address = MessageAddress::default();
         assert!(return_address.address.is_closed());
     }
 }

@@ -23,6 +23,7 @@ use std::sync::Arc;
 use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;
 use dashmap::DashMap;
+use futures::future::join_all;
 use tracing::*;
 
 use crate::actor::{ActorConfig, Idle, ManagedAgent};
@@ -45,6 +46,7 @@ pub struct AgentBroker {
     subscribers: Subscribers,
     agent_handle: AgentHandle,
 }
+
 type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, AgentHandle)>>>; // Type alias for the subscribers map.
 // Implement Deref and DerefMut to access AgentHandle's methods directly
 impl Deref for AgentBroker {
@@ -60,6 +62,7 @@ impl DerefMut for AgentBroker {
         &mut self.agent_handle
     }
 }
+
 impl AgentBroker {
     #[instrument]
     pub(crate) async fn initialize() -> BrokerRef {
@@ -121,12 +124,17 @@ impl AgentBroker {
     ) {
         let message_type_id = &request.message.as_ref().type_id();
         if let Some(subscribers) = subscribers.get(message_type_id) {
-            for (_, subscriber_context) in subscribers.value().clone() {
-                debug!( "broadcasting message to subscriber: {:?}", subscriber_context.id().to_string());
+            let futures = subscribers.value().clone().into_iter().map(|(_, subscriber_context)| {
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();
-                subscriber_context.send_message(message).await;
-            }
+                async move {
+                    debug!("Broadcasting message to subscriber: {:?}", subscriber_context.id().to_string());
+                    subscriber_context.send_message(message).await;
+                }
+            });
+            // Await all futures concurrently
+            join_all(futures).await;
         }
     }
+
 }
