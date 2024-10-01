@@ -52,22 +52,22 @@ async fn main() {
     let mut app = ActonApp::launch();
 
     // Initialize each agent
-    let mut data_collector = app.initialize::<DataCollector>().await;
-    let mut aggregator = app.initialize::<Aggregator>().await;
-    let mut printer = app.initialize::<Printer>().await;
+    let mut data_collector = app.new_agent::<DataCollector>().await;
+    let mut aggregator = app.new_agent::<Aggregator>().await;
+    let mut printer = app.new_agent::<Printer>().await;
 
     // Set up the DataCollector agent
     data_collector
         .act_on::<NewData>(|agent, envelope| {
-            agent.model.data_points.push(envelope.message.0);
+            agent.model.data_points.push(envelope.message().0);
 
             // Send a message to the Printer via the broker
-            let broker = agent.broker.clone();
-            let message = envelope.message.0.clone();
+            let broker = agent.broker().clone();
+            let message = envelope.message().0.clone();
             Box::pin(async move { broker.broadcast(StatusUpdate::Updated("DataCollector".to_string(), message)).await })
         })
         .after_start(|agent| {
-            let broker = agent.broker.clone();
+            let broker = agent.broker().clone();
 
             Box::pin(async move {
                 broker.broadcast(StatusUpdate::Ready("DataCollector".to_string(), "ready to collect data".to_string())).await;
@@ -77,10 +77,10 @@ async fn main() {
     // Set up the Aggregator agent
     aggregator
         .act_on::<NewData>(|agent, envelope| {
-            agent.model.sum += envelope.message.0;
+            agent.model.sum += envelope.message().0;
 
             // Send a message to the Printer via the broker
-            let broker = agent.broker.clone();
+            let broker = agent.broker().clone();
             let sum = agent.model.sum;
             let message = format!("Aggregator updated sum: {}", sum);
 
@@ -88,13 +88,13 @@ async fn main() {
             Box::pin(async move { broker.broadcast(StatusUpdate::Updated("Aggregator".to_string(), sum)).await })
         })
         .after_start(|agent| {
-            let broker = agent.broker.clone();
+            let broker = agent.broker().clone();
             Box::pin(async move {
                 broker.broadcast(StatusUpdate::Ready("Aggregator".to_string(), "ready to sum data".to_string())).await;
             })
         })
         .before_stop(|agent| {
-            let broker = agent.broker.clone();
+            let broker = agent.broker().clone();
             let sum = agent.model.sum;
             Box::pin(async move {
                 broker.broadcast(StatusUpdate::Done(sum)).await;
@@ -104,7 +104,7 @@ async fn main() {
     // Set up the Printer agent
     printer
         .act_on::<StatusUpdate>(|agent, envelope| {
-            match &envelope.message {
+            match &envelope.message() {
                 StatusUpdate::Ready(who, what) => {
                     let _ = execute!(
                 agent.model.out, //out is a shared IO resource
@@ -147,14 +147,14 @@ async fn main() {
             // why send a message instead of using the agent directly?
             // Because the agent in lifecycle hooks is not mutable
             // and writing to the out field would require mutability in this case
-            let broker = agent.broker.clone();
+            let broker = agent.broker().clone();
             Box::pin(async move { broker.broadcast(StatusUpdate::Ready("Printer".to_string(), "ready to display messages".to_string())).await })
         });
 
     // Subscribe agents to broker messages
-    data_collector.handle.subscribe::<NewData>().await;
-    aggregator.handle.subscribe::<NewData>().await;
-    printer.handle.subscribe::<StatusUpdate>().await;
+    data_collector.handle().subscribe::<NewData>().await;
+    aggregator.handle().subscribe::<NewData>().await;
+    printer.handle().subscribe::<StatusUpdate>().await;
 
     // Start the agents
     let _data_collector_handle = data_collector.start().await;

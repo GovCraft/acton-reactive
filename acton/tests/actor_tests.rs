@@ -40,15 +40,15 @@ async fn test_async_reactor() -> anyhow::Result<()> {
     comedy_show
         .act_on::<FunnyJoke>(|actor, record| {
             actor.model.jokes_told += 1;
-            let context = actor.handle.clone();
+            let context = actor.handle().clone();
             Box::pin(async move {
                 trace!("emitting async");
-                context.send_message(Ping).await;
+                context.send(Ping).await;
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             trace!("Received Audience Reaction");
-            match event.message {
+            match event.message(){
                 AudienceReactionMsg::Chuckle => actor.model.funny += 1,
                 AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
@@ -61,7 +61,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
         .after_stop(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.id,
+                actor.id(),
                 actor.model.jokes_told,
                 actor.model.funny,
                 actor.model.bombers
@@ -74,9 +74,9 @@ async fn test_async_reactor() -> anyhow::Result<()> {
     let comedian = comedy_show.start().await;
 
     comedian
-        .send_message(FunnyJoke::ChickenCrossesRoad)
+        .send(FunnyJoke::ChickenCrossesRoad)
         .await;
-    comedian.send_message(FunnyJoke::Pun).await;
+    comedian.send(FunnyJoke::Pun).await;
     comedian.stop().await?;
 
     Ok(())
@@ -89,7 +89,7 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     let mut acton: AgentRuntime = ActonApp::launch();
     // Create an actor for counting
-    let mut counter_actor = acton.initialize::<Counter>().await;
+    let mut counter_actor = acton.new_agent::<Counter>().await;
     counter_actor
         .act_on::<Tally>(|actor, _event| {
             info!("on tally");
@@ -109,11 +109,11 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
 
     // Emit AddCount event four times
     for _ in 0..4 {
-        counter_actor.send_message(Tally::AddCount).await;
+        counter_actor.send(Tally::AddCount).await;
     }
 
     // Create an actor for messaging
-    let mut messenger_actor = acton.initialize::<Messenger>().await;
+    let mut messenger_actor = acton.new_agent::<Messenger>().await;
     messenger_actor
         .after_start(|actor| {
             trace!("*");
@@ -156,7 +156,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Set up the child actor with handlers
     child_actor
         .act_on::<Ping>(|actor, event| {
-            match event.message {
+            match event.message(){
                 Ping => {
                     actor.model.receive_count += 1; // Increment receive_count on Ping
                 }
@@ -173,7 +173,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
             AgentReply::immediate()
         });
 
-    let child_id = child_actor.id.clone();
+    let child_id = child_actor.id().clone();
     // Activate the parent actor
     let parent_context = parent_actor.start().await;
     parent_context.supervise(child_actor).await?;
@@ -194,7 +194,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Emit PING events to the child actor 22 times
     for _ in 0..22 {
         trace!("Emitting PING");
-        child.send_message(Ping).await;
+        child.send(Ping).await;
     }
 
     trace!("Terminating parent actor");
@@ -209,7 +209,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     initialize_tracing();
     let mut acton: AgentRuntime = ActonApp::launch();
     // Create the parent actor
-    let mut parent_actor = acton.initialize::<PoolItem>().await;
+    let mut parent_actor = acton.new_agent::<PoolItem>().await;
     // Activate the parent actor
     let parent_context = parent_actor.start().await;
 
@@ -218,7 +218,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
 
     let mut child_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
     // Set up the child actor with handlers
-    let child_id = child_actor.id.clone();
+    let child_id = child_actor.id().clone();
     // Activate the child actor
     parent_context.supervise(child_actor).await?;
     assert_eq!(
@@ -253,7 +253,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         .act_on::<FunnyJoke>(|actor, record| {
             actor.model.jokes_told += 1;
             let envelope = actor.new_envelope();
-            let message = record.message.clone();
+            let message = record.message().clone();
             Box::pin(async move {
                 if let Some(envelope) = envelope {
                     match message {
@@ -270,7 +270,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
-            match event.message {
+            match event.message(){
                 AudienceReactionMsg::Chuckle => actor.model.funny += 1,
                 AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
@@ -279,7 +279,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
         .after_stop(|actor| {
             info!(
                 "Jokes told at {}: {}\tFunny: {}\tBombers: {}",
-                actor.id,
+                actor.id(),
                 actor.model.jokes_told,
                 actor.model.funny,
                 actor.model.bombers
@@ -291,9 +291,9 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     let comedian = comedy_show.start().await;
 
     comedian
-        .send_message(FunnyJoke::ChickenCrossesRoad)
+        .send(FunnyJoke::ChickenCrossesRoad)
         .await;
-    comedian.send_message(FunnyJoke::Pun).await;
+    comedian.send(FunnyJoke::Pun).await;
     comedian.stop().await?;
 
     Ok(())
@@ -308,22 +308,22 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
 
     // Asynchronously create the Comedian actor and await its creation
-    let mut comedy_show = acton.initialize::<Comedian>().await;
+    let mut comedy_show = acton.new_agent::<Comedian>().await;
 
     // Define the message handler for FunnyJokeFor messages
     comedy_show.act_on::<FunnyJokeFor>(|actor, event_record| {
-        if let FunnyJokeFor::ChickenCrossesRoad(child_id) = event_record.message.clone() {
+        if let FunnyJokeFor::ChickenCrossesRoad(child_id) = event_record.message().clone() {
             info!("Got a funny joke for {}", &child_id);
 
             // Attempt to find the child actor by its ID
-            assert_eq!(actor.handle.children().len(), 1, "Parent actor missing any children");
-            debug!( "Parent actor has child with ID: {:?}", actor.handle.children());
-            assert!(actor.handle.find_child(&child_id).is_some(), "No child found with ID {}", &child_id);
-            return if let Some(context) = actor.handle.find_child(&child_id) {
+            assert_eq!(actor.handle().children().len(), 1, "Parent actor missing any children");
+            trace!( "Parent actor has child with ID: {:?}", actor.handle().children());
+            assert!(actor.handle().find_child(&child_id).is_some(), "No child found with ID {}", &child_id);
+            return if let Some(context) = actor.handle().find_child(&child_id) {
                 trace!("Pinging child {}", &child_id);
                 // Emit a Ping message to the child actor
                 let context = context.clone();
-                AgentReply::from_async(async move {context.send_message(Ping).await})
+                AgentReply::from_async(async move {context.send(Ping).await})
             } else {
                 tracing::error!("No child found with ID {}", &child_id);
                 AgentReply::immediate()
@@ -337,7 +337,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
     // Asynchronously create the Counter actor with the specified configuration and await its creation
     let mut child = acton.create_actor_with_config::<Counter>(child_actor_config).await;
-    info!("Created child actor with id: {}", child.id);
+    info!("Created child actor with id: {}", child.id());
 
     // Define the message handler for Ping messages in the Child actor
     child.act_on::<Ping>(|actor, _event| {
@@ -346,11 +346,11 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     });
 
     // Clone the child actor's key for later use
-    let child_id = child.id.clone();
+    let child_id = child.id().clone();
 
     // Supervise the Child actor under the Comedian actor and await the supervision process
-    comedy_show.handle.supervise(child).await?;
-    assert_eq!(comedy_show.handle.children().len(), 1, "Parent actor missing it's child after activation");
+    comedy_show.handle().supervise(child).await?;
+    assert_eq!(comedy_show.handle().children().len(), 1, "Parent actor missing it's child after activation");
     // Activate the Comedian actor and await its activation
     let comedian = comedy_show.start().await;
 
@@ -359,7 +359,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
 
     // Emit a FunnyJokeFor::ChickenCrossesRoad message to the Comedian actor and await the emission
     comedian
-        .send_message(FunnyJokeFor::ChickenCrossesRoad(child_id))
+        .send(FunnyJokeFor::ChickenCrossesRoad(child_id))
         .await;
 
     // Suspend the Comedian actor and await the suspension process

@@ -69,28 +69,27 @@ impl AgentBroker {
         let actor_config = ActorConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
-        let mut actor: ManagedAgent<Idle, AgentBroker> =
+        let mut broker: ManagedAgent<Idle, AgentBroker> =
             ManagedAgent::new(&None, Some(actor_config)).await;
 
-        actor
+        broker
             .act_on::<BrokerRequest>(|actor, event| {
+                trace!( "broadcasting request: {:?}", event.message);
                 let subscribers = actor.model.subscribers.clone();
                 let message = event.message.clone();
-                let message_type_id = message.type_id();
-                let message_type_name = message.message_type_name.clone();
 
 
                 Box::pin(async move {
-                    debug!( "broadcasting message: {:?}", message);
                     AgentBroker::broadcast(subscribers, message).await;
                 })
             })
             .act_on::<SubscribeBroker>(|actor, event| {
                 let message = event.message.clone();
+
                 let message_type_id = message.message_type_id;
                 let subscriber_context = message.subscriber_context.clone();
                 let subscriber_id = message.subscriber_id.clone();
-                debug!("subscribe message received from subscriber: {:?}", subscriber_id.to_string());
+                trace!("subscribe from {} for {}", subscriber_id.root.to_string(), actor.handle.name());
 
                 let subscribers = actor.model.subscribers.clone();
                 Box::pin(async move {
@@ -102,9 +101,9 @@ impl AgentBroker {
             });
 
         trace!("Activating the BrokerActor.");
-        let mut context = actor.start().await;
-        context.broker = Box::from(Some(context.clone()));
-        context
+        let mut handle = broker.start().await;
+        handle.broker = Box::from(Some(handle.clone()));
+        handle
     }
 
     /// Broadcasts a message to all subscribers of a specific message type.
@@ -117,24 +116,23 @@ impl AgentBroker {
     /// * `subscribers` - An `Arc<DashMap>` containing the subscribers for different message types.
     /// * `request` - The `BrokerRequest` containing the message to be broadcast.
     /// ```
-    #[instrument(skip(subscribers))]
     pub async fn broadcast(
         subscribers: Subscribers,
         request: BrokerRequest,
     ) {
         let message_type_id = &request.message.as_ref().type_id();
+        trace!(" Subscriber count for message type: {:?} is {:?}", message_type_id, subscribers.get(message_type_id).map(|x| x.len()));
         if let Some(subscribers) = subscribers.get(message_type_id) {
             let futures = subscribers.value().clone().into_iter().map(|(_, subscriber_context)| {
                 let subscriber_context = subscriber_context.clone();
                 let message: BrokerRequestEnvelope = request.clone().into();
                 async move {
-                    debug!("Broadcasting message to subscriber: {:?}", subscriber_context.id().to_string());
-                    subscriber_context.send_message(message).await;
+                    trace!("Broadcasting message to subscriber: {:?}", subscriber_context.name());
+                    subscriber_context.send(message).await;
                 }
             });
             // Await all futures concurrently
             join_all(futures).await;
         }
     }
-
 }

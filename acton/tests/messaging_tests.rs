@@ -30,7 +30,7 @@ use acton::prelude::*;
 async fn test_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
     let mut system: AgentRuntime = ActonApp::launch();
-    let mut actor = system.initialize::<PoolItem>().await;
+    let mut actor = system.new_agent::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
@@ -45,7 +45,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 
         });
     let actor_ref = actor.start().await;
-    actor_ref.send_message(Ping).await;
+    actor_ref.send(Ping).await;
     actor_ref.stop().await?;
     Ok(())
 }
@@ -53,7 +53,7 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
 async fn test_basic_messenger() -> anyhow::Result<()> {
     initialize_tracing();
     let mut system: AgentRuntime = ActonApp::launch();
-    let mut actor = system.initialize::<Messenger>().await;
+    let mut actor = system.new_agent::<Messenger>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
@@ -66,7 +66,7 @@ async fn test_basic_messenger() -> anyhow::Result<()> {
 
         });
     let actor_ref = actor.start().await;
-    actor_ref.send_message(Ping).await;
+    actor_ref.send(Ping).await;
     actor_ref.stop().await?;
     Ok(())
 }
@@ -75,7 +75,7 @@ async fn test_basic_messenger() -> anyhow::Result<()> {
 async fn test_async_messaging_behavior() -> anyhow::Result<()> {
     initialize_tracing();
     let mut system: AgentRuntime = ActonApp::launch();
-    let mut actor = system.initialize::<PoolItem>().await;
+    let mut actor = system.new_agent::<PoolItem>().await;
     actor
         .act_on::<Ping>(|actor, event| {
             let type_name = std::any::type_name::<Ping>();
@@ -89,7 +89,7 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
 
         });
     let context = actor.start().await;
-    context.send_message(Ping).await;
+    context.send(Ping).await;
     context.stop().await?;
     Ok(())
 }

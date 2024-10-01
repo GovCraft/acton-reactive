@@ -21,7 +21,7 @@ async fn main() {
     let mut app = ActonApp::launch();
 
     // Create and set up the agent
-    let mut agent = app.initialize::<ItemTracker>().await;
+    let mut agent = app.new_agent::<ItemTracker>().await;
 
     // Configure agent behavior
     agent
@@ -35,8 +35,8 @@ async fn main() {
         })
         // Handle adding an item
         .act_on::<AddItem>(|agent, envelope| {
-            println!("Adding item: {}", envelope.message.0);
-            agent.model.items.push(envelope.message.0.clone());
+            println!("Adding item: {}", envelope.message().0);
+            agent.model.items.push(envelope.message().0.clone());
             AgentReply::immediate()
         })
         // Handle retrieving all items with an asynchronous operation
@@ -66,12 +66,12 @@ async fn main() {
     // Send messages to add items
     // The agent handle is cloneable, so you can send messages from multiple sources concurrently,
     // including from other agents or different parts of your application.
-    agent_handle.send_message(AddItem("Apple".to_string())).await;
-    agent_handle.send_message(AddItem("Banana".to_string())).await;
-    agent_handle.send_message(AddItem("Cherry".to_string())).await;
+    agent_handle.send(AddItem("Apple".to_string())).await;
+    agent_handle.send(AddItem("Banana".to_string())).await;
+    agent_handle.send(AddItem("Cherry".to_string())).await;
 
     // Retrieve and display the list of items
-    agent_handle.send_message(GetItems).await;
+    agent_handle.send(GetItems).await;
 
     // Shut down the system and all agents
     app.shutdown_all().await.expect("Failed to shut down system");

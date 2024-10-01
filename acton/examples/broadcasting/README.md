@@ -42,14 +42,14 @@ The `DataCollector` receives new data and broadcasts it:
 ```rust
 data_collector
     .act_on::<NewData>(|agent, envelope| {
-        agent.model.data_points.push(envelope.message.0);
+        agent.model.data_points.push(envelope.message().0);
         
-        let broker = agent.broker.clone();
-        let message = format!("DataCollector received new data: {}", envelope.message.0.clone());
+        let broker = agent.broker().clone();
+        let message = format!("DataCollector received new data: {}", envelope.message().0.clone());
         AgentReply::from_async(async move { broker.broadcast(PrintMessage(message)).await })
     })
     .after_start(|agent| {
-        let broker = agent.broker.clone();
+        let broker = agent.broker().clone();
         AgentReply::from_async(async move {
             broker.broadcast(PrintMessage("DataCollector is ready to collect data!".to_string())).await;
         })
@@ -61,9 +61,9 @@ The `Aggregator` maintains a running total of all data received:
 ```rust
 aggregator
     .act_on::<NewData>(|agent, envelope| {
-        agent.model.sum += envelope.message.0;
+        agent.model.sum += envelope.message().0;
         
-        let broker = agent.broker.clone();
+        let broker = agent.broker().clone();
         let sum = agent.model.sum;
         let message = format!("Aggregator updated sum: {}", sum);
         
@@ -72,13 +72,13 @@ aggregator
         })
     })
     .after_start(|agent| {
-        let broker = agent.broker.clone();
+        let broker = agent.broker().clone();
         AgentReply::from_async(async move {
             broker.broadcast(PrintMessage("Aggregator is ready to sum data!".to_string())).await;
         })
     })
     .before_stop(|agent| {
-        let broker = agent.broker.clone();
+        let broker = agent.broker().clone();
         let sum = agent.model.sum;
         AgentReply::from_async(async move {
             broker.broadcast(PrintMessage(format!("Final sum: {sum}"))).await;
@@ -91,11 +91,11 @@ The `Printer` handles all output:
 ```rust
 printer
     .act_on::<PrintMessage>(|_agent, envelope| {
-        println!("Printer received: {}", envelope.message.0);
+        println!("Printer received: {}", envelope.message().0);
         AgentReply::immediate()
     })
     .after_start(|agent| {
-        let broker = agent.broker.clone();
+        let broker = agent.broker().clone();
         AgentReply::from_async(async move {
             broker.broadcast(PrintMessage("Printer is ready to display messages!".to_string())).await;
         })
@@ -105,9 +105,9 @@ printer
 ### Subscribing to Messages
 Agents subscribe to the messages they're interested in:
 ```rust
-data_collector.handle.subscribe::<NewData>().await;
-aggregator.handle.subscribe::<NewData>().await;
-printer.handle.subscribe::<PrintMessage>().await;
+data_collector.handle().subscribe::<NewData>().await;
+aggregator.handle().subscribe::<NewData>().await;
+printer.handle().subscribe::<PrintMessage>().await;
 ```
 
 ### Sending Messages via the Broadcaster

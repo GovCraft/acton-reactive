@@ -15,6 +15,7 @@
  */
 
 use std::time::Duration;
+
 use tracing::{debug, info, instrument, trace};
 
 use acton::prelude::*;
@@ -30,6 +31,61 @@ pub(crate) struct ShoppingCart {
     pub(crate) price_service_handle: AgentHandle,
 }
 
+
+#[acton_test]
+async fn test_reply() -> anyhow::Result<()> {
+    initialize_tracing();
+    // Set up the system and create agents
+    let mut app = ActonApp::launch();
+
+    let price_service = PriceService::new(&mut app).await;
+    let price_service_handle = price_service.agent_handle.clone();
+    let shopping_cart = ShoppingCart::new(price_service_handle, &mut app).await;
+
+    shopping_cart.trigger().await;
+    shopping_cart.trigger().await;
+    shopping_cart.trigger().await;
+
+
+    // Shut down the system and all agents
+    app.shutdown_all().await.expect("Failed to shut down system");
+    Ok(())
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct PongResponse(i8);
+
+#[derive(Default, Debug, Clone)]
+pub struct Trigger;
+
+#[derive(Default, Debug, Clone)]
+pub(crate) struct PriceService {
+    pub(crate) agent_handle: AgentHandle,
+}
+
+impl PriceService {
+    pub(crate) async fn new(app: &mut AgentRuntime) -> Self {
+        let config = ActorConfig::new(Ern::with_root("price_service").unwrap(), None, None).expect("Failed to create actor config");
+        let mut price_service = app.create_actor_with_config::<PriceService>(config).await;
+        price_service
+            .act_on::<Pong>(|agent, context| {
+                trace!("Received Pong");
+                let envelope = context.reply_envelope();
+
+                AgentReply::from_async(
+                    async move {
+                        trace!("Sending PriceResponse");
+                        envelope.send(PongResponse(100)).await;
+                    }
+                )
+            });
+
+        let handle = price_service.start().await;
+        PriceService {
+            agent_handle: handle,
+        }
+    }
+}
 impl ShoppingCart {
     pub(crate) async fn new(price_service_handle: AgentHandle, app: &mut AgentRuntime) -> Self {
         // let mut shopping_cart = app.initialize::<ShoppingCart>().await;
@@ -37,19 +93,23 @@ impl ShoppingCart {
         let mut shopping_cart = app.create_actor_with_config::<ShoppingCart>(config).await;
         // Configure agent behavior
         shopping_cart
-            .act_on::<Ping>(|agent, envelope| {
-                let envelope = agent.handle.create_envelope(Some(agent.model.price_service_handle.reply_address()));
-                trace!( "Sending to price_service id: {:?}", agent.model.price_service_handle.clone());
+            .act_on::<Ping>(|agent, context| {
+
+                let price_service = &agent.model.price_service_handle;
+                let envelope = context.new_envelope(&price_service.reply_address());
+                let name = price_service.name();
+
                 AgentReply::from_async(async move {
+                    trace!( "Sending to price_service id: {:?}", name);
                     envelope.send(Pong).await;
                 })
             })
-            .act_on::<PongResponse>(|agent, envelope| {
-                trace!("Received price response");
-                let price = envelope.message().0;
-                //should fail
+            .act_on::<PongResponse>(|agent, context| {
+                let price = context.message().0;
+
                 assert_eq!(price, 100);
                 info!("fin. price: {}", price);
+
                 AgentReply::immediate()
             });
 
@@ -66,63 +126,9 @@ impl ShoppingCart {
 
     #[instrument(skip(self), level = "debug")]
     pub(crate) async fn trigger(&self) {
-        //note: no need for &mut self because the request is sent to the agent as a message
+        //note: no need for &mut self because we only mutate internal state with message passing
         trace!("agent_handle id is {}", self.agent_handle.id().root.to_string());
         trace!("and pricing_service id is {}", self.price_service_handle.id().root.to_string());
-        self.agent_handle.send_message(Ping).await;
-    }
-
-}
-
-#[acton_test]
-async fn test_reply() -> anyhow::Result<()> {
-    initialize_tracing();
-    // Set up the system and create agents
-    let mut app = ActonApp::launch();
-    let price_service = PriceService::new(&mut app).await;
-    let price_service_handle = price_service.agent_handle.clone();
-    let shopping_cart = ShoppingCart::new(price_service_handle, &mut app).await;
-    trace!("shopping_cart::pricing_service::id: {}", shopping_cart.price_service_handle.id().root.to_string());
-    shopping_cart.trigger().await;
-    shopping_cart.trigger().await;
-    shopping_cart.trigger().await;
-
-
-    // Shut down the system and all agents
-    app.shutdown_all().await.expect("Failed to shut down system");
-    Ok(())
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct PongResponse(i8);
-
-#[derive(Default, Debug, Clone)]
-pub struct Trigger;
-#[derive(Default, Debug, Clone)]
-pub(crate) struct PriceService {
-    pub(crate) agent_handle: AgentHandle,
-}
-
-impl PriceService {
-    pub(crate) async fn new(app: &mut AgentRuntime) -> Self {
-        let config = ActorConfig::new(Ern::with_root("price_service").unwrap(),None, None ).expect( "Failed to create actor config");
-        let mut price_service = app.create_actor_with_config::<PriceService>(config).await;
-        price_service
-            .act_on::<Pong>(|agent, event| {
-                trace!("Received Pong");
-                let envelope = event.reply_envelope().clone();
-
-                AgentReply::from_async(
-                    async move {
-                        trace!("Sending PriceResponse");
-                        envelope.send(PongResponse(100)).await;
-                    }
-                )
-            });
-
-        let handle = price_service.start().await;
-        PriceService {
-            agent_handle: handle,
-        }
+        self.agent_handle.send(Ping).await;
     }
 }

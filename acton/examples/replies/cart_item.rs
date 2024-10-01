@@ -13,10 +13,136 @@
  * See the applicable License for the specific language governing permissions and
  * limitations under that License.
  */
+use std::fmt::{Display, Formatter};
+use std::ops::{AddAssign, Div, Mul};
+use std::ops::Deref;
+
+use mti::prelude::*;
 
 #[derive(Default, Debug, Clone)]
 pub(crate) struct CartItem {
-    pub(crate) name: String,
-    pub(crate) quantity: usize,
-    pub(crate) price: usize,
+    name: String,
+    quantity: i32,
+    cost: Cost,
+    id: MagicTypeId,
+}
+
+
+
+impl CartItem {
+    pub(crate) fn new(name: impl Into<String>, quantity: i32) -> Self {
+        CartItem {
+            name: name.into(),
+            quantity,
+            id: "upc".create_type_id::<V7>(),
+            ..Default::default()
+        }
+    }
+
+    pub(crate) fn id(&self) -> &MagicTypeId {
+        &self.id
+    }
+
+    pub(crate) fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub(crate) fn quantity(&self) -> i32 {
+        self.quantity
+    }
+
+    pub(crate) fn price(&self) -> Price {
+        let price = &self.cost * self.quantity;
+        Price(price)
+    }
+    pub(crate) fn cost(&self) -> &Cost {
+        &self.cost
+    }
+
+    pub(crate) fn set_quantity(&mut self, quantity: i32) {
+        self.quantity = quantity;
+    }
+
+    pub(crate) fn set_cost(&mut self, cost: i32) {
+        self.cost = Cost(cost);
+    }
+}
+
+impl Display for CartItem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Assuming `format_money` is a function that takes an `i32` and `Formatter`
+        write!(f, "{} x {} @ {}", self.quantity, self.name, self.cost)
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Cost(i32);
+
+impl Deref for Cost {
+    type Target = i32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// Implement Display for Cost to format it properly
+impl Display for Cost {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Assuming `format_money` is a function that takes an `i32` and `Formatter`
+        format_money(self.0, f)
+    }
+}
+
+impl Mul<i32> for Cost {
+    type Output = ();
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        self.0 * rhs;
+    }
+}
+
+
+impl AsRef<i32> for Cost {
+    fn as_ref(&self) -> &i32 {
+        &self.0
+    }
+}
+
+impl Mul<i32> for &Cost {
+    type Output = i32;
+
+    fn mul(self, rhs: i32) -> Self::Output {
+        self.0 * rhs
+    }
+}
+
+
+// Implement Div to return a new Cost instance
+impl Div<i32> for &Cost {
+    type Output = Cost;
+
+    fn div(self, rhs: i32) -> Self::Output {
+        Cost(self.0 / rhs)
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub(crate) struct Price(pub(crate) i32);
+
+impl Display for crate::cart_item::Price {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        format_money(self.0, f)
+    }
+}
+
+impl AddAssign<Price> for i32 {
+    fn add_assign(&mut self, rhs: Price) {
+        *self += rhs.0;
+    }
+}
+
+
+fn format_money(cents: i32, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+    write!(f, "${}.{}", cents / 100, cents % 100)
 }

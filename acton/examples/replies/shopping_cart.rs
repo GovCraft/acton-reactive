@@ -13,71 +13,83 @@
  * See the applicable License for the specific language governing permissions and
  * limitations under that License.
  */
+use std::collections::HashMap;
+use std::ops::AddAssign;
+
+use mti::prelude::MagicTypeId;
 use tracing::*;
+use tracing::field::debug;
 
 use acton::prelude::*;
 
-use crate::AddItem;
-use crate::cart_item::CartItem;
-use crate::GetPriceRequest;
-use crate::GetPriceResponse;
+use crate::{FinalizeSale, GetPriceRequest};
+use crate::cart_item::{CartItem, Price};
+use crate::ItemScanned;
+use crate::price_service::PriceService;
+use crate::PriceResponse;
 
 // Define the agent's model to track a list of items.
 // This demonstrates that no locks or atomics are needed.
 #[derive(Default, Debug, Clone)]
 pub(crate) struct ShoppingCart {
-    items: Vec<CartItem>,
-    agent_handle: AgentHandle,
-    pub(crate) price_service_handle: AgentHandle,
+    items: HashMap<MagicTypeId, CartItem>,
+    subtotal: i32,
+    pub(crate) price_service: AgentHandle,
 }
 
+
 impl ShoppingCart {
-    pub(crate) async fn new(price_service_handle: AgentHandle, app: &mut AgentRuntime) -> Self {
-        // let mut shopping_cart = app.initialize::<ShoppingCart>().await;
-        let config = ActorConfig::new(Ern::with_root("shopping_cart").unwrap(), None, None).expect("Failed to create actor config");
-        let mut shopping_cart = app.create_actor_with_config::<ShoppingCart>(config).await;
-        // Configure agent behavior
-        shopping_cart
-            .act_on::<AddItem>(|agent, envelope| {
-                let item = envelope.message.0.clone();
-                info!("Adding item: {}", &item.name);
-                agent.model.items.push(item.clone());
-                // agent.model.price_service_handle.id();
-                let price_service = agent.model.price_service_handle.clone();
-                trace!( "Sending to price_service id: {:?}", agent.model.price_service_handle.clone());
-                AgentReply::from_async(async move {
-                    let envelope = price_service.create_envelope(None);
-                    trace!( "Sending GetPriceRequest for item: {}", item.name);
-                    envelope.send(GetPriceRequest(item)).await;
-                    // Send a message to the price service to get the price of the item.
-                    // price_service.send_message(GetPriceRequest(item)).await;
-                })
+    pub(crate) async fn new(app: &mut AgentRuntime) -> anyhow::Result<AgentHandle> {
+        let shopping_cart = app.spawn_actor::<ShoppingCart>(|mut agent| {
+            Box::pin(async move {
+                agent
+                    .act_on::<ItemScanned>(|agent, context| {
+                        let price_service = &agent.model.price_service;
+
+                        let item = context.message().0.clone();
+                        trace!("AddItem: {}", &item.name());
+                        agent.model.items.insert(item.id().clone(), item.clone());
+                        debug_assert!(!agent.model.items.is_empty(), "Shopping cart is empty");
+
+                        trace!("Sending to price service with name: {}", price_service.name());
+                        let envelope = context.new_envelope(&price_service.reply_address());
+
+                        AgentReply::from_async(async move {
+                            trace!( "Sending GetPriceRequest for item: {}", item.name());
+                            envelope.send(GetPriceRequest(item)).await;
+                        })
+                    })
+                    .act_on::<PriceResponse>(|agent, context| {
+                        //find the cartitem by id in the key of the hashmap and then update the price
+                        if let Some(item) = agent.model.items.get_mut(context.message().item.id()) {
+                            item.set_cost(context.message().price);
+                            agent.model.subtotal += item.price();
+                            trace!("{} x {} @ {} each: {}",item.name(), item.quantity(), item.cost(), item.price());
+                        }
+
+                        AgentReply::immediate()
+                    })
+                    .before_stop(|agent| {
+                        // display the total price of the shopping cart
+                        trace!("Subtotal: {}", agent.model.subtotal);
+                        let broker = agent.broker().clone();
+                        let subtotal = Price(agent.model.subtotal);
+                        Box::pin(async move {
+                            broker.broadcast(FinalizeSale(subtotal)).await;
+                        })
+                    });
+
+                let price_service = agent.handle().supervise::<PriceService>(PriceService::new(&mut agent.runtime().clone()).await).await.expect("TODO: panic message");
+
+                agent.model.price_service = price_service;
+
+                //subscribe to price service messages
+                trace!("Subscribing to GetPriceResponse");
+                agent.handle().subscribe::<PriceResponse>().await;
+                agent.start().await
             })
-            .act_on::<GetPriceResponse>(|agent, envelope| {
-                info!("Updating cart item with price: {}", envelope.message.price);
-                // agent.model.items.push(envelope.message.0.clone());
-                AgentReply::immediate()
-            });
+        }).await?;
 
-        let agent_handle = shopping_cart.start().await;
-
-        trace!( "Shopping cart actor created with price_service id: {}", price_service_handle.id());
-        trace!("shopping_cart handle id is {:?}", agent_handle.id());
-        ShoppingCart {
-            items: Vec::new(),
-            agent_handle,
-            price_service_handle,
-        }
-    }
-    pub(crate) async fn add_item(&self, name: impl Into<String>, quantity: usize) {
-        //note: no need for &mut self because the request is sent to the agent as a message
-        let name = name.into();
-        trace!("agent_handle id is {:?}", self.agent_handle.id());
-        trace!("and pricing_service id is {:?}", self.price_service_handle.id());
-        self.agent_handle.send_message(AddItem(CartItem { name, quantity, price: 0 })).await;
-    }
-    // Define a method to get the total price of all items in the cart.
-    pub(crate) fn total_price(&self) -> usize {
-        self.items.iter().map(|item| item.price * item.quantity).sum()
+        Ok(shopping_cart)
     }
 }

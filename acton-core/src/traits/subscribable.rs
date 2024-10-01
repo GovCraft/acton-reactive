@@ -76,19 +76,17 @@ where
         let ern = self.id().clone();
 
         async move {
-            debug!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "Subscribing to type_name {}", message_type_name);
-            if let Some(emit_broker) = broker {
-                let broker_key = emit_broker.id();
+            trace!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "Subscribing to type_name {}", message_type_name);
+            if let Some(broadcast_broker) = broker {
+                let broker_key = broadcast_broker.name();
                 debug!(
-                    type_id=?message_type_id,
-                    subscriber_ern = ern.to_string(),
-                    "Subscribing to type_name {} with broker {}",
+                    "Subscribing to type_name {} with {}",
                     message_type_name,
                     broker_key
                 );
-                emit_broker.send_message(subscription).await;
+                broadcast_broker.send(subscription).await;
             } else {
-                tracing::error!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "No broker found for type_name {}", message_type_name);
+                tracing::error!( subscriber_ern = ern.to_string(), "No broker found for type_name {}", message_type_name);
             }
         }
     }
@@ -106,7 +104,7 @@ where
         if let Some(broker) = broker {
             let broker = broker.clone();
             tokio::spawn(async move {
-                broker.send_message(subscription).await;
+                broker.send(subscription).await;
             });
         }
         trace!(

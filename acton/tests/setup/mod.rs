@@ -16,8 +16,8 @@
 use std::sync::Once;
 
 use tracing::Level;
-use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
+use tracing_subscriber::fmt::format::FmtSpan;
 
 pub use actors::*;
 pub use messages::*;
@@ -104,8 +104,13 @@ pub fn initialize_tracing() {
                     .parse()
                     .unwrap(),
             )
-            .add_directive("messaging_tests=info".parse().unwrap());
-        // .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
+            .add_directive(
+                "acton::tests=info"
+                    .parse()
+                    .unwrap(),
+            )
+            .add_directive("messaging_tests=info".parse().unwrap())
+            .add_directive(tracing_subscriber::filter::LevelFilter::ERROR.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()
             // .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
@@ -114,7 +119,7 @@ pub fn initialize_tracing() {
             .compact()
             .with_line_number(true)
             .without_time()
-            .with_target(false)
+            .with_target(true)
             .with_env_filter(filter)
             .finish();
 

@@ -23,51 +23,52 @@ use acton::prelude::*;
 
 use crate::CartItem;
 use crate::GetPriceRequest;
-use crate::GetPriceResponse;
+use crate::PriceResponse;
 use crate::shopping_cart::ShoppingCart;
 
 // Define the agent's model to get the current price of items.
 #[derive(Default, Debug, Clone)]
-pub(crate) struct PriceService {
-    pub(crate) handle: AgentHandle,
-}
+pub(crate) struct PriceService;
 
 impl PriceService {
-    pub(crate) async fn new(app: &mut AgentRuntime) -> Self {
-        let config = ActorConfig::new(Ern::with_root("price_service").unwrap(),None, None ).expect( "Failed to create actor config");
+    #[instrument(skip(app))]
+    pub(crate) async fn new(app: &mut AgentRuntime) -> ManagedAgent<Idle, PriceService> {
+        let config = ActorConfig::new(Ern::with_root("price_service").unwrap(), None, None).expect("Failed to create actor config");
         let mut price_service = app.create_actor_with_config::<PriceService>(config).await;
         // Configure agent behavior
         price_service
-            .act_on::<GetPriceRequest>(|agent, envelope| {
+            .act_on::<GetPriceRequest>(|agent, context| {
                 // Contains the address of the sender, so the agent
                 // doesn't need to know about the sender, only that
                 // it can reply to the sender, whoever that is.
-                let sender = envelope.origin_envelope.clone();
-                let item = envelope.message.0.clone();
+
+                let item = context.message().0.clone();
                 let model = agent.model.clone();
+
+                //we're going to broadcast this message since we want all listeners to get the price
+                let broker = agent.broker().clone();
+
                 AgentReply::from_async(
                     async move {
-                        let response_message = GetPriceResponse {
-                            price: model.get_price(item.clone()).await,
+                        let price = model.get_price(item.clone()).await;
+                        let response_message = PriceResponse {
+                            price,
                             item,
                         };
-                        trace!("Sending response for {} with price: ${}", &response_message.item.name, &response_message.price);
-                        sender.send(response_message).await;
+                        debug!("Broadcasting response for {} with price: ${}", &response_message.item.name(), &response_message.price);
+                        broker.broadcast(response_message).await;
                     }
                 )
             });
 
-        let handle = price_service.start().await;
-        trace!("price_service handle id is {:?}", handle.id());
-        PriceService {
-            handle,
-        }
+        price_service
+
     }
 
     // Define a mock async method to get the current price of an item in cents.
-    async fn get_price(&self, item: CartItem) -> usize {
-        println!("Getting price for {}", item.name);
+    async fn get_price(&self, item: CartItem) -> i32 {
+        trace!("Getting price for {}", item.name());
         tokio::time::sleep(Duration::from_millis(200)).await; // Simulate an async delay, maybe to a database or API
-        return 100; // Mock price - everything costs a dollar!
+        return 123; // Mock price - everything costs a dollar!
     }
 }

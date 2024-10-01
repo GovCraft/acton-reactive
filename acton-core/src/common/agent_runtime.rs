@@ -21,6 +21,7 @@ use std::pin::Pin;
 use acton_ern::Ern;
 use futures::future::join_all;
 use tokio::sync::oneshot;
+use tokio_util::task::TaskTracker;
 use tracing::trace;
 
 use crate::actor::{ActorConfig, Idle, ManagedAgent};
@@ -45,13 +46,19 @@ impl AgentRuntime {
     /// # Returns
     ///
     /// A `ManagedActor` in the `Idle` state with the specified `State`.
-    pub async fn initialize<State>(&mut self) -> ManagedAgent<Idle, State>
+    pub async fn new_agent<State>(&mut self) -> ManagedAgent<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
+        let actor_config = ActorConfig::new(
+            Ern::with_root("agent").unwrap(),
+            None,
+            Some(self.0.broker.clone()),
+        ).expect("Failed to create actor config");
+
         // let broker = self.0.broker.clone();
-        let acton_ready = self.clone();
-        let new_actor = ManagedAgent::new(&Some(acton_ready), None).await;
+        let runtime = self.clone();
+        let new_actor = ManagedAgent::new(&Some(runtime), Some(actor_config)).await;
         self.0.roots.insert(new_actor.id.clone(), new_actor.handle.clone());
         new_actor
     }

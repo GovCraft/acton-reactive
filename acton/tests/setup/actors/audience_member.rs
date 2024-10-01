@@ -51,7 +51,7 @@ impl AudienceMember {
             Some(broker.clone()),
         );
 
-        let mut actor = acton.initialize::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config).await;
+        let mut actor = acton.new_agent::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config).await;
                                                                       // let mut actor =
                                                                       //     Acton::<AudienceMember>::create_with_config(config.clone());
 

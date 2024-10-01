@@ -61,8 +61,8 @@ Messages are processed with `act_on`. The agent handles different types of messa
 
   ```rust
   .act_on::<AddItem>(|agent, envelope| {
-      println!("Adding item: {}", envelope.message.0);
-      agent.model.items.push(envelope.message.0.clone());
+      println!("Adding item: {}", envelope.message().0);
+      agent.model.items.push(envelope.message().0.clone());
       AgentReply::immediate()
   })
   ```

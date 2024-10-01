@@ -14,6 +14,7 @@
  * limitations under that License.
  */
 
+use std::thread::sleep;
 use crate::common::AgentRuntime;
 
 /// Represents the Acton system.

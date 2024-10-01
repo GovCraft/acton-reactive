@@ -26,6 +26,13 @@ pub struct MessageAddress {
     pub(crate) sender: Ern<UnixTime>,
 }
 
+impl MessageAddress {
+    /// get address owner
+    pub fn name(&self) -> &str {
+        self.sender.root.as_str()
+    }
+}
+
 impl Default for MessageAddress {
     fn default() -> Self {
         let (outbox, _) = tokio::sync::mpsc::channel(1);

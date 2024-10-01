@@ -54,6 +54,9 @@ pub trait Actor {
     /// Returns the actor's ERN.
     fn id(&self) -> Ern<UnixTime>;
 
+    /// Returns the actor's root from the ERN.
+    fn name(&self) -> String;
+
     /// Creates a clone of the actor's reference.
     fn clone_ref(&self) -> AgentHandle;
 
@@ -67,7 +70,7 @@ pub trait Actor {
     ///
     /// A `Future` that resolves when the message has been emitted.
     #[instrument(skip(self), fields(children = self.children().len()))]
-    fn send_message(
+    fn send(
         &self,
         message: impl ActonMessage,
     ) -> impl Future<Output=()> + Send + Sync + '_
@@ -76,7 +79,7 @@ pub trait Actor {
     {
         async move {
             let envelope = self.create_envelope(None);
-            debug!("Envelope sender is {:?}", envelope.return_address.sender.root.to_string());
+            trace!("Envelope sender is {:?}", envelope.return_address.sender.root.to_string());
             envelope.send(message).await;
         }
     }

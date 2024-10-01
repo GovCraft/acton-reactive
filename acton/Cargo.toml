@@ -26,3 +26,4 @@ syn = "2.0.68"
 [dev-dependencies]
 acton_test = { path = "../acton_test" }
 crossterm = "0.28.1"  # or the latest version available
+mti = "1.0.7-beta.1"

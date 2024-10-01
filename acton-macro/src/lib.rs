@@ -29,15 +29,6 @@ use syn::{parse_macro_input, DeriveInput};
 ///
 /// This macro will automatically implement `Clone`, `Debug`, `ActonMessage`, and `Sync`
 /// for the annotated type.
-///
-/// # Example
-///
-/// ```rust,ignore
-/// #[acton_message]
-/// struct MyMessage<'a> {
-///     // fields...
-/// }
-/// ```
 #[proc_macro_attribute]
 pub fn acton_message(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the input tokens into a syntax tree.

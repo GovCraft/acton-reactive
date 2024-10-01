@@ -41,30 +41,24 @@ impl PoolItem {
             Some(broker.clone()),
         );
 
-        let mut actor = acton.initialize::<PoolItem>().await;
+        let mut actor = acton.new_agent::<PoolItem>().await;
         // let mut actor = Acton::<PoolItem>::create_with_config(config.clone());
 
-        // Log the mailbox state immediately after actor creation
-        tracing::trace!(
-            "Actor initialized with key: {}, mailbox closed: {}",
-            actor.id,
-            actor.inbox.is_closed()
-        );
 
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor = actor.id.to_string(), "Received Ping event for");
+                tracing::debug!(actor = actor.id().to_string(), "Received Ping event for");
                 actor.model.receive_count += 1; // Increment receive_count on Ping event
                 AgentReply::immediate()
 
             })
             .after_stop(|actor| {
-                let parent = &actor.parent.clone().unwrap();
+                let parent = &actor.parent().clone().unwrap();
                 let final_count = actor.model.receive_count;
                 // let parent_envelope = parent.key.clone();
                 let parent_address = parent.id();
-                let actor_address = actor.id.clone();
+                let actor_address = actor.id().clone();
 
                 let parent = parent.clone();
                 AgentReply::from_async(Self::output_results(
@@ -93,6 +87,6 @@ impl PoolItem {
             parent_address,
             actor_address,
         );
-        parent.send_message(StatusReport::Complete(final_count)).await
+        parent.send(StatusReport::Complete(final_count)).await
     }
 }

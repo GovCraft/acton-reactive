@@ -30,6 +30,7 @@ use crate::message::MessageContext;
 use crate::prelude::ActonMessage;
 use crate::traits::Actor;
 
+/// The idle state of an actor.
 pub struct Idle;
 
 impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
@@ -173,12 +174,17 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
     pub async fn create_child(&self) -> ManagedAgent<Idle, State> {
-        ManagedAgent::new(&Some(self.runtime.clone()), None).await
+        ManagedAgent::new(&Some(self.runtime().clone()), None).await
     }
 
     #[instrument]
     pub(crate) async fn new(acton: &Option<AgentRuntime>, config: Option<ActorConfig>) -> Self {
         let mut managed_actor: ManagedAgent<Idle, State> = ManagedAgent::default();
+
+        if let Some(acton) = acton {
+            managed_actor.broker = acton.0.broker.clone();
+            managed_actor.handle.broker = Box::new(Some(acton.0.broker.clone()));
+        }
 
         if let Some(config) = &config {
             managed_actor.handle.id = config.ern();
@@ -206,14 +212,14 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
         managed_actor
     }
 
+    /// Starts the actor and transitions it to the running state.
     #[instrument(skip(self))]
     pub async fn start(mut self) -> AgentHandle {
-        let is_broker = self.id.root.to_string().starts_with("broker");
         trace!("The model is {:?}", self.model);
 
         let reactors = mem::take(&mut self.reactors);
         let actor_ref = self.handle.clone();
-        debug!("actor_ref before spawn: {:?}", actor_ref.id.root.to_string());
+        trace!("actor_ref before spawn: {:?}", actor_ref.id.root.to_string());
         let active_actor: ManagedAgent<Started, State> = self.into();
         let actor = Box::leak(Box::new(active_actor));
 
@@ -224,7 +230,7 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
         (actor.before_start)(actor).await;
         actor_ref.tracker().spawn(actor.wake(reactors));
         actor_ref.tracker().close();
-        debug!("actor_ref after spawn: {:?}", actor_ref.id.root.to_string());
+        trace!("actor_ref after spawn: {:?}", actor_ref.id.root.to_string());
 
         actor_ref
     }
@@ -234,8 +240,6 @@ impl<State: Default + Send + Debug + 'static> From<ManagedAgent<Idle, State>>
 for ManagedAgent<Started, State>
 {
     fn from(value: ManagedAgent<Idle, State>) -> Self {
-        let is_broker = value.id.root.to_string().starts_with("broker");
-
         let on_starting = value.before_start;
         let on_start = value.after_start;
         let on_stopped = value.after_stop;

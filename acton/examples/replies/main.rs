@@ -16,6 +16,7 @@
 
 use std::sync::Once;
 
+use futures::SinkExt;
 use tracing::*;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -23,16 +24,25 @@ use tracing_subscriber::fmt::format::FmtSpan;
 
 use acton::prelude::*;
 use cart_item::CartItem;
-use price_service::PriceService;
+use register::Register;
 use shopping_cart::ShoppingCart;
+
+use crate::cart_item::Price;
+use crate::printer::Printer;
 
 mod shopping_cart;
 mod price_service;
 mod cart_item;
+mod register;
+mod printer;
 
 // Define messages to interact with the agent.
 #[derive(Clone, Debug)]
-struct AddItem(CartItem);
+struct ItemScanned(CartItem);
+
+#[derive(Clone, Debug)]
+struct FinalizeSale(pub(crate) Price);
+
 
 #[derive(Clone, Debug)]
 struct GetItems;
@@ -40,28 +50,34 @@ struct GetItems;
 #[derive(Clone, Debug)]
 struct GetPriceRequest(CartItem);
 
-#[derive(Clone, Debug)]
-struct GetPriceResponse {
-    price: usize,
+#[acton_message]
+struct PriceResponse {
+    price: i32,
     item: CartItem,
 }
 
+#[acton_message]
+struct Status<'a> {
+    message: &'a str,
+}
+
+
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     initialize_tracing();
     // Set up the system and create agents
     let mut app = ActonApp::launch();
-    let price_service = PriceService::new(&mut app).await;
-    let price_service_handle = price_service.handle.clone();
-    let shopping_cart = ShoppingCart::new(price_service_handle, &mut app).await;
-debug!("shopping_cart has pricing_service with id: {}", shopping_cart.price_service_handle.id());
-    shopping_cart.add_item("Apple", 1).await;
-    shopping_cart.add_item("Banana", 2).await;
-    shopping_cart.add_item("Cantaloupe", 3).await;
+    let cashier_register = Register::new_transaction(ShoppingCart::new(&mut app).await?);
+    let _printer = Printer::power_on(&mut app).await;
 
+    cashier_register.scan("Banana", 3).await;
+    cashier_register.scan("Apple", 1).await;
+    cashier_register.scan("Cantaloupe", 2).await;
 
+    // tokio::time::sleep( std::time::Duration::from_secs(1)).await;
     // Shut down the system and all agents
     app.shutdown_all().await.expect("Failed to shut down system");
+    Ok(())
 }
 
 static INIT: Once = Once::new();
@@ -77,60 +93,17 @@ pub fn initialize_tracing() {
         //     .add_directive(Level::INFO.into()); // Set global log level to INFO
 
         let filter = EnvFilter::new("")
-            .add_directive("replies=off".parse().unwrap())
-            .add_directive("replies::shopping_cart=off".parse().unwrap())
-            .add_directive("replies::price_service=off".parse().unwrap())
-            .add_directive("acton_core::common::agent_handle[return_address]=off".parse().unwrap())
-            .add_directive("acton_core::actor::managed_agent::idle[start]=debug".parse().unwrap())
-            .add_directive("acton_core::actor::managed_agent::started[wake]=off".parse().unwrap())
-            .add_directive("acton_core::traits::actor[send_message]=debug".parse().unwrap())
-            .add_directive(
-                "acton_core::message::outbound_envelope[reply_message_async]=debug"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive("acton_core::common::actor_ref=off".parse().unwrap())
-            .add_directive("acton_core::common::acton=off".parse().unwrap())
-            .add_directive("acton_core::pool=off".parse().unwrap())
-            .add_directive("acton_core::pool::builder=off".parse().unwrap())
-            .add_directive("acton_core::common::system=off".parse().unwrap())
-            .add_directive("acton_core::common::supervisor=off".parse().unwrap())
-            .add_directive("acton_core::common::broker=off".parse().unwrap())
-            .add_directive(
-                "acton_core::common::broker[broadcast]=off"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive("acton_core::actor::managed_actor=off".parse().unwrap())
-            .add_directive("acton_core::actor::actor[wake]=off".parse().unwrap())
-            .add_directive(
-                "acton_core::actor::actor[terminate_actor]=off"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "acton_core::actor::actor[handle_message]=off"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive(
-                "acton_core::actor::actor[suspend_self]=off"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive("acton_core::actor::actor[new]=off".parse().unwrap())
-            .add_directive("acton_core::actor::actor[init]=off".parse().unwrap())
-            .add_directive("acton_core::actor::actor[activate]=off".parse().unwrap())
-            .add_directive("acton_core::actor::idle=off".parse().unwrap())
-            .add_directive("acton_core::actor::idle[act_on_async]=off".parse().unwrap())
-            .add_directive("acton_core::actor::idle[act_on]=off".parse().unwrap())
-            .add_directive(
-                "acton_core::message::broadcast_envelope=off"
-                    .parse()
-                    .unwrap(),
-            )
-            .add_directive("acton_core::traits::broker_context=off".parse().unwrap())
-            .add_directive("acton_core::traits::subscribable=off".parse().unwrap())
+            .add_directive("replies=error".parse().unwrap())
+            .add_directive("replies::printer=error".parse().unwrap())
+            .add_directive("replies::shopping_cart=debug".parse().unwrap())
+            .add_directive("replies::price_service=error".parse().unwrap())
+            //acton core
+            .add_directive("acton_core::common::agent_handle=error".parse().unwrap())
+            .add_directive("acton_core::common::agent_broker=error".parse().unwrap())
+            .add_directive("acton_core::actor::managed_agent::idle[start]=off".parse().unwrap())
+            .add_directive("acton_core::actor::managed_agent::started[wake]=error".parse().unwrap())
+            .add_directive("acton_core::traits::actor[send_message]=error".parse().unwrap())
+            //tests
             .add_directive("supervisor_tests=off".parse().unwrap())
             .add_directive("broker_tests=trace".parse().unwrap())
             .add_directive("launchpad_tests=off".parse().unwrap())
@@ -142,8 +115,8 @@ pub fn initialize_tracing() {
                     .parse()
                     .unwrap(),
             )
-            .add_directive("messaging_tests=off".parse().unwrap());
-        // .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
+            // .add_directive("replies=info".parse().unwrap())
+            .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()
             // .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
@@ -151,7 +124,7 @@ pub fn initialize_tracing() {
             .with_max_level(Level::TRACE)
             .compact()
             .with_line_number(true)
-            .with_target(false)
+            .with_target(true)
             .without_time()
             .with_env_filter(filter)
             .finish();

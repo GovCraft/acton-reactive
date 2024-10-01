@@ -17,9 +17,8 @@
 use std::time::SystemTime;
 
 use static_assertions::assert_impl_all;
-use tracing::instrument;
 
-use crate::message::OutboundEnvelope;
+use crate::message::{MessageAddress, OutboundEnvelope};
 
 /// Represents a record of an event within the actor system.
 ///
@@ -36,12 +35,15 @@ pub struct MessageContext<S> {
     pub(crate) reply_envelope: OutboundEnvelope,
 }
 
-impl<S> MessageContext<S>{
-    pub fn origin_envelope(&self) -> &OutboundEnvelope {
-        &self.origin_envelope
+impl<S> MessageContext<S> {
+    pub fn origin_envelope(&self) -> OutboundEnvelope {
+        self.origin_envelope.clone()
     }
-    pub fn reply_envelope(&self) -> &OutboundEnvelope {
-        &self.reply_envelope
+    pub fn reply_envelope(&self) -> OutboundEnvelope {
+        self.reply_envelope.clone()
+    }
+    pub fn new_envelope(&self, recipient: &MessageAddress) -> OutboundEnvelope {
+        OutboundEnvelope::new_with_recipient(self.reply_envelope.return_address.clone(), recipient.clone())
     }
     pub fn message(&self) -> &S {
         &self.message

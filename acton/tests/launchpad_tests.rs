@@ -50,7 +50,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                 )
                     .expect("Couldn't create child config");
 
-                let mut acton = actor.runtime.clone();
+                let mut acton = actor.runtime().clone();
 
                 let child_context = acton
                     .spawn_actor_with_setup::<Parent>(child_actor_config, |mut child| {
@@ -60,7 +60,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                                 AgentReply::immediate()
                             });
 
-                            let child_context = &child.handle.clone();
+                            let child_context = &child.handle().clone();
                             child_context.subscribe::<Pong>().await;
                             child.start().await
                         })
@@ -74,7 +74,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                         AgentReply::immediate()
                     })
                     .act_on::<Pong>(|actor, _msg| AgentReply::from_async(wait_and_respond()));
-                let context = &actor.handle.clone();
+                let context = &actor.handle().clone();
 
                 context.subscribe::<Ping>().await;
                 context.subscribe::<Pong>().await;
@@ -120,8 +120,8 @@ async fn test_launchpad() -> anyhow::Result<()> {
                         })
                     });
 
-                actor.handle.subscribe::<Ping>().await;
-                actor.handle.subscribe::<Pong>().await;
+                actor.handle().subscribe::<Ping>().await;
+                actor.handle().subscribe::<Pong>().await;
 
                 actor.start().await
             })
@@ -137,7 +137,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
                     })
                 });
 
-                actor.handle.subscribe::<Pong>().await;
+                actor.handle().subscribe::<Pong>().await;
 
                 actor.start().await
             })

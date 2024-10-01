@@ -36,6 +36,7 @@ impl PartialEq for MessageAddress {
         self.sender == other.sender
     }
 }
+
 // Manually implement PartialEq for OutboundEnvelope
 impl PartialEq for OutboundEnvelope {
     fn eq(&self, other: &Self) -> bool {
@@ -70,6 +71,11 @@ impl OutboundEnvelope {
     /// Gets the return address for the outbound envelope.
     pub fn reply_to(&self) -> MessageAddress {
         self.return_address.clone()
+    }
+
+    /// Gets the return address for the outbound envelope.
+    pub fn recipient(&self) -> &Option<MessageAddress> {
+        &self.recipient_address
     }
 
     #[instrument(skip(return_address))]
@@ -125,29 +131,29 @@ impl OutboundEnvelope {
         };
         let recipient_id = &recipient_channel.sender.root.to_string();
         let address = &recipient_channel.address;
-        let type_id = (*message).type_id();
-        if !address.is_closed() {
+
+        if !&address.is_closed() {
             // Reserve capacity
             match recipient_channel.clone().address.reserve().await {
                 Ok(permit) => {
-                    debug!(
+                    trace!(
                         "...to {} with message: ",
                         recipient_id
                     );
-                    let envelope = Envelope::new(message, self.return_address.clone(),recipient_channel);
+                    let envelope = Envelope::new(message, self.return_address.clone(), recipient_channel);
                     permit.send(envelope);
                 }
-                Err(_) => {
+                Err(e) => {
                     error!(
-                        "...failed to {} from OutboundEnvelope with message type {:?}",
-                        &self.return_address.sender, &type_id
+                        "{}::{}",
+                        &self.return_address.name(), e.to_string()
                     )
                 }
             }
         } else {
             error!(
-    "outbox channel closed for {}: {:?}",
-    self.return_address.sender, message
+    "recipient channel closed: {}",
+    self.return_address.name()
 );
         }
     }

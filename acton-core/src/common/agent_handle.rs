@@ -25,7 +25,7 @@ use tokio_util::task::TaskTracker;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::actor::{Idle, ManagedAgent};
-use crate::common::{BrokerRef, OutboundEnvelope, Outbox, ParentRef};
+use crate::common::{AgentRuntime, BrokerRef, OutboundEnvelope, Outbox, ParentRef};
 use crate::message::{BrokerRequest, MessageAddress, SystemSignal};
 use crate::prelude::ActonMessage;
 use crate::traits::{Actor, Broker, Subscriber};
@@ -117,22 +117,26 @@ impl AgentHandle {
     pub async fn supervise<State: Default + Send + Debug>(
         &self,
         child: ManagedAgent<Idle, State>,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<AgentHandle> {
         debug!("Adding child actor with id: {}", child.id);
-        let context = child.start().await;
-        let id = context.id.clone();
+        let handle = child.start().await;
+        let id = handle.id.clone();
         debug!("Now have child id in context: {}", id);
-        self.children.insert(id.to_string(), context);
+        self.children.insert(id.to_string(), handle.clone());
 
-        Ok(())
+        Ok(handle)
     }
 }
 
 impl Broker for AgentHandle {
+    #[instrument(skip(self), name = "broadcast")]
     fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output=()> + Send + Sync + '_ {
+        trace!("Looking for a broker to broadcast message.");
         async move {
             if let Some(broker) = self.broker.as_ref() {
-                broker.send_message(BrokerRequest::new(message)).await;
+                broker.send(BrokerRequest::new(message)).await;
+            } else {
+                error!("No broker found to broadcast message.");
             }
         }
     }
@@ -178,6 +182,10 @@ impl Actor for AgentHandle {
         self.id.clone()
     }
 
+    fn name(&self) -> String {
+        self.id.root.to_string()
+    }
+
     fn clone_ref(&self) -> AgentHandle {
         self.clone()
     }
@@ -194,7 +202,7 @@ impl Actor for AgentHandle {
             // Event: Sending Terminate Signal
             // Description: Sending a terminate signal to the actor.
             // Context: Target actor key.
-            warn!(actor = self.id.to_string(), "Sending Terminate to");
+            trace!(actor = self.id.to_string(), "Sending Terminate to");
             actor.reply(SystemSignal::Terminate)?;
 
             // Event: Waiting for Actor Tasks
@@ -206,7 +214,7 @@ impl Actor for AgentHandle {
             // Event: Actor Terminated
             // Description: The actor and its subordinates have been terminated.
             // Context: None
-            info!(
+            trace!(
                 actor = self.id.to_string(),
                 "The actor and its subordinates have been terminated."
             );
