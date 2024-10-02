@@ -30,12 +30,12 @@ pub struct PoolItem {
 
 impl PoolItem {
     // Initialize the actor with a given actor_name and parent context
-    async fn initialize(&self, config: ActorConfig) -> AgentHandle {
+    async fn initialize(&self, config: AgentConfig) -> AgentHandle {
         let mut acton: AgentRuntime = ActonApp::launch();
 
         let broker = acton.broker();
 
-        let actor_config = ActorConfig::new(
+        let actor_config = AgentConfig::new(
             Ern::with_root("improve_show").expect("Couldn't create pool item Ern"),
             None,
             Some(broker.clone()),

@@ -40,12 +40,12 @@ pub struct AudienceMember {
 impl AudienceMember {
     // This trait function details what should happen for each member of the pool we are about to
     // create, it gets created when the parent actor calls spawn_with_pool
-    async fn initialize(&self, config: ActorConfig) -> AgentHandle {
+    async fn initialize(&self, config: AgentConfig) -> AgentHandle {
         let mut acton: AgentRuntime = ActonApp::launch();
 
         let broker = acton.broker();
 
-        let actor_config = ActorConfig::new(
+        let actor_config = AgentConfig::new(
             Ern::with_root("improve_show").expect("Couldn't create pool member Ern"),
             None,
             Some(broker.clone()),

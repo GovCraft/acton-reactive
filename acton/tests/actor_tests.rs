@@ -34,7 +34,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
 
     let mut acton: AgentRuntime = ActonApp::launch();
 
-    let actor_config = ActorConfig::new(Ern::with_root("improve_show").unwrap(), None, None)?;
+    let actor_config = AgentConfig::new(Ern::with_root("improve_show").unwrap(), None, None)?;
     let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
 
     comedy_show
@@ -140,12 +140,12 @@ async fn test_child_actor() -> anyhow::Result<()> {
     initialize_tracing();
     let mut acton: AgentRuntime = ActonApp::launch();
 
-    let actor_config = ActorConfig::new(Ern::with_root("test_child_actor").unwrap(), None, None)?;
+    let actor_config = AgentConfig::new(Ern::with_root("test_child_actor").unwrap(), None, None)?;
 
     // Create the parent actor
     let parent_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
 
-    let actor_config = ActorConfig::new(
+    let actor_config = AgentConfig::new(
         Ern::with_root("test_child_actor_chile").unwrap(),
         None,
         None,
@@ -214,7 +214,7 @@ async fn test_find_child_actor() -> anyhow::Result<()> {
     let parent_context = parent_actor.start().await;
 
     let actor_config =
-        ActorConfig::new(Ern::with_root("test_find_child_actor").unwrap(), None, None)?;
+        AgentConfig::new(Ern::with_root("test_find_child_actor").unwrap(), None, None)?;
 
     let mut child_actor = acton.create_actor_with_config::<PoolItem>(actor_config).await;
     // Set up the child actor with handlers
@@ -245,7 +245,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
     initialize_tracing();
     let mut acton: AgentRuntime = ActonApp::launch();
     let actor_config =
-        ActorConfig::new(Ern::with_root("test_actor_mutation").unwrap(), None, None)?;
+        AgentConfig::new(Ern::with_root("test_actor_mutation").unwrap(), None, None)?;
 
     let mut comedy_show = acton.create_actor_with_config::<Comedian>(actor_config).await;
 
@@ -333,7 +333,7 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
     });
 
     // Define the actor configuration for the Child (Counter) actor
-    let child_actor_config = ActorConfig::new(Ern::with_root("child").unwrap(), None, None)?;
+    let child_actor_config = AgentConfig::new(Ern::with_root("child").unwrap(), None, None)?;
 
     // Asynchronously create the Counter actor with the specified configuration and await its creation
     let mut child = acton.create_actor_with_config::<Counter>(child_actor_config).await;

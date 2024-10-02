@@ -18,7 +18,7 @@ const SPINNER_SEQUENCE: [char; 4] = ['|', '/', '-', '\\'];
 
 impl FrameRunner {
     pub async fn new(item_id: MagicTypeId, fps: u64, mut app: &mut AgentRuntime) -> anyhow::Result<ManagedAgent<Idle, FrameRunner>> {
-        let config = ActorConfig::new_with_name("frame_runner")?;
+        let config = AgentConfig::new_with_name("frame_runner")?;
         let mut agent = app.create_actor_with_config::<FrameRunner>(config).await;
         agent.act_on::<StartSpinning>(move |agent, context| {
             let item_name = agent.model.item_id.clone();

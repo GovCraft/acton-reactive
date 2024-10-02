@@ -24,7 +24,7 @@ use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 use tracing::trace;
 
-use crate::actor::{ActorConfig, Idle, ManagedAgent};
+use crate::actor::{AgentConfig, Idle, ManagedAgent};
 use crate::common::{ActonApp, AgentBroker, AgentHandle, BrokerRef};
 use crate::common::acton_inner::ActonInner;
 use crate::traits::Actor;
@@ -50,7 +50,7 @@ impl AgentRuntime {
     where
         State: Default + Send + Debug + 'static,
     {
-        let actor_config = ActorConfig::new(
+        let actor_config = AgentConfig::new(
             Ern::with_root(name).unwrap(),
             None,
             Some(self.0.broker.clone()),
@@ -76,7 +76,7 @@ impl AgentRuntime {
     where
         State: Default + Send + Debug + 'static,
     {
-        let actor_config = ActorConfig::new(
+        let actor_config = AgentConfig::new(
             Ern::with_root("agent").unwrap(),
             None,
             Some(self.0.broker.clone()),
@@ -109,7 +109,7 @@ impl AgentRuntime {
     /// A `ManagedActor` in the `Idle` state with the specified `State` and configuration.
     pub async fn create_actor_with_config<State>(
         &mut self,
-        mut config: ActorConfig,
+        mut config: AgentConfig,
     ) -> ManagedAgent<Idle, State>
     where
         State: Default + Send + Debug + 'static,
@@ -150,7 +150,7 @@ impl AgentRuntime {
     /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
     pub async fn spawn_agent_with_setup<State>(
         &mut self,
-        mut config: ActorConfig,
+        mut config: AgentConfig,
         setup_fn: impl FnOnce(
             ManagedAgent<Idle, State>,
         ) -> Pin<Box<dyn Future<Output=AgentHandle> + Send + 'static>>,
@@ -214,7 +214,7 @@ impl AgentRuntime {
         State: Default + Send + Debug + 'static,
     {
         let broker = self.broker();
-        let mut config = ActorConfig::new(Ern::default(), None, Some(broker.clone()))?;
+        let mut config = AgentConfig::new(Ern::default(), None, Some(broker.clone()))?;
         if config.broker.is_none() {
             config.broker = Some(self.0.broker.clone());
         }

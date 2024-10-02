@@ -14,11 +14,11 @@
  * limitations under that License.
  */
 
-pub use actor_config::ActorConfig;
+pub use agent_config::AgentConfig;
 pub use managed_agent::Idle;
 pub use managed_agent::ManagedAgent;
 pub use managed_agent::started::Started;
 
 mod managed_agent;
 
-mod actor_config;
+mod agent_config;

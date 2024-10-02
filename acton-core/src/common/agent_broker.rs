@@ -26,7 +26,7 @@ use dashmap::DashMap;
 use futures::future::join_all;
 use tracing::*;
 
-use crate::actor::{ActorConfig, Idle, ManagedAgent};
+use crate::actor::{AgentConfig, Idle, ManagedAgent};
 use crate::common::{AgentHandle, BrokerRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker};
 use crate::prelude::ActonMessage;
@@ -66,7 +66,7 @@ impl DerefMut for AgentBroker {
 impl AgentBroker {
     #[instrument]
     pub(crate) async fn initialize() -> BrokerRef {
-        let actor_config = ActorConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
+        let actor_config = AgentConfig::new(Ern::with_root("broker_main").unwrap(), None, None)
             .expect("Couldn't create initial broker config");
 
         let mut broker: ManagedAgent<Idle, AgentBroker> =

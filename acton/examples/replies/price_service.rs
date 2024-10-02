@@ -35,7 +35,7 @@ pub(crate) struct PriceService;
 impl PriceService {
     #[instrument(skip(app))]
     pub(crate) async fn new(app: &mut AgentRuntime) -> ManagedAgent<Idle, PriceService> {
-        let config = ActorConfig::new(Ern::with_root("price_service").unwrap(), None, None).expect("Failed to create actor config");
+        let config = AgentConfig::new(Ern::with_root("price_service").unwrap(), None, None).expect("Failed to create actor config");
         let mut price_service = app.create_actor_with_config::<PriceService>(config).await;
         // Configure agent behavior
         price_service

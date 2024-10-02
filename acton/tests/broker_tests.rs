@@ -33,7 +33,7 @@ async fn test_broker() -> anyhow::Result<()> {
 
     let mut comedy_show = app.new_agent::<Comedian>().await;
 
-    let actor_config = ActorConfig::new(
+    let actor_config = AgentConfig::new(
         Ern::with_root("counter").unwrap(),
         None,
         Some(broker.clone()),
@@ -91,7 +91,7 @@ async fn test_broker_from_handler() -> anyhow::Result<()> {
 
     let mut comedy_show = app.new_agent::<Comedian>().await;
 
-    let actor_config = ActorConfig::new(
+    let actor_config = AgentConfig::new(
         Ern::with_root("counter").unwrap(),
         None,
         Some(broker.clone()),

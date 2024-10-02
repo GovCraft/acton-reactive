@@ -25,13 +25,13 @@ use crate::traits::Actor;
 /// This struct holds the necessary information to configure an actor,
 /// including its ERN (Entity Resource Name), broker, and parent reference.
 #[derive(Default, Debug, Clone)]
-pub struct ActorConfig {
+pub struct AgentConfig {
     ern: Ern<UnixTime>,
     pub(crate) broker: Option<BrokerRef>,
     parent: Option<ParentRef>,
 }
 
-impl ActorConfig {
+impl AgentConfig {
     /// Creates a new `ActorConfig` instance.
     ///
     /// # Arguments
@@ -47,18 +47,18 @@ impl ActorConfig {
         ern: Ern<UnixTime>,
         parent: Option<ParentRef>,
         broker: Option<BrokerRef>,
-    ) -> anyhow::Result<ActorConfig> {
+    ) -> anyhow::Result<AgentConfig> {
         if let Some(parent) = parent {
             // Get the parent ERN
             let parent_ern = ErnParser::new(parent.id().to_string()).parse()?;
             let child_ern = parent_ern + ern;
-            Ok(ActorConfig {
+            Ok(AgentConfig {
                 ern: child_ern,
                 broker,
                 parent: Some(parent),
             })
         } else {
-            Ok(ActorConfig {
+            Ok(AgentConfig {
                 ern,
                 broker,
                 parent,
@@ -69,7 +69,7 @@ impl ActorConfig {
     /// Creates a new config with an ERN root with the provided name.
     pub fn new_with_name(
         name: impl Into<String>,
-    ) -> anyhow::Result<ActorConfig> {
+    ) -> anyhow::Result<AgentConfig> {
         Ok(Self::new(Ern::with_root(name.into())?, None, None)?)
     }
 

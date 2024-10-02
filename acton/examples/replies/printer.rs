@@ -154,7 +154,7 @@ impl Printer {
                 }
 
                 // trace!("printer.items length: {}", printer.items.len());
-                // let _ = Self::print_receipt(printer, handle.clone());
+                let _ = Self::print_receipt(printer, handle.clone());
                 let app = app.clone();
                 AgentReply::immediate()
             })
