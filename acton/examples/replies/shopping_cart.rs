@@ -22,7 +22,7 @@ use tracing::field::debug;
 
 use acton::prelude::*;
 
-use crate::{FinalizeSale, GetPriceRequest};
+use crate::{FinalizeSale, GetPriceRequest, PrinterMessage};
 use crate::cart_item::{CartItem, Price};
 use crate::ItemScanned;
 use crate::price_service::PriceService;
@@ -59,16 +59,6 @@ impl ShoppingCart {
                             envelope.send(GetPriceRequest(item)).await;
                         })
                     })
-                    .act_on::<PriceResponse>(|agent, context| {
-                        //find the cartitem by id in the key of the hashmap and then update the price
-                        if let Some(item) = agent.model.items.get_mut(context.message().item.id()) {
-                            item.set_cost(context.message().price);
-                            agent.model.subtotal += item.price();
-                            trace!("{} x {} @ {} each: {}",item.name(), item.quantity(), item.cost(), item.price());
-                        }
-
-                        AgentReply::immediate()
-                    })
                     .before_stop(|agent| {
                         // display the total price of the shopping cart
                         trace!("Subtotal: {}", agent.model.subtotal);
@@ -85,7 +75,6 @@ impl ShoppingCart {
 
                 //subscribe to price service messages
                 trace!("Subscribing to GetPriceResponse");
-                agent.handle().subscribe::<PriceResponse>().await;
                 agent.start().await
             })
         }).await?;
