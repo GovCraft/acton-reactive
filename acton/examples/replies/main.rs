@@ -16,7 +16,12 @@
 
 use std::sync::Once;
 
+use anyhow::Result;
+use crossterm::event::{self, Event, KeyCode};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use futures::SinkExt;
+use futures::StreamExt;
+use tokio::sync::oneshot;
 use tracing::*;
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -50,35 +55,91 @@ struct GetItems;
 #[derive(Clone, Debug)]
 struct GetPriceRequest(CartItem);
 
-#[acton_message]
+#[derive(Clone, Debug)]
 struct PriceResponse {
-    price: i32,
     item: CartItem,
 }
 
-#[acton_message]
-struct Status<'a> {
-    message: &'a str,
+#[derive(Clone, Debug)]
+enum PrinterMessage {
+    Help(&'static str),
+    Status(&'static str),
+    PrintLine(&'static str),
+    Loading(String),
 }
 
 
+struct RawModeGuard;
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        disable_raw_mode().expect("Failed to disable raw mode");
+    }
+}
+
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<()> {
+    // Enable raw mode to prevent "^C" from being printed when Control-C is pressed
+    enable_raw_mode().expect("Failed to enable raw mode");
+
+    // Create a guard to ensure raw mode is disabled when the program exits
+    let _raw_mode_guard = RawModeGuard;
+
     initialize_tracing();
+
     // Set up the system and create agents
     let mut app = ActonApp::launch();
     let cashier_register = Register::new_transaction(ShoppingCart::new(&mut app).await?);
-    let _printer = Printer::power_on(&mut app).await;
+    let printer = Printer::power_on(&mut app).await;
 
+    // Perform scanning operations
     cashier_register.scan("Banana", 3).await;
     cashier_register.scan("Apple", 1).await;
     cashier_register.scan("Cantaloupe", 2).await;
+    cashier_register.scan("Orange", 4).await;
+    cashier_register.scan("Grapes", 2).await;
+    cashier_register.scan("Mango", 5).await;
+    cashier_register.scan("Pineapple", 1).await;
+    cashier_register.scan("Strawberry", 6).await;
 
-    // tokio::time::sleep( std::time::Duration::from_secs(1)).await;
+
+    // Create a channel to signal shutdown
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+
+    // Spawn a task to listen for Ctrl-C key event
+    tokio::spawn(async move {
+        let mut reader = event::EventStream::new();
+        while let Some(event_result) = reader.next().await {
+            match event_result {
+                Ok(Event::Key(key_event)) => {
+                    if key_event.code == KeyCode::Char('c') && key_event.modifiers.contains(event::KeyModifiers::CONTROL) {
+                        // Send shutdown signal
+                        let _ = shutdown_tx.send(());
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error reading event: {:?}", e);
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    // Wait for the shutdown signal
+    shutdown_rx.await.expect("Failed to receive shutdown signal");
+    printer.send(PrinterMessage::Status("Control-C received. Shutting down...")).await;
+
+
     // Shut down the system and all agents
     app.shutdown_all().await.expect("Failed to shut down system");
+
+    println!("Shutdown complete.");
+
     Ok(())
 }
+
 
 static INIT: Once = Once::new();
 
@@ -93,19 +154,19 @@ pub fn initialize_tracing() {
         //     .add_directive(Level::INFO.into()); // Set global log level to INFO
 
         let filter = EnvFilter::new("")
-            .add_directive("replies=error".parse().unwrap())
-            .add_directive("replies::printer=error".parse().unwrap())
-            .add_directive("replies::shopping_cart=debug".parse().unwrap())
-            .add_directive("replies::price_service=error".parse().unwrap())
+            .add_directive("replies=off".parse().unwrap())
+            .add_directive("replies::printer=off".parse().unwrap())
+            .add_directive("replies::shopping_cart=off".parse().unwrap())
+            .add_directive("replies::price_service=off".parse().unwrap())
             //acton core
-            .add_directive("acton_core::common::agent_handle=error".parse().unwrap())
-            .add_directive("acton_core::common::agent_broker=error".parse().unwrap())
+            .add_directive("acton_core::common::agent_handle=off".parse().unwrap())
+            .add_directive("acton_core::common::agent_broker=off".parse().unwrap())
             .add_directive("acton_core::actor::managed_agent::idle[start]=off".parse().unwrap())
-            .add_directive("acton_core::actor::managed_agent::started[wake]=error".parse().unwrap())
-            .add_directive("acton_core::traits::actor[send_message]=error".parse().unwrap())
+            .add_directive("acton_core::actor::managed_agent::started[wake]=off".parse().unwrap())
+            .add_directive("acton_core::traits::actor[send_message]=off".parse().unwrap())
             //tests
             .add_directive("supervisor_tests=off".parse().unwrap())
-            .add_directive("broker_tests=trace".parse().unwrap())
+            .add_directive("broker_tests=off".parse().unwrap())
             .add_directive("launchpad_tests=off".parse().unwrap())
             .add_directive("lifecycle_tests=off".parse().unwrap())
             .add_directive("actor_tests=off".parse().unwrap())
@@ -115,8 +176,8 @@ pub fn initialize_tracing() {
                     .parse()
                     .unwrap(),
             )
-            // .add_directive("replies=info".parse().unwrap())
-            .add_directive(tracing_subscriber::filter::LevelFilter::INFO.into()); // Set global log level to TRACE
+            .add_directive("replies=off".parse().unwrap())
+            .add_directive(tracing_subscriber::filter::LevelFilter::OFF.into()); // Set global log level to TRACE
 
         let subscriber = FmtSubscriber::builder()
             // .with_span_events(FmtSpan::ENTER | FmtSpan::EXIT)
