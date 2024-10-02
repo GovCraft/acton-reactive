@@ -93,7 +93,7 @@ impl OutboundEnvelope {
     /// # Returns
     /// A result indicating success or failure.
     #[instrument(skip(self))]
-    pub(crate) fn reply(
+    pub fn reply(
         &self,
         message: impl ActonMessage + 'static,
     ) -> Result<(), MessageError> {

@@ -18,18 +18,24 @@ use std::fmt::Debug;
 use std::future::Future;
 
 use async_trait::async_trait;
-use tracing::instrument;
 
-use crate::common::BrokerRef;
 use crate::message::BrokerRequest;
 use crate::prelude::ActonMessage;
-use crate::traits::{Actor, Subscriber};
-
+use crate::traits::Actor;
 /// A broker is a message broker that can broadcast messages to all connected clients.
 #[async_trait]
 pub trait Broker: Clone + Debug + Default {
     /// Broadcast a message from the broker.
     fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output=()> + Send + Sync + '_;
+    /// Broadcast a message from the broker synchronously.
+    fn broadcast_sync(&self, message: impl ActonMessage) -> anyhow::Result<()>
+    where
+        Self: Actor,
+    {
+        let envelope = self.create_envelope(Some(self.reply_address()));
+        envelope.reply(BrokerRequest::new(message))?;
+        Ok(())
+    }
 }
 
 
