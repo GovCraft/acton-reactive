@@ -36,23 +36,23 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
     let mut acton_ready: AgentRuntime = ActonApp::launch();
     let broker = acton_ready.broker();
 
-    let actor_config = AgentConfig::new(Ern::with_root("parent")?, None, None)?;
+    let agent_config = AgentConfig::new(Ern::with_root("parent")?, None, None)?;
 
     let broker_clone = broker.clone();
-    let parent_actor = acton_ready
-        .spawn_agent_with_setup::<Parent>(actor_config, |mut actor| {
+    let _parent_actor = acton_ready
+        .spawn_agent_with_setup_fn::<Parent>(agent_config, |mut agent| {
             Box::pin(async move {
                 let child_actor_config = AgentConfig::new(
                     Ern::with_root("child").expect("Could not create child ARN root"),
                     None,
-                    Some(broker.clone()),
+                    None,
                 )
                     .expect("Couldn't create child config");
 
-                let mut acton = actor.runtime().clone();
+                let mut runtime = agent.runtime().clone();
 
-                let child_context = acton
-                    .spawn_agent_with_setup::<Parent>(child_actor_config, |mut child| {
+                let child_context = runtime
+                    .spawn_agent_with_setup_fn::<Parent>(child_actor_config, |mut child| {
                         Box::pin(async move {
                             child.act_on::<Pong>(|_actor, _msg| {
                                 info!("CHILD SUCCESS! PONG!");
@@ -67,18 +67,18 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                     .await
                     .expect("Couldn't create child actor");
 
-                actor
+                agent
                     .act_on::<Ping>(|_actor, _msg| {
                         info!("SUCCESS! PING!");
                         AgentReply::immediate()
                     })
                     .act_on::<Pong>(|actor, _msg| AgentReply::from_async(wait_and_respond()));
-                let context = &actor.handle().clone();
+                let context = &agent.handle().clone();
 
                 context.subscribe::<Ping>().await;
                 context.subscribe::<Pong>().await;
 
-                actor.start().await
+                agent.start().await
             })
         })
         .await?;

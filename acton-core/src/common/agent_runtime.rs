@@ -148,7 +148,7 @@ impl AgentRuntime {
     /// # Returns
     ///
     /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
-    pub async fn spawn_agent_with_setup<State>(
+    pub async fn spawn_agent_with_setup_fn<State>(
         &mut self,
         mut config: AgentConfig,
         setup_fn: impl FnOnce(
