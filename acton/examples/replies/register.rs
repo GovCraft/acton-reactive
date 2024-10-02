@@ -17,7 +17,7 @@
 
 use acton_core::prelude::{Actor, AgentHandle, Broker};
 
-use crate::{ItemScanned, Status};
+use crate::{ItemScanned};
 use crate::cart_item::CartItem;
 
 pub struct Register(pub AgentHandle);
@@ -30,7 +30,4 @@ impl Register {
         self.0.send(ItemScanned(CartItem::new(name, quantity))).await;
     }
 
-    pub async fn print_receipt(&self) {
-        self.0.broadcast(Status { message: "...finished." }).await
-    }
 }
