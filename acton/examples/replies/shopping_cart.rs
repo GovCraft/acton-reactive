@@ -22,7 +22,7 @@ use tracing::field::debug;
 
 use acton::prelude::*;
 
-use crate::{FinalizeSale, GetPriceRequest, PrinterMessage};
+use crate::{FinalizeSale, PriceRequest, PrinterMessage};
 use crate::cart_item::{CartItem, Price};
 use crate::ItemScanned;
 use crate::price_service::PriceService;
@@ -51,12 +51,11 @@ impl ShoppingCart {
                         agent.model.items.insert(item.id().clone(), item.clone());
                         debug_assert!(!agent.model.items.is_empty(), "Shopping cart is empty");
 
-                        trace!("Sending to price service with name: {}", price_service.name());
-                        let envelope = context.new_envelope(&price_service.reply_address());
-
+                        trace!("Broadcasting price request with name: {}", price_service.name());
+                        let broker = agent.broker().clone();
                         AgentReply::from_async(async move {
                             trace!( "Sending GetPriceRequest for item: {}", item.name());
-                            envelope.send(GetPriceRequest(item)).await;
+                            broker.broadcast(PriceRequest(item)).await;
                         })
                     })
                     .before_stop(|agent| {
@@ -69,7 +68,9 @@ impl ShoppingCart {
                         })
                     });
 
+
                 let price_service = agent.handle().supervise::<PriceService>(PriceService::new(&mut agent.runtime().clone()).await).await.expect("TODO: panic message");
+                price_service.subscribe::<PriceRequest>().await;
 
                 agent.model.price_service = price_service;
 

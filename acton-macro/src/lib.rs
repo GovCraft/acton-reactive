@@ -73,7 +73,7 @@ pub fn acton_actor(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Generate the expanded code.
     let expanded = quote! {
         // Derive the Clone trait.
-        #[derive(Default)]
+        #[derive(Default, Clone)]
         #input
 
         // Implement the Debug trait.

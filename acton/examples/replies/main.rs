@@ -35,7 +35,6 @@ use register::Register;
 use shopping_cart::ShoppingCart;
 
 use crate::cart_item::Price;
-use crate::frame_runner::FrameRunner;
 use crate::printer::Printer;
 
 mod shopping_cart;
@@ -43,7 +42,6 @@ mod price_service;
 mod cart_item;
 mod register;
 mod printer;
-mod frame_runner;
 
 // Define messages to interact with the agent.
 #[derive(Clone, Debug)]
@@ -57,7 +55,7 @@ struct FinalizeSale(pub(crate) Price);
 struct GetItems;
 
 #[derive(Clone, Debug)]
-struct GetPriceRequest(CartItem);
+struct PriceRequest(CartItem);
 
 #[derive(Clone, Debug)]
 struct PriceResponse {
@@ -66,10 +64,7 @@ struct PriceResponse {
 
 #[derive(Clone, Debug)]
 enum PrinterMessage {
-    Help(&'static str),
-    Status(&'static str),
-    PrintLine(&'static str),
-    Loading(MagicTypeId),
+    Repaint()
 }
 
 
@@ -103,11 +98,11 @@ async fn main() -> Result<()> {
     cashier_register.scan("Banana", 3).await;
     cashier_register.scan("Apple", 1).await;
     cashier_register.scan("Cantaloupe", 2).await;
-    // cashier_register.scan("Orange", 4).await;
-    // cashier_register.scan("Grapes", 2).await;
-    // cashier_register.scan("Mango", 5).await;
-    // cashier_register.scan("Pineapple", 1).await;
-    // cashier_register.scan("Strawberry", 6).await;
+    cashier_register.scan("Orange", 4).await;
+    cashier_register.scan("Grapes", 2).await;
+    cashier_register.scan("Mango", 5).await;
+    cashier_register.scan("Pineapple", 1).await;
+    cashier_register.scan("Strawberry", 6).await;
 
 
     // Create a channel to signal shutdown
@@ -136,7 +131,7 @@ async fn main() -> Result<()> {
 
     // Wait for the shutdown signal
     shutdown_rx.await?;
-    printer.send(PrinterMessage::Status("Control-C received. Shutting down...")).await;
+    // printer.send(PrinterMessage::Status("Control-C received. Shutting down...")).await;
 
 
     // Shut down the system and all agents
