@@ -66,6 +66,14 @@ impl ActorConfig {
         }
     }
 
+    /// Creates a new config with an ERN root with the provided name.
+    pub fn new_with_name(
+        name: impl Into<String>,
+    ) -> anyhow::Result<ActorConfig> {
+        Ok(Self::new(Ern::with_root(name.into())?, None, None)?)
+    }
+
+
     /// Returns the ERN of the actor.
     pub(crate) fn ern(&self) -> Ern<UnixTime> {
         self.ern.clone()

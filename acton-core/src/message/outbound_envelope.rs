@@ -73,7 +73,7 @@ impl OutboundEnvelope {
         self.return_address.clone()
     }
 
-    /// Gets the return address for the outbound envelope.
+    /// Gets the recipient address for the outbound envelope.
     pub fn recipient(&self) -> &Option<MessageAddress> {
         &self.recipient_address
     }

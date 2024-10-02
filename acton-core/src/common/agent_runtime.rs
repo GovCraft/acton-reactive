@@ -37,6 +37,32 @@ use crate::traits::Actor;
 pub struct AgentRuntime(pub(crate) ActonInner);
 
 impl AgentRuntime {
+    /// Creates a new actor with the provided id root name.
+    ///
+    /// # Type Parameters
+    ///
+    /// * `State` - The state type of the actor, which must implement `Default`, `Send`, `Debug`, and have a static lifetime.
+    ///
+    /// # Returns
+    ///
+    /// A `ManagedActor` in the `Idle` state with the specified `State`.
+    pub async fn new_agent_with_name<State>(&mut self, name: String) -> ManagedAgent<Idle, State>
+    where
+        State: Default + Send + Debug + 'static,
+    {
+        let actor_config = ActorConfig::new(
+            Ern::with_root(name).unwrap(),
+            None,
+            Some(self.0.broker.clone()),
+        ).expect("Failed to create actor config");
+
+        // let broker = self.0.broker.clone();
+        let runtime = self.clone();
+        let new_actor = ManagedAgent::new(&Some(runtime), Some(actor_config)).await;
+        self.0.roots.insert(new_actor.id.clone(), new_actor.handle.clone());
+        new_actor
+    }
+
     /// Creates a new actor with default configuration.
     ///
     /// # Type Parameters
@@ -118,7 +144,7 @@ impl AgentRuntime {
     /// # Returns
     ///
     /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
-    pub async fn spawn_actor_with_setup<State>(
+    pub async fn spawn_agent_with_setup<State>(
         &mut self,
         config: ActorConfig,
         setup_fn: impl FnOnce(

@@ -86,7 +86,7 @@ where
                 );
                 broadcast_broker.send(subscription).await;
             } else {
-                tracing::error!( subscriber_ern = ern.to_string(), "No broker found for type_name {}", message_type_name);
+                error!( subscriber_ern = ern.to_string(), "No broker found for type_name {}", message_type_name);
             }
         }
     }

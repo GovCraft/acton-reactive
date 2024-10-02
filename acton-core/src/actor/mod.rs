@@ -17,7 +17,7 @@
 pub use actor_config::ActorConfig;
 pub use managed_agent::Idle;
 pub use managed_agent::ManagedAgent;
-pub(crate) use managed_agent::started::Started;
+pub use managed_agent::started::Started;
 
 mod managed_agent;
 

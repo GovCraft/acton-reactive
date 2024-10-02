@@ -36,12 +36,11 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
     let mut acton_ready: AgentRuntime = ActonApp::launch();
     let broker = acton_ready.get_broker();
 
-    let actor_config = ActorConfig::new(Ern::with_root("parent")?, None, Some(broker.clone()))?;
+    let actor_config = ActorConfig::new(Ern::with_root("parent")?, None, None)?;
 
     let broker_clone = broker.clone();
     let parent_actor = acton_ready
-        .clone()
-        .spawn_actor_with_setup::<Parent>(actor_config, |mut actor| {
+        .spawn_agent_with_setup::<Parent>(actor_config, |mut actor| {
             Box::pin(async move {
                 let child_actor_config = ActorConfig::new(
                     Ern::with_root("child").expect("Could not create child ARN root"),
@@ -53,7 +52,7 @@ async fn test_launch_passing_acton() -> anyhow::Result<()> {
                 let mut acton = actor.runtime().clone();
 
                 let child_context = acton
-                    .spawn_actor_with_setup::<Parent>(child_actor_config, |mut child| {
+                    .spawn_agent_with_setup::<Parent>(child_actor_config, |mut child| {
                         Box::pin(async move {
                             child.act_on::<Pong>(|_actor, _msg| {
                                 info!("CHILD SUCCESS! PONG!");

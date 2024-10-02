@@ -28,6 +28,7 @@ use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
 use crate::message::{BrokerRequestEnvelope, MessageAddress, SystemSignal};
 use crate::traits::Actor;
 
+/// The `Started` state of the actor.
 pub struct Started;
 
 impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {

@@ -46,7 +46,7 @@ impl PriceService {
 
                 //we're going to broadcast this message since we want all listeners to get the price
                 let broker = agent.broker().clone();
-                let _ = broker.broadcast_sync(PrinterMessage::Loading(item.name().clone()));
+                let _ = broker.broadcast_sync(PrinterMessage::Loading(item.id().clone()));
 
                 AgentReply::from_async(
                     async move {
@@ -66,7 +66,7 @@ impl PriceService {
     // Define a mock async method to get the current price of an item in cents.
     async fn get_price(&self, item: CartItem) -> i32 {
         trace!("Getting price for {}", item.name());
-        tokio::time::sleep(Duration::from_millis(1000)).await; // Simulate an async delay, maybe to a database or API
+        tokio::time::sleep(Duration::from_millis(1500)).await; // Simulate an async delay, maybe to a database or API
 
         // Generate a random number between 100 and 200
         let random_price = rand::thread_rng().gen_range(100..=250);

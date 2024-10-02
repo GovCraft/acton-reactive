@@ -27,3 +27,6 @@ syn = "2.0.68"
 acton_test = { path = "../acton_test" }
 crossterm = { version = "0.28.1", features = ["event-stream"] }  # or the latest version available
 mti = "1.0.7-beta.1"
+tracing-appender = "0.2.3"
+zerocopy = "0.8.0-alpha.26"
+dashmap = "6.1.0"

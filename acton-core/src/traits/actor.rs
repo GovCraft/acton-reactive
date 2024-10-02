@@ -24,7 +24,7 @@ use tokio_util::task::TaskTracker;
 use tracing::*;
 
 use crate::common::*;
-use crate::message::MessageAddress;
+use crate::message::{BrokerRequest, MessageAddress};
 use crate::traits::acton_message::ActonMessage;
 
 /// Trait for actor context, defining common methods for actor management.
@@ -82,6 +82,15 @@ pub trait Actor {
             trace!("Envelope sender is {:?}", envelope.return_address.sender.root.to_string());
             envelope.send(message).await;
         }
+    }
+    /// Send a message synchronously.
+    fn send_sync(&self, message: impl ActonMessage, recipient: &AgentHandle) -> anyhow::Result<()>
+    where
+        Self: Actor,
+    {
+        let envelope = self.create_envelope(Some(recipient.reply_address()));
+        envelope.reply(BrokerRequest::new(message))?;
+        Ok(())
     }
 
     /// Suspends the actor.

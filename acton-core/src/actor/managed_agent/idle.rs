@@ -15,6 +15,7 @@
  */
 
 use std::any::TypeId;
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::future::Future;
 use std::mem;
@@ -173,17 +174,18 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
     /// # Returns
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
-    pub async fn create_child(&self) -> ManagedAgent<Idle, State> {
-        ManagedAgent::new(&Some(self.runtime().clone()), None).await
+    pub async fn create_child(&self, name: String) -> anyhow::Result<ManagedAgent<Idle, State>> {
+        let config = ActorConfig::new(Ern::with_root(name)?, Some(self.handle.clone()), Some(self.runtime.get_broker().clone()))?;
+        Ok(ManagedAgent::new(&Some(self.runtime().clone()), Some(config)).await)
     }
 
     #[instrument]
-    pub(crate) async fn new(acton: &Option<AgentRuntime>, config: Option<ActorConfig>) -> Self {
+    pub(crate) async fn new(runtime: &Option<AgentRuntime>, config: Option<ActorConfig>) -> Self {
         let mut managed_actor: ManagedAgent<Idle, State> = ManagedAgent::default();
 
-        if let Some(acton) = acton {
-            managed_actor.broker = acton.0.broker.clone();
-            managed_actor.handle.broker = Box::new(Some(acton.0.broker.clone()));
+        if let Some(app) = runtime {
+            managed_actor.broker = app.0.broker.clone();
+            managed_actor.handle.broker = Box::new(Some(app.0.broker.clone()));
         }
 
         if let Some(config) = &config {
@@ -202,7 +204,7 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
 
         trace!("NEW ACTOR: {}", &managed_actor.handle.id());
 
-        managed_actor.runtime = acton.clone().unwrap_or_else(|| AgentRuntime(ActonInner {
+        managed_actor.runtime = runtime.clone().unwrap_or_else(|| AgentRuntime(ActonInner {
             broker: managed_actor.handle.broker.clone().unwrap_or_default(),
             ..Default::default()
         }));

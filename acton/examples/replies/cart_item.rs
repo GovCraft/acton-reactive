@@ -31,10 +31,13 @@ pub(crate) struct CartItem {
 
 impl CartItem {
     pub(crate) fn new(name: impl Into<String>, quantity: i32) -> Self {
+        let name = name.into();
+        let mut id = "upc_".to_string();
+        id.push_str(&*name.clone());
         CartItem {
             name: name.into(),
             quantity,
-            id: "upc".create_type_id::<V7>(),
+            id: id.create_type_id::<V7>(),
             ..Default::default()
         }
     }
