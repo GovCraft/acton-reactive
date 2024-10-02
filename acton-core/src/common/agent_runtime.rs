@@ -109,12 +109,16 @@ impl AgentRuntime {
     /// A `ManagedActor` in the `Idle` state with the specified `State` and configuration.
     pub async fn create_actor_with_config<State>(
         &mut self,
-        config: ActorConfig,
+        mut config: ActorConfig,
     ) -> ManagedAgent<Idle, State>
     where
         State: Default + Send + Debug + 'static,
     {
         let acton_ready = self.clone();
+        // we should make sure the config has a broker, if it doesn't, we should provide it from self.0.broker
+        if config.broker.is_none() {
+            config.broker = Some(self.0.broker.clone());
+        }
         let new_agent = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
         trace!("Created new actor with id {}", new_agent.id);
         self.0.roots.insert(new_agent.id.clone(), new_agent.handle.clone());
@@ -126,7 +130,7 @@ impl AgentRuntime {
     /// # Returns
     ///
     /// A clone of the `BrokerRef` associated with this `SystemReady` instance.
-    pub fn get_broker(&self) -> BrokerRef {
+    pub fn broker(&self) -> BrokerRef {
         self.0.broker.clone()
     }
 
@@ -146,7 +150,7 @@ impl AgentRuntime {
     /// A `Result` containing the `ActorRef` of the spawned actor, or an error if the spawn failed.
     pub async fn spawn_agent_with_setup<State>(
         &mut self,
-        config: ActorConfig,
+        mut config: ActorConfig,
         setup_fn: impl FnOnce(
             ManagedAgent<Idle, State>,
         ) -> Pin<Box<dyn Future<Output=AgentHandle> + Send + 'static>>,
@@ -155,6 +159,10 @@ impl AgentRuntime {
         State: Default + Send + Debug + 'static,
     {
         let acton_ready = self.clone();
+        if config.broker.is_none() {
+            config.broker = Some(self.0.broker.clone());
+        }
+
         let new_agent = ManagedAgent::new(&Some(acton_ready), Some(config)).await;
         let handle = setup_fn(new_agent).await;
         self.0.roots.insert(handle.id.clone(), handle.clone());
@@ -205,8 +213,11 @@ impl AgentRuntime {
     where
         State: Default + Send + Debug + 'static,
     {
-        let broker = self.get_broker();
-        let config = ActorConfig::new(Ern::default(), None, Some(broker.clone()))?;
+        let broker = self.broker();
+        let mut config = ActorConfig::new(Ern::default(), None, Some(broker.clone()))?;
+        if config.broker.is_none() {
+            config.broker = Some(self.0.broker.clone());
+        }
         let runtime = self.clone();
         let new_agent = ManagedAgent::new(&Some(runtime), Some(config)).await;
         let handle = setup_fn(new_agent).await;

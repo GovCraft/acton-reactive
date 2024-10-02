@@ -34,7 +34,7 @@ mod setup;
 async fn test_launch_passing_acton() -> anyhow::Result<()> {
     initialize_tracing();
     let mut acton_ready: AgentRuntime = ActonApp::launch();
-    let broker = acton_ready.get_broker();
+    let broker = acton_ready.broker();
 
     let actor_config = ActorConfig::new(Ern::with_root("parent")?, None, None)?;
 
@@ -100,7 +100,7 @@ async fn test_launchpad() -> anyhow::Result<()> {
     initialize_tracing();
     let mut app: AgentRuntime = ActonApp::launch();
 
-    let broker = app.get_broker();
+    let broker = app.broker();
 
     let actor_config =
         ActorConfig::new(Ern::with_root("improve_show")?, None, Some(broker.clone()))?;

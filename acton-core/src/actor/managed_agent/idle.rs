@@ -175,7 +175,7 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
     /// A new `Actor` instance in the idle state.
     #[instrument(skip(self))]
     pub async fn create_child(&self, name: String) -> anyhow::Result<ManagedAgent<Idle, State>> {
-        let config = ActorConfig::new(Ern::with_root(name)?, Some(self.handle.clone()), Some(self.runtime.get_broker().clone()))?;
+        let config = ActorConfig::new(Ern::with_root(name)?, Some(self.handle.clone()), Some(self.runtime.broker().clone()))?;
         Ok(ManagedAgent::new(&Some(self.runtime().clone()), Some(config)).await)
     }
 

@@ -28,7 +28,7 @@ mod setup;
 async fn test_broker() -> anyhow::Result<()> {
     initialize_tracing();
     let mut app: AgentRuntime = ActonApp::launch();
-    let broker = app.get_broker();
+    let broker = app.broker();
 
 
     let mut comedy_show = app.new_agent::<Comedian>().await;
@@ -86,7 +86,7 @@ async fn test_broker() -> anyhow::Result<()> {
 async fn test_broker_from_handler() -> anyhow::Result<()> {
     initialize_tracing();
     let mut app: AgentRuntime = ActonApp::launch();
-    let broker = app.get_broker();
+    let broker = app.broker();
 
 
     let mut comedy_show = app.new_agent::<Comedian>().await;

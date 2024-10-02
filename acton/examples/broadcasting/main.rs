@@ -162,7 +162,7 @@ async fn main() {
     let _printer_handle = printer.start().await;
 
     // Access the broker
-    let broker = app.get_broker();
+    let broker = app.broker();
 
     // Send messages via broker using BrokerRequest
     broker.broadcast(NewData(5)).await;

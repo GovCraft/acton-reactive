@@ -27,7 +27,7 @@ use crate::traits::Actor;
 #[derive(Default, Debug, Clone)]
 pub struct ActorConfig {
     ern: Ern<UnixTime>,
-    broker: Option<BrokerRef>,
+    pub(crate) broker: Option<BrokerRef>,
     parent: Option<ParentRef>,
 }
 

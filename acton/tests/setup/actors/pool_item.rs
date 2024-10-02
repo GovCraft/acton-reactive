@@ -33,7 +33,7 @@ impl PoolItem {
     async fn initialize(&self, config: ActorConfig) -> AgentHandle {
         let mut acton: AgentRuntime = ActonApp::launch();
 
-        let broker = acton.get_broker();
+        let broker = acton.broker();
 
         let actor_config = ActorConfig::new(
             Ern::with_root("improve_show").expect("Couldn't create pool item Ern"),
