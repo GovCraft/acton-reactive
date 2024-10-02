@@ -17,11 +17,13 @@
 use std::thread::sleep;
 use std::time::Duration;
 
+use rand::Rng;
 use tracing::*;
 
 use acton::prelude::*;
 
-use crate::CartItem;
+use crate::{CartItem, PrinterMessage};
+use crate::cart_item::Price;
 use crate::GetPriceRequest;
 use crate::PriceResponse;
 use crate::shopping_cart::ShoppingCart;
@@ -38,37 +40,36 @@ impl PriceService {
         // Configure agent behavior
         price_service
             .act_on::<GetPriceRequest>(|agent, context| {
-                // Contains the address of the sender, so the agent
-                // doesn't need to know about the sender, only that
-                // it can reply to the sender, whoever that is.
 
                 let item = context.message().0.clone();
                 let model = agent.model.clone();
 
                 //we're going to broadcast this message since we want all listeners to get the price
                 let broker = agent.broker().clone();
+                let _ = broker.broadcast_sync(PrinterMessage::Loading(item.name().clone()));
 
                 AgentReply::from_async(
                     async move {
-                        let price = model.get_price(item.clone()).await;
+                        let mut item = item;
+                        item.set_cost(model.get_price(item.clone()).await);
                         let response_message = PriceResponse {
-                            price,
                             item,
                         };
-                        debug!("Broadcasting response for {} with price: ${}", &response_message.item.name(), &response_message.price);
                         broker.broadcast(response_message).await;
                     }
                 )
             });
 
         price_service
-
     }
 
     // Define a mock async method to get the current price of an item in cents.
     async fn get_price(&self, item: CartItem) -> i32 {
         trace!("Getting price for {}", item.name());
-        tokio::time::sleep(Duration::from_millis(200)).await; // Simulate an async delay, maybe to a database or API
-        return 123; // Mock price - everything costs a dollar!
+        tokio::time::sleep(Duration::from_millis(1000)).await; // Simulate an async delay, maybe to a database or API
+
+        // Generate a random number between 100 and 200
+        let random_price = rand::thread_rng().gen_range(100..=250);
+        return random_price;
     }
 }
