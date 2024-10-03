@@ -1,7 +1,3 @@
-Apologies for the confusion. Here is the updated README, incorporating the new `start-here` example and references to advanced examples like `broadcast` and `fruit_market`.
-
----
-
 # Acton Reactive Application Framework
 
 The Acton Reactive Application Framework provides an efficient way to build fast, reactive Rust applications. Designed around an agent-based model, it simplifies concurrency and allows developers to focus on writing scalable, maintainable code. Acton gets its name from the fact that it "acts on" messages you define.
