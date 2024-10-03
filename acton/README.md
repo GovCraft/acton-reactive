@@ -20,7 +20,9 @@ code. Acton gets its name from the fact that it "acts on" messages you define.
   scales.
 - **Built-in Instrumentation with Tracing**: Acton integrates with the Tracing crate, offering detailed insight into
   application behavior. This instrumentation makes it easier to monitor performance, debug issues, and gain visibility
-  into your application's inner workings.## Getting Started
+  into your application's inner workings.
+
+## Getting Started
 
 To get started with the Acton framework, add the following to your `Cargo.toml`:
 
@@ -36,7 +38,7 @@ acton = { path = "./acton" }
 Here's a simple example of how to create and use actors in the Acton framework:
 
 ```rust
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 
 // Define an actor
 #[derive(Default)]

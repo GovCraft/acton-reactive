@@ -15,7 +15,7 @@
  */
 #![allow(unused)]
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 
 #[derive(Clone, Debug)]
 pub struct Pong;

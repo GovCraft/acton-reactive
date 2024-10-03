@@ -23,7 +23,7 @@ use std::sync::atomic::AtomicBool;
 use dashmap::DashMap;
 use tokio::sync::mpsc::Sender;
 
-use crate::actor::{Idle, ManagedAgent, Started};
+use crate::actor::{ManagedAgent, Started};
 use crate::common::AgentHandle;
 use crate::message::Envelope;
 
@@ -34,17 +34,9 @@ pub(crate) type ReactorMap<ActorEntity> = DashMap<TypeId, ReactorItem<ActorEntit
 pub enum ReactorItem<ActorEntity: Default + Send + Debug + 'static> {
     // A signal reactor, which reacts to signals.
     // SignalReactor(Box<SignalHandler<ActorEntity>>),
-    /// A message reactor, which reacts to messages.
-    MessageReactor(Box<MessageHandler<ActorEntity>>),
     /// A future reactor, which reacts to futures.
     FutureReactor(Box<FutureHandler<ActorEntity>>),
 }
-
-/// A type alias for a message reactor function.
-pub(crate) type MessageHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedAgent<Started, ManagedEntity>, &'b mut Envelope)
-+ Send
-+ Sync
-+ 'static;
 
 /// A type alias for a future reactor function.
 pub(crate) type FutureHandler<ManagedEntity> = dyn for<'a, 'b> Fn(&mut ManagedAgent<Started, ManagedEntity>, &'b mut Envelope) -> FutureBox
@@ -61,16 +53,13 @@ pub(crate) type Outbox = Sender<Envelope>;
 /// A type alias for a stop signal, represented by an atomic boolean.
 pub(crate) type HaltSignal = AtomicBool;
 
-/// A type alias for a lifecycle reactor function.
-pub(crate) type LifecycleHandler<ActorEntity, ManagedEntity> =
-dyn Fn(&mut ManagedAgent<ActorEntity, ManagedEntity>) + Send;
+// /// A type alias for a lifecycle reactor function.
+// pub(crate) type LifecycleHandler<ActorEntity, ManagedEntity> =
+// dyn Fn(&mut ManagedAgent<ActorEntity, ManagedEntity>) + Send;
 
 /// A type alias for an asynchronous lifecycle reactor function.
 pub(crate) type AsyncLifecycleHandler<ManagedEntity> =
 Box<dyn Fn(&ManagedAgent<Started, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 
-/// A type alias for an idle lifecycle reactor function.
-pub(crate) type IdleLifecycleHandler<ManagedEntity> =
-Box<dyn Fn(&ManagedAgent<Idle, ManagedEntity>) -> FutureBox + Send + Sync + 'static>;
 pub type BrokerRef = AgentHandle;
 pub type ParentRef = AgentHandle;

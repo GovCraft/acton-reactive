@@ -48,7 +48,7 @@ impl PoolItem {
         // Set up the actor to handle Ping events and define behavior before stopping
         actor
             .act_on::<Ping>(|actor, _event| {
-                tracing::debug!(actor = actor.id().to_string(), "Received Ping event for");
+                tracing::trace!(actor = actor.id().to_string(), "Received Ping event for");
                 actor.model.receive_count += 1; // Increment receive_count on Ping event
                 AgentReply::immediate()
             })
@@ -80,7 +80,7 @@ impl PoolItem {
         actor_address: String,
         parent: AgentHandle,
     ) {
-        tracing::debug!(
+        tracing::trace!(
             "Reporting {} complete to {} from {}.",
             final_count,
             parent_address,

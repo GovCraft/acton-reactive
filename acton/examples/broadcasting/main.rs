@@ -6,7 +6,7 @@ use crossterm::{
     style::{Color, Print, ResetColor, SetForegroundColor},
 };
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 
 // Define the data model for each agent
 #[derive(Default, Debug)]

@@ -71,7 +71,7 @@ impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> ManagedAgent<A
     }
     /// Returns the name of the actor.
     pub fn name(&self) -> &str {
-        &self.id.root.as_str()
+        self.id.root.as_str()
     }
 
     /// Returns the handle of the actor.

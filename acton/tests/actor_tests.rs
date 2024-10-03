@@ -21,7 +21,7 @@ use std::time::Duration;
 use tracing::{debug, info, trace};
 use tracing_subscriber::fmt::writer::EitherWriter::A;
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;

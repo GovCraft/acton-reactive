@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use tracing::*;
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;

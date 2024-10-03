@@ -16,8 +16,7 @@
 
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
-// #![forbid(unused)]
-// #![forbid(dead_code)]
+#![forbid(dead_code)]
 // #![forbid(unused_imports)]
 //! Acton Core Library
 //!

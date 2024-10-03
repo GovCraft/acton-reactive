@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use tracing::*;
 
 use crate::message::{SubscribeBroker, UnsubscribeBroker};
-use crate::traits::{ActonMessage, Actor, Broker};
+use crate::traits::{ActonMessage, Actor};
 use crate::traits::subscriber::Subscriber;
 
 /// Trait for types that can subscribe to and unsubscribe from messages.
@@ -79,7 +79,7 @@ where
             trace!( type_id=?message_type_id, subscriber_ern = ern.to_string(), "Subscribing to type_name {}", message_type_name);
             if let Some(broadcast_broker) = broker {
                 let broker_key = broadcast_broker.name();
-                debug!(
+                trace!(
                     "Subscribing to type_name {} with {}",
                     message_type_name,
                     broker_key

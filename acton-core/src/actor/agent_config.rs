@@ -70,7 +70,7 @@ impl AgentConfig {
     pub fn new_with_name(
         name: impl Into<String>,
     ) -> anyhow::Result<AgentConfig> {
-        Ok(Self::new(Ern::with_root(name.into())?, None, None)?)
+        Self::new(Ern::with_root(name.into())?, None, None)
     }
 
 

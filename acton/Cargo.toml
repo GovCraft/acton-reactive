@@ -1,7 +1,12 @@
 [package]
-name = "acton"
-version = "1.1.0"
+name = "acton-reactive"
+version = "1.1.0-beta.1"
 edition = "2021"
+description = "Acton Reactive is the main crate of the Acton framework, designed for building reactive, event-driven, and asynchronous systems. It provides intuitive abstractions to make working with distributed agents seamless and efficient."
+license = "Apache-2.0 OR MIT"
+documentation = "https://github.com/Govcraft/acton-reactive/blob/main/README.md"
+homepage = "https://github.com/Govcraft/acton-reactive"
+repository = "https://github.com/Govcraft/acton-reactive"
 
 [lints.rust]
 unused = "allow"
@@ -12,18 +17,10 @@ acton-core = { path = "../acton-core" }
 rand = "0.8.5"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-tracing-futures = "0.2.5"
 anyhow = "1.0.82"
 async-trait = "0.1.8"
 tokio = "1.37.0"
-petgraph = "0.6.4"
 futures = "0.3.30"
-log = "0.4.21"
-console-subscriber = "0.2.0"
-quote = "1.0.36"
-syn = "2.0.68"
-strum = "0.24.1"
-config = "0.10.1"
 
 [dev-dependencies]
 acton_test = { path = "../acton_test" }
@@ -33,3 +30,4 @@ tracing-appender = "0.2.3"
 zerocopy = "0.8.0-alpha.26"
 dashmap = "6.1.0"
 ansi_term = "0.12.1"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }

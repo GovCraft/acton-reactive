@@ -15,7 +15,6 @@
  */
 
 use std::future::Future;
-use std::pin::Pin;
 
 use acton_ern::{Ern, UnixTime};
 use async_trait::async_trait;

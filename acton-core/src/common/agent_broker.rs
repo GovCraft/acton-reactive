@@ -14,14 +14,12 @@
  * limitations under that License.
  */
 
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::collections::HashSet;
-use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
 use acton_ern::{Ern, UnixTime};
-use async_trait::async_trait;
 use dashmap::DashMap;
 use futures::future::join_all;
 use tracing::*;
@@ -29,8 +27,7 @@ use tracing::*;
 use crate::actor::{AgentConfig, Idle, ManagedAgent};
 use crate::common::{AgentHandle, BrokerRef};
 use crate::message::{BrokerRequest, BrokerRequestEnvelope, SubscribeBroker};
-use crate::prelude::ActonMessage;
-use crate::traits::{Actor, Broker};
+use crate::traits::Actor;
 
 /// A broker that manages subscriptions and broadcasts messages to subscribers.
 ///

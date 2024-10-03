@@ -15,18 +15,16 @@
  */
 
 use std::any::TypeId;
-use std::borrow::Cow;
 use std::fmt::Debug;
 use std::future::Future;
 use std::mem;
 
 use acton_ern::{Ern, UnixTime};
-use dashmap::DashMap;
 use tokio::sync::mpsc::channel;
 use tracing::*;
 
 use crate::actor::{AgentConfig, ManagedAgent, Started};
-use crate::common::{ActonInner, AgentHandle, AgentRuntime, AsyncLifecycleHandler, Envelope, FutureBox, MessageHandler, OutboundEnvelope, ReactorItem};
+use crate::common::{ActonInner, AgentHandle, AgentRuntime,Envelope, FutureBox, OutboundEnvelope, ReactorItem};
 use crate::message::MessageContext;
 use crate::prelude::ActonMessage;
 use crate::traits::Actor;

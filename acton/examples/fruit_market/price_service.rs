@@ -19,7 +19,7 @@ use std::time::Duration;
 use rand::Rng;
 use tracing::*;
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 
 use crate::{CartItem, ItemScanned};
 use crate::PriceResponse;

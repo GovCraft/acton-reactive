@@ -18,7 +18,7 @@ use std::time::Duration;
 
 use tracing::{debug, info, instrument, trace};
 
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;

@@ -22,10 +22,10 @@ use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 use tokio_util::task::TaskTracker;
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{error, instrument, trace, warn};
 
 use crate::actor::{Idle, ManagedAgent};
-use crate::common::{AgentRuntime, BrokerRef, OutboundEnvelope, Outbox, ParentRef};
+use crate::common::{BrokerRef, OutboundEnvelope, Outbox, ParentRef};
 use crate::message::{BrokerRequest, MessageAddress, SystemSignal};
 use crate::prelude::ActonMessage;
 use crate::traits::{Actor, Broker, Subscriber};
@@ -118,10 +118,10 @@ impl AgentHandle {
         &self,
         child: ManagedAgent<Idle, State>,
     ) -> anyhow::Result<AgentHandle> {
-        debug!("Adding child actor with id: {}", child.id);
+        trace!("Adding child actor with id: {}", child.id);
         let handle = child.start().await;
         let id = handle.id.clone();
-        debug!("Now have child id in context: {}", id);
+        trace!("Now have child id in context: {}", id);
         self.children.insert(id.to_string(), handle.clone());
 
         Ok(handle)
@@ -168,7 +168,7 @@ impl Actor for AgentHandle {
 
     #[instrument(skip(self))]
     fn find_child(&self, arn: &Ern<UnixTime>) -> Option<AgentHandle> {
-        debug!("Searching for child with ARN: {}", arn);
+        trace!("Searching for child with ARN: {}", arn);
         self.children.get(&arn.to_string()).map(|item|
         item.value().clone()
         )

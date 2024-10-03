@@ -16,7 +16,7 @@
 
 
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
-use tracing::debug;
+use tracing::{debug, trace};
 
 use acton_core::prelude::*;
 
@@ -45,7 +45,7 @@ impl Register {
     }
 
     pub async fn toggle_help(&self) -> anyhow::Result<()> {
-        debug!("Register::toggle_help");
+        trace!("Register::toggle_help");
         self.printer.send(ToggleHelp).await;
         Ok(())
     }

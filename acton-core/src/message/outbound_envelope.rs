@@ -18,7 +18,7 @@ use std::cmp::PartialEq;
 use std::sync::Arc;
 
 use tokio::runtime::Runtime;
-use tracing::{debug, error, instrument, trace};
+use tracing::{error, instrument, trace};
 
 use crate::common::{Envelope, MessageError};
 use crate::message::message_address::MessageAddress;

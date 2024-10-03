@@ -19,9 +19,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use futures::future::join_all;
-use tokio::time::{sleep, timeout};
-use tracing::{debug, instrument, trace};
-use tracing::field::debug;
+use tokio::time::sleep;
+use tracing::{instrument, trace};
 
 use crate::actor::ManagedAgent;
 use crate::common::{Envelope, OutboundEnvelope, ReactorItem, ReactorMap};
@@ -58,7 +57,7 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
         while let Some(incoming_envelope) = self.inbox.recv().await {
             let type_id;
             let mut envelope;
-            debug!("envelope sender is {}", incoming_envelope.reply_to.sender.root);
+            trace!("envelope sender is {}", incoming_envelope.reply_to.sender.root);
             trace!("{}", type_name_of_val(&incoming_envelope.message));
             // Special case for BrokerRequestEnvelope
             if let Some(broker_request_envelope) = incoming_envelope
@@ -79,7 +78,6 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
 
             if let Some(reactor) = reactors.get(&type_id) {
                 match reactor.value() {
-                    ReactorItem::MessageReactor(reactor) => (*reactor)(self, &mut envelope),
                     ReactorItem::FutureReactor(fut) => fut(self, &mut envelope).await,
                 }
             } else if let Some(SystemSignal::Terminate) =

@@ -13,7 +13,7 @@
  * See the applicable License for the specific language governing permissions and
  * limitations under that License.
  */
-use acton::prelude::*;
+use acton_reactive::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;

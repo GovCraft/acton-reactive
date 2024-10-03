@@ -45,7 +45,7 @@ impl From<BrokerRequest> for BrokerRequestEnvelope {
     ///
     /// A new `BrokerRequestEnvelope` containing the message from the `BrokerRequest`.
     fn from(value: BrokerRequest) -> Self {
-        debug!("{:?}", value);
+        trace!("{:?}", value);
         Self {
             message: value.message,
         }
