@@ -16,7 +16,7 @@
 
 use std::future::Future;
 
-use acton_ern::{Ern, UnixTime};
+use acton_ern::{Ern};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio_util::task::TaskTracker;
@@ -45,13 +45,13 @@ pub trait Actor {
     /// # Returns
     ///
     /// An `Option<ActorRef>` containing the child actor if found, or `None` if not found.
-    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<AgentHandle>;
+    fn find_child(&self, arn: &Ern) -> Option<AgentHandle>;
 
     /// Returns the actor's task tracker.
     fn tracker(&self) -> TaskTracker;
 
     /// Returns the actor's ERN.
-    fn id(&self) -> Ern<UnixTime>;
+    fn id(&self) -> Ern;
 
     /// Returns the actor's root from the ERN.
     fn name(&self) -> String;

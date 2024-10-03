@@ -32,7 +32,7 @@ pub enum FunnyJoke {
 
 #[acton_message]
 pub enum FunnyJokeFor {
-    ChickenCrossesRoad(Ern<UnixTime>),
+    ChickenCrossesRoad(Ern),
     Pun(String),
 }
 

@@ -15,7 +15,7 @@
  */
 
 
-use acton_ern::{Ern, ErnParser, UnixTime};
+use acton_ern::{Ern, ErnParser};
 
 use crate::common::{BrokerRef, ParentRef};
 use crate::traits::Actor;
@@ -26,7 +26,7 @@ use crate::traits::Actor;
 /// including its ERN (Entity Resource Name), broker, and parent reference.
 #[derive(Default, Debug, Clone)]
 pub struct AgentConfig {
-    ern: Ern<UnixTime>,
+    ern: Ern,
     pub(crate) broker: Option<BrokerRef>,
     parent: Option<ParentRef>,
 }
@@ -44,7 +44,7 @@ impl AgentConfig {
     ///
     /// Returns a `Result` containing the new `ActorConfig` instance or an error.
     pub fn new(
-        ern: Ern<UnixTime>,
+        ern: Ern,
         parent: Option<ParentRef>,
         broker: Option<BrokerRef>,
     ) -> anyhow::Result<AgentConfig> {
@@ -75,7 +75,7 @@ impl AgentConfig {
 
 
     /// Returns the ERN of the actor.
-    pub(crate) fn ern(&self) -> Ern<UnixTime> {
+    pub(crate) fn ern(&self) -> Ern {
         self.ern.clone()
     }
 

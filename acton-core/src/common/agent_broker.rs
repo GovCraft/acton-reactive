@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use acton_ern::{Ern, UnixTime};
+use acton_ern::{Ern};
 use dashmap::DashMap;
 use futures::future::join_all;
 use tracing::*;
@@ -44,7 +44,7 @@ pub struct AgentBroker {
     agent_handle: AgentHandle,
 }
 
-type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern<UnixTime>, AgentHandle)>>>; // Type alias for the subscribers map.
+type Subscribers = Arc<DashMap<TypeId, HashSet<(Ern, AgentHandle)>>>; // Type alias for the subscribers map.
 // Implement Deref and DerefMut to access AgentHandle's methods directly
 impl Deref for AgentBroker {
     type Target = AgentHandle;

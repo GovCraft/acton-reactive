@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 
-use acton_ern::{Ern, UnixTime};
+use acton_ern::{Ern};
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
@@ -34,7 +34,7 @@ use crate::traits::{Actor, Broker, Subscriber};
 #[derive(Debug, Clone)]
 pub struct AgentHandle {
     /// The unique identifier (ARN) for the context.
-    pub(crate) id: Ern<UnixTime>,
+    pub(crate) id: Ern,
     /// The outbound channel for sending messages.
     pub(crate) outbox: Outbox,
     /// The task tracker for the actor.
@@ -167,7 +167,7 @@ impl Actor for AgentHandle {
     }
 
     #[instrument(skip(self))]
-    fn find_child(&self, arn: &Ern<UnixTime>) -> Option<AgentHandle> {
+    fn find_child(&self, arn: &Ern) -> Option<AgentHandle> {
         trace!("Searching for child with ARN: {}", arn);
         self.children.get(&arn.to_string()).map(|item|
         item.value().clone()
@@ -178,7 +178,7 @@ impl Actor for AgentHandle {
     fn tracker(&self) -> TaskTracker {
         self.tracker.clone()
     }
-    fn id(&self) -> Ern<UnixTime> {
+    fn id(&self) -> Ern {
         self.id.clone()
     }
 

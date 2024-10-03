@@ -18,7 +18,7 @@ use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Formatter;
 
-use acton_ern::{Ern, UnixTime};
+use acton_ern::prelude::*;
 use tokio::sync::mpsc::Receiver;
 use tokio_util::task::TaskTracker;
 
@@ -42,7 +42,7 @@ pub struct ManagedAgent<AgentState, ManagedAgent: Default + Send + Debug + 'stat
 
     pub(crate) halt_signal: HaltSignal,
 
-    pub(crate) id: Ern<UnixTime>,
+    pub(crate) id: Ern,
     pub(crate) runtime: AgentRuntime,
     /// The actor model.
     pub model: ManagedAgent,
@@ -66,7 +66,7 @@ pub struct ManagedAgent<AgentState, ManagedAgent: Default + Send + Debug + 'stat
 // implement getter functions for ManagedAgent
 impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> ManagedAgent<ActorState, ManagedEntity> {
     /// Returns the unique identifier of the actor.
-    pub fn id(&self) -> &Ern<UnixTime> {
+    pub fn id(&self) -> &Ern {
         &self.id
     }
     /// Returns the name of the actor.

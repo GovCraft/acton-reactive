@@ -19,7 +19,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::mem;
 
-use acton_ern::{Ern, UnixTime};
+use acton_ern::{Ern};
 use tokio::sync::mpsc::channel;
 use tracing::*;
 
@@ -295,7 +295,7 @@ for ManagedAgent<Idle, State>
 {
     fn default() -> Self {
         let (outbox, inbox) = channel(255);
-        let id: Ern<UnixTime> = Default::default();
+        let id: Ern = Default::default();
         let mut handle: AgentHandle = Default::default();
         handle.id = id.clone();
         handle.outbox = outbox.clone();

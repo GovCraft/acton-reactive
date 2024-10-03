@@ -23,7 +23,7 @@ use crate::common::Outbox;
 #[derive(new, Clone, Debug)]
 pub struct MessageAddress {
     pub(crate) address: Outbox,
-    pub(crate) sender: Ern<UnixTime>,
+    pub(crate) sender: Ern,
 }
 
 impl MessageAddress {
