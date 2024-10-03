@@ -52,8 +52,8 @@ impl AudienceMember {
         );
 
         let mut actor = acton.new_agent::<AudienceMember>().await; //::<Comedian>::create_with_config(actor_config).await;
-                                                                      // let mut actor =
-                                                                      //     Acton::<AudienceMember>::create_with_config(config.clone());
+        // let mut actor =
+        //     Acton::<AudienceMember>::create_with_config(config.clone());
 
         actor.act_on::<Joke>(|actor, event| {
             let sender = actor.new_parent_envelope().unwrap();

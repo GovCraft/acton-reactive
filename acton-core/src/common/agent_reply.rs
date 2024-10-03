@@ -54,5 +54,4 @@ impl AgentReply {
     {
         Box::pin(future)
     }
-
 }

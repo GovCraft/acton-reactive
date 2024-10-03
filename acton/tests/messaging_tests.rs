@@ -18,13 +18,12 @@ use std::any::TypeId;
 
 use tracing::*;
 
+use acton::prelude::*;
 use acton_test::prelude::*;
 
 use crate::setup::*;
 
 mod setup;
-
-use acton::prelude::*;
 
 #[acton_test]
 async fn test_messaging_behavior() -> anyhow::Result<()> {
@@ -37,18 +36,17 @@ async fn test_messaging_behavior() -> anyhow::Result<()> {
             info!(type_name = type_name, "Received in sync handler");
             actor.model.receive_count += 1;
             AgentReply::immediate()
-
         })
         .after_stop(|actor| {
             info!("Processed {} Pings", actor.model.receive_count);
             AgentReply::immediate()
-
         });
     let actor_ref = actor.start().await;
     actor_ref.send(Ping).await;
     actor_ref.stop().await?;
     Ok(())
 }
+
 #[acton_test]
 async fn test_basic_messenger() -> anyhow::Result<()> {
     initialize_tracing();
@@ -63,7 +61,6 @@ async fn test_basic_messenger() -> anyhow::Result<()> {
         .after_stop(|actor| {
             info!("Stopping");
             AgentReply::immediate()
-
         });
     let actor_ref = actor.start().await;
     actor_ref.send(Ping).await;
@@ -86,7 +83,6 @@ async fn test_async_messaging_behavior() -> anyhow::Result<()> {
         .after_stop(|actor| {
             info!("Processed {} Pings", actor.model.receive_count);
             AgentReply::immediate()
-
         });
     let context = actor.start().await;
     context.send(Ping).await;

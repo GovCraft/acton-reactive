@@ -48,7 +48,7 @@ async fn test_async_reactor() -> anyhow::Result<()> {
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
             trace!("Received Audience Reaction");
-            match event.message(){
+            match event.message() {
                 AudienceReactionMsg::Chuckle => actor.model.funny += 1,
                 AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
@@ -68,7 +68,6 @@ async fn test_async_reactor() -> anyhow::Result<()> {
             );
             assert_eq!(actor.model.jokes_told, 2);
             AgentReply::immediate()
-
         });
 
     let comedian = comedy_show.start().await;
@@ -101,7 +100,6 @@ async fn test_lifecycle_handlers() -> anyhow::Result<()> {
             assert_eq!(4, actor.model.count); // Ensure count is 4 when stopping
             trace!("on stopping");
             AgentReply::immediate()
-
         });
 
     // Activate the counter actor
@@ -156,7 +154,7 @@ async fn test_child_actor() -> anyhow::Result<()> {
     // Set up the child actor with handlers
     child_actor
         .act_on::<Ping>(|actor, event| {
-            match event.message(){
+            match event.message() {
                 Ping => {
                     actor.model.receive_count += 1; // Increment receive_count on Ping
                 }
@@ -270,7 +268,7 @@ async fn test_actor_mutation() -> anyhow::Result<()> {
             })
         })
         .act_on::<AudienceReactionMsg>(|actor, event| {
-            match event.message(){
+            match event.message() {
                 AudienceReactionMsg::Chuckle => actor.model.funny += 1,
                 AudienceReactionMsg::Groan => actor.model.bombers += 1,
             };
@@ -323,11 +321,11 @@ async fn test_child_count_in_reactor() -> anyhow::Result<()> {
                 trace!("Pinging child {}", &child_id);
                 // Emit a Ping message to the child actor
                 let context = context.clone();
-                AgentReply::from_async(async move {context.send(Ping).await})
+                AgentReply::from_async(async move { context.send(Ping).await })
             } else {
                 tracing::error!("No child found with ID {}", &child_id);
                 AgentReply::immediate()
-            }
+            };
         }
         AgentReply::immediate()
     });

@@ -69,7 +69,7 @@ impl<Agent: Default + Send + Debug + 'static> ManagedAgent<Started, Agent> {
                 envelope = Envelope::new(
                     broker_request_envelope.message.clone(),
                     incoming_envelope.reply_to.clone(),
-                    incoming_envelope.recipient.clone()
+                    incoming_envelope.recipient.clone(),
                 );
                 type_id = broker_request_envelope.message.as_any().type_id();
             } else {

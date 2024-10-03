@@ -1,6 +1,8 @@
 # Acton Example: Start Here
 
-Welcome to the **Acton** framework! This "Start Here" example introduces you to creating a simple, concurrent agent that manages a list of items. It highlights Acton's core features: creating an agent, handling messages, and performing asynchronous operations without needing locks or atomic references.
+Welcome to the **Acton** framework! This "Start Here" example introduces you to creating a simple, concurrent agent that
+manages a list of items. It highlights Acton's core features: creating an agent, handling messages, and performing
+asynchronous operations without needing locks or atomic references.
 
 ## What This Example Covers
 
@@ -22,7 +24,8 @@ cargo run --example start-here --package acton
 
 1. Agent Model and State Management
 
-   This example defines an ItemTracker struct to manage the agent's state. The ItemTracker contains a Vec<String> for tracking items, showing how to manage state without locks or atomic references:
+   This example defines an ItemTracker struct to manage the agent's state. The ItemTracker contains a Vec<String> for
+   tracking items, showing how to manage state without locks or atomic references:
 
    ```rust
    #[derive(Default, Debug)]
@@ -34,8 +37,8 @@ cargo run --example start-here --package acton
 2. Messages
 
    Messages facilitate interaction with agents. This example defines two messages:
-   - `AddItem(String)`: Adds an item to the list.
-   - `GetItems`: Retrieves the current list of items.
+    - `AddItem(String)`: Adds an item to the list.
+    - `GetItems`: Retrieves the current list of items.
 
 3. Initializing and Configuring an Agent
 
@@ -102,6 +105,7 @@ Messages are processed with `act_on`. The agent handles different types of messa
 ## Summary
 
 This example introduces Acton's key concepts:
+
 - Agents managing state serially without locks or atomics
 - Message definition and handling
 - Asynchronous agent actions

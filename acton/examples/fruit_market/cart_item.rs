@@ -24,26 +24,25 @@ pub(crate) struct CartItem {
     name: String,
     quantity: i32,
     cost: Cost,
-    id: MagicTypeId,
+    upc: MagicTypeId,
 }
-
 
 
 impl CartItem {
     pub(crate) fn new(name: impl Into<String>, quantity: i32) -> Self {
         let name = name.into();
-        let mut id = "upc_".to_string();
-        id.push_str(&*name.clone());
+        let mut upc = "upc_".to_string();
+        upc.push_str(&*name.clone());
         CartItem {
             name: name.into(),
             quantity,
-            id: id.create_type_id::<V7>(),
+            upc: upc.create_type_id::<V7>(),
             ..Default::default()
         }
     }
 
     pub(crate) fn id(&self) -> &MagicTypeId {
-        &self.id
+        &self.upc
     }
 
     pub(crate) fn name(&self) -> &String {

@@ -16,9 +16,10 @@
 
 pub use acton_message::ActonMessage;
 pub use actor::Actor;
+pub use broker::Broker;
 pub use subscribable::Subscribable;
 pub use subscriber::Subscriber;
-pub use broker::Broker;
+
 mod acton_message;
 mod actor;
 mod subscribable;

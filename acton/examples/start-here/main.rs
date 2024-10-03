@@ -1,5 +1,6 @@
+use tokio::time::{Duration, sleep};
+
 use acton::prelude::*;
-use tokio::time::{sleep, Duration};
 
 // Define the agent's model to track a list of items.
 // This demonstrates that no locks or atomics are needed.

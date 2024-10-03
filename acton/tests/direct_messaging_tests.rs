@@ -86,6 +86,7 @@ impl PriceService {
         }
     }
 }
+
 impl ShoppingCart {
     pub(crate) async fn new(price_service_handle: AgentHandle, app: &mut AgentRuntime) -> Self {
         // let mut shopping_cart = app.initialize::<ShoppingCart>().await;
@@ -94,7 +95,6 @@ impl ShoppingCart {
         // Configure agent behavior
         shopping_cart
             .act_on::<Ping>(|agent, context| {
-
                 let price_service = &agent.model.price_service_handle;
                 let envelope = context.new_envelope(&price_service.reply_address());
                 let name = price_service.name();

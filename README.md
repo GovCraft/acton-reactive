@@ -1,14 +1,26 @@
 # Acton Reactive Application Framework
 
-The Acton Reactive Application Framework provides an efficient way to build fast, reactive Rust applications. Designed around an actor-based model, it simplifies concurrency and allows developers to focus on writing scalable, maintainable code. Acton gets its name from the fact that it "acts on" messages you define.
+The Acton Reactive Application Framework provides an efficient way to build fast, reactive Rust applications. Designed
+around an actor-based model, it simplifies concurrency and allows developers to focus on writing scalable, maintainable
+code. Acton gets its name from the fact that it "acts on" messages you define.
 
 ## Key Features
 
-- **Actor-based Architecture**: Acton uses a Tokio-based actor model, enabling a lock-free and highly concurrent state management system. This architecture helps maintain a natural concurrency model and simplifies building complex systems.
-- **Asynchronous Messaging**: By leveraging Rust's async/await syntax, Acton ensures high-performance, non-blocking communication between components. This asynchronous model helps achieve responsive and efficient applications, even under heavy load.
-- **Extensibility**: The framework is designed to be adaptable, making it easy to extend for various use cases or integrate with existing systems. This flexibility allows developers to tailor the framework to fit specific requirements without compromising performance.
-- **Type-safe Message Handling**: Acton enforces type safety in message passing between actors, providing compile-time checks and reducing runtime errors. This feature ensures that the system remains robust and reliable, even as it scales.
-- **Built-in Instrumentation with Tracing**: Acton integrates with the Tracing crate, offering detailed insight into application behavior. This instrumentation makes it easier to monitor performance, debug issues, and gain visibility into your application's inner workings.## Getting Started
+- **Actor-based Architecture**: Acton uses a Tokio-based actor model, enabling a lock-free and highly concurrent state
+  management system. This architecture helps maintain a natural concurrency model and simplifies building complex
+  systems.
+- **Asynchronous Messaging**: By leveraging Rust's async/await syntax, Acton ensures high-performance, non-blocking
+  communication between components. This asynchronous model helps achieve responsive and efficient applications, even
+  under heavy load.
+- **Extensibility**: The framework is designed to be adaptable, making it easy to extend for various use cases or
+  integrate with existing systems. This flexibility allows developers to tailor the framework to fit specific
+  requirements without compromising performance.
+- **Type-safe Message Handling**: Acton enforces type safety in message passing between actors, providing compile-time
+  checks and reducing runtime errors. This feature ensures that the system remains robust and reliable, even as it
+  scales.
+- **Built-in Instrumentation with Tracing**: Acton integrates with the Tracing crate, offering detailed insight into
+  application behavior. This instrumentation makes it easier to monitor performance, debug issues, and gain visibility
+  into your application's inner workings.## Getting Started
 
 To get started with the Acton framework, add the following to your `Cargo.toml`:
 
@@ -66,6 +78,7 @@ async fn main() {
 ```
 
 This example demonstrates:
+
 1. Defining an actor (`Counter`)
 2. Implementing the `Actor` trait
 3. Defining a message (`Increment`)
@@ -78,7 +91,8 @@ For more complex examples and advanced usage, please refer to the tests in the `
 
 ## Contributing
 
-Contributions to the Acton Distributed Actor Framework are welcome! Please feel free to submit issues, fork the repository and send pull requests!
+Contributions to the Acton Distributed Actor Framework are welcome! Please feel free to submit issues, fork the
+repository and send pull requests!
 
 ## License
 

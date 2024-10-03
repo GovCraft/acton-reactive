@@ -51,7 +51,6 @@ impl PoolItem {
                 tracing::debug!(actor = actor.id().to_string(), "Received Ping event for");
                 actor.model.receive_count += 1; // Increment receive_count on Ping event
                 AgentReply::immediate()
-
             })
             .after_stop(|actor| {
                 let parent = &actor.parent().clone().unwrap();

@@ -40,8 +40,8 @@ pub mod prelude {
     pub use acton_ern::*;
     pub use async_trait;
 
-    pub use crate::actor::{AgentConfig, ManagedAgent, Idle, Started};
-    pub use crate::common::{ActonApp, AgentHandle, AgentBroker, AgentRuntime, AgentReply};
-    pub use crate::message::{BrokerRequest, BrokerRequestEnvelope, OutboundEnvelope, MessageAddress};
-    pub use crate::traits::{ActonMessage, Actor, Subscribable, Subscriber, Broker};
+    pub use crate::actor::{AgentConfig, Idle, ManagedAgent, Started};
+    pub use crate::common::{ActonApp, AgentBroker, AgentHandle, AgentReply, AgentRuntime};
+    pub use crate::message::{BrokerRequest, BrokerRequestEnvelope, MessageAddress, OutboundEnvelope};
+    pub use crate::traits::{ActonMessage, Actor, Broker, Subscribable, Subscriber};
 }

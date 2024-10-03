@@ -14,10 +14,10 @@
  * limitations under that License.
  */
 pub use acton::ActonApp;
-pub use agent_reply::AgentReply;
 pub(crate) use acton_inner::ActonInner;
-pub use agent_handle::AgentHandle;
 pub use agent_broker::AgentBroker;
+pub use agent_handle::AgentHandle;
+pub use agent_reply::AgentReply;
 pub use agent_runtime::AgentRuntime;
 pub(crate) use types::*;
 

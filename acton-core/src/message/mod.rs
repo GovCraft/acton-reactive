@@ -17,10 +17,10 @@
 pub use broker_request::BrokerRequest;
 pub use broker_request_envelope::BrokerRequestEnvelope;
 pub(crate) use envelope::Envelope;
+pub use message_address::MessageAddress;
 pub(crate) use message_context::MessageContext;
 pub(crate) use message_error::MessageError;
 pub use outbound_envelope::OutboundEnvelope;
-pub use message_address::MessageAddress;
 pub use signal::SystemSignal;
 pub(crate) use subscribe_broker::SubscribeBroker;
 pub(crate) use unsubscribe_broker::UnsubscribeBroker;

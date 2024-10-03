@@ -95,6 +95,4 @@ pub trait Actor {
 
     /// Suspends the actor.
     fn stop(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_;
-
-
 }

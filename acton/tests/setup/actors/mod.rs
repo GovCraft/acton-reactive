@@ -21,7 +21,7 @@ pub use comedian::Comedian;
 pub use counter::Counter;
 pub use messenger::Messenger;
 pub use pool_item::PoolItem;
-pub use parent_child::*;
+pub use parent_child::Parent;
 
 mod audience_member;
 mod comedian;

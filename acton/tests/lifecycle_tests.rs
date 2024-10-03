@@ -30,7 +30,6 @@ async fn test_actor_lifecycle_events() -> anyhow::Result<()> {
         .after_start(|actor| {
             tracing::info!("Actor woke up with key: {}", actor.id());
             AgentReply::immediate()
-
         })
         .after_stop(|actor| {
             tracing::info!("Actor stopping with key: {}", actor.id());

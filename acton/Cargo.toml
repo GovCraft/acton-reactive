@@ -23,6 +23,7 @@ console-subscriber = "0.2.0"
 quote = "1.0.36"
 syn = "2.0.68"
 strum = "0.24.1"
+config = "0.10.1"
 
 [dev-dependencies]
 acton_test = { path = "../acton_test" }
@@ -31,4 +32,4 @@ mti = "1.0.7-beta.1"
 tracing-appender = "0.2.3"
 zerocopy = "0.8.0-alpha.26"
 dashmap = "6.1.0"
-spinners = "4.1.1"
+ansi_term = "0.12.1"

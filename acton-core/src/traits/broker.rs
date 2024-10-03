@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use crate::message::BrokerRequest;
 use crate::prelude::ActonMessage;
 use crate::traits::Actor;
+
 /// A broker is a message broker that can broadcast messages to all connected clients.
 #[async_trait]
 pub trait Broker: Clone + Debug + Default {
