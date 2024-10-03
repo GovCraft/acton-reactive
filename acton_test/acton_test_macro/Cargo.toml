@@ -12,7 +12,7 @@ repository = "https://github.com/Govcraft/acton-reactive/acton_test"
 proc-macro = true
 
 [dependencies]
-syn = { version = "1.0", features = ["full"] }
+syn = { version = "2.0.79", features = ["full"] }
 quote = "1.0"
 tracing = "0.1.40"
 parking_lot = "0.12.3"
