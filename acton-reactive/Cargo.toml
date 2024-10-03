@@ -12,7 +12,7 @@ repository = "https://github.com/Govcraft/acton-reactive"
 unused = "allow"
 
 [dependencies]
-acton-macro = { path = "../acton-macro" }
+acton-macro = { version = "1.0.0-beta.1" }
 acton-core = { path = "../acton-core" }
 rand = "0.8.5"
 tracing = "0.1.40"
