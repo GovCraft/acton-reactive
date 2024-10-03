@@ -22,7 +22,7 @@ tracing = "0.1.40"
 futures = "0.3.30"
 static_assertions = "1.1.0"
 dyn-clone = "1.0.17"
-derive-new = "0.6.0"
+derive-new = "0.7.0"
 acton-ern = "2.1.1-alpha"
 
 [dev-dependencies]
