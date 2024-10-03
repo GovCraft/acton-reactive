@@ -32,7 +32,7 @@ Add `acton_test` to your `Cargo.toml`:
 
 ```toml
 [dev-dependencies]
-acton_test = "1.0.0"
+acton_test = "1.0.0-beta.1"
 ```
 
 In your unit or integration test files:
