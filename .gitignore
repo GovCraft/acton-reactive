@@ -13,8 +13,9 @@ Cargo.lock
 
 **/.idea/**
 
-*.lock
 .aider*
 
 logs/
 .aider.*
+.direnv
+.envrc
