@@ -127,6 +127,24 @@ You can view this example and run it from the examples `basic` folder.
 
 For more advanced usage, check out the **lifecycles**, **broadcast**, and **fruit_market** examples, which demonstrate other messaging patterns and system-wide coordination across agents.
 
+# FAQ
+## Why is this called an "agent-based" framework and not an "actor-based" one?
+While Acton is, at its core, an actor framework, I’ve chosen to use the term "agent" to focus on clarity and accessibility. The word "actor" comes with a lot of technical baggage from traditional actor models like Akka and Erlang, which may seem complex or intimidating to some developers.
+
+The term "agent" emphasizes the framework’s core principle: it acts on messages in a straightforward, scalable way. By avoiding the technical connotations of "actor," I hope to make Acton more approachable and easier to understand, especially for those who may be new to concurrency patterns. In essence, agents in Acton do the same things that actors do in other systems—handle state, process messages, and operate concurrently—but with a focus on flexibility and simplicity.
+
+## How does an agent differ from an actor in this framework?
+Functionally, agents in Acton perform the same role as actors in other frameworks. They:
+
+Maintain independent state.
+Process incoming messages asynchronously.
+Operate in a concurrent, non-blocking environment.
+The difference is mainly in terminology. I want to make Acton more accessible to developers who may not be familiar with the traditional actor model. The term "agent" avoids preconceptions and focuses on what matters: acting on messages efficiently, without introducing unnecessary complexity.
+
+## Is Acton a traditional actor framework?
+Acton takes inspiration from traditional actor models, but it’s designed to be more flexible and user-friendly. It still provides the core benefits of actor-based concurrency—message passing, state isolation, and non-blocking processing—while also leveraging modern Rust features like async/await to ensure performance and safety.
+
+In short, Acton is an actor framework by design but optimized for modern Rust applications and with a focus on practicality rather than adhering to a strict actor model.
 
 ## Contributing
 
