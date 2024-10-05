@@ -52,7 +52,8 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
         M: ActonMessage + Clone + Send + Sync + 'static,
     {
         let type_id = TypeId::of::<M>();
-        trace!(type_name=std::any::type_name::<M>(),type_id=?type_id, " Adding message handler");
+        trace!(type_name=std::any::type_name::<M>(), type_id=?type_id, "Adding message handler");
+
         // Create a boxed handler for the message type.
         let handler_box = Box::new(
             move |actor: &mut ManagedAgent<Started, State>,
@@ -60,17 +61,12 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
                   -> FutureBox {
                 trace!("Creating handler for message type: {:?}", std::any::type_name::<M>());
 
-                let envelope_type_id = envelope.message.as_any().type_id();
-                trace!(
-                "Attempting to downcast message: expected_type_id = {:?}, envelope_type_id = {:?}",
-                type_id, envelope_type_id
-            );
-                if let Some(concrete_msg) = downcast_message::<M>(&*envelope.message) {
+                // Attempt to downcast the message to the expected type.
+                if let Some(concrete_msg) = envelope.message.as_any().downcast_ref::<M>() {
                     trace!(
-                        "Downcast message to name {} and concrete type: {:?}",
-                        std::any::type_name::<M>(),
-                        type_id
-                    );
+                    "Downcast successful for type: {:?}",
+                    std::any::type_name::<M>()
+                );
 
                     let message = concrete_msg.clone();
                     let sent_time = envelope.timestamp;
@@ -78,8 +74,14 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
                         let msg_name = std::any::type_name::<M>();
                         let sender = envelope.reply_to.sender.root.to_string();
                         let recipient = envelope.recipient.sender.root.to_string();
-                        let origin_envelope = OutboundEnvelope::new_with_recipient(envelope.reply_to.clone(), envelope.recipient.clone());
-                        let reply_envelope = OutboundEnvelope::new_with_recipient(envelope.recipient.clone(), envelope.reply_to.clone());
+                        let origin_envelope = OutboundEnvelope::new_with_recipient(
+                            envelope.reply_to.clone(),
+                            envelope.recipient.clone(),
+                        );
+                        let reply_envelope = OutboundEnvelope::new_with_recipient(
+                            envelope.recipient.clone(),
+                            envelope.reply_to.clone(),
+                        );
                         trace!("sender {sender}::{msg_name}",);
                         trace!("recipient {recipient}::{msg_name}",);
                         MessageContext {
@@ -97,9 +99,9 @@ impl<State: Default + Send + Debug + 'static> ManagedAgent<Idle, State> {
                     Box::pin(user_future)
                 } else {
                     error!(
-                        type_name = std::any::type_name::<M>(),
-                        "Should never get here, message failed to downcast"
-                    );
+                    type_name = std::any::type_name::<M>(),
+                    "Message failed to downcast"
+                );
                     // Return an immediately resolving future if downcast fails.
                     Box::pin(async {})
                 }
@@ -324,9 +326,4 @@ fn default_handler<State: Debug + Send + Default>(
     _actor: &'_ ManagedAgent<Started, State>,
 ) -> FutureBox {
     Box::pin(async {})
-}
-
-// Function to downcast the message to the original type.
-pub fn downcast_message<T: 'static>(msg: &dyn ActonMessage) -> Option<&T> {
-    msg.as_any().downcast_ref::<T>()
 }
