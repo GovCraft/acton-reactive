@@ -16,22 +16,30 @@
 use std::io::{stdout, Write};
 use std::sync::Once;
 
+use acton_reactive::prelude::*;
 use anyhow::Result;
 use crossterm::{
-    cursor, execute, queue,
-    event::{self, Event, KeyCode, KeyModifiers},
-    terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType},
+    cursor, event::{self, Event, KeyCode, KeyModifiers}, execute,
+    queue,
+    terminal::{Clear, ClearType, disable_raw_mode, enable_raw_mode},
 };
 use futures::{SinkExt, StreamExt};
 use tokio::sync::oneshot;
 use tracing::*;
 use tracing::Level;
-use tracing_appender::rolling::{Rotation, RollingFileAppender};
-use tracing_subscriber::{fmt::format::FmtSpan, EnvFilter, FmtSubscriber};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan, FmtSubscriber};
 
-use acton_reactive::prelude::*;
-mod screens;
+use agents::ScaffoldAgent;
+use messages::{InitProject, MenuMoveDown, MenuMoveUp};
 use screens::HomeScreen;
+use crate::agents::ViewManager;
+use crate::messages::MenuSelect;
+
+mod screens;
+mod agents;
+mod messages;
+
 const FAILED_TO_ENABLE_RAW_MODE: &str = "Failed to enable raw mode";
 const FAILED_TO_DISABLE_RAW_MODE: &str = "Failed to disable raw mode";
 const SHUTDOWN_MESSAGE: &str = "Shutting down...\n";
@@ -39,6 +47,8 @@ const ERROR_READING_EVENT: &str = "Error reading event: {:?}";
 const LOG_DIRECTORY: &str = "logs";
 const LOG_FILENAME: &str = "tracing.log";
 
+const TAGLINE: &str = "Rapidly scaffold and update Acton Reactive Framework applications";
+const TITLE: &str = "Acton Console";
 
 #[derive(Clone, Debug)]
 enum PrinterMessage {
@@ -52,6 +62,7 @@ impl Drop for RawModeGuard {
         disable_raw_mode().expect(FAILED_TO_DISABLE_RAW_MODE);
     }
 }
+
 const PADLEFT: u16 = 4;
 const PADTOP: u16 = 2;
 
@@ -60,37 +71,56 @@ async fn main() -> Result<()> {
     initialize_tracing();
     info!("** App startup **");
 
-    enable_raw_mode().expect(FAILED_TO_ENABLE_RAW_MODE);
+    enable_raw_mode().expect("Failed to enable raw mode");
     let _raw_mode_guard = RawModeGuard;
     let mut stdout = stdout();
     execute!(stdout, cursor::Hide, Clear(ClearType::All), cursor::MoveTo(PADLEFT, PADTOP))?;
 
     let mut app = ActonApp::launch();
-    let home_screen = HomeScreen::new(&mut app).await?;
+    let view_manager = ViewManager::new(&mut app).await?;
+    let scaffold_agent = ScaffoldAgent::new(&mut app).await;
 
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    static PROJECT_NAME: &str = "test_project";
+    // let shutdown_tx_clone = shutdown_tx.clone();
 
+    // Shutdown signal handler
     tokio::spawn(async move {
         let mut reader = event::EventStream::new();
         while let Some(event_result) = reader.next().await {
             match event_result {
                 Ok(Event::Key(key_event)) => match key_event.code {
                     KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        info!("CTRL+C pressed. Sending shutdown signal...");
                         let _ = shutdown_tx.send(());
                         break;
                     }
                     KeyCode::Char('q') => {
+                        info!("'q' pressed. Sending shutdown signal...");
                         let _ = shutdown_tx.send(());
                         break;
                     }
                     KeyCode::Char('s') => {
+                        info!("'s' pressed. Starting project scaffold...");
+                        scaffold_agent.send(InitProject { project_name: PROJECT_NAME }).await;
                     }
-                    KeyCode::Char('?') => {
+                    KeyCode::Char('j') => {
+                        view_manager.send(MenuMoveDown).await;
+                    }
+                    KeyCode::Enter => {
+                        view_manager.send(MenuSelect).await;
+                    }
+                    KeyCode::Char('k') => {
+                        view_manager.send(MenuMoveUp).await;
+                    }
+                    KeyCode::Char('s') => {
+                        info!("'s' pressed. Starting project scaffold...");
+                        scaffold_agent.send(InitProject { project_name: PROJECT_NAME }).await;
                     }
                     _ => {}
                 },
                 Err(e) => {
-                    eprintln!("{} {}", ERROR_READING_EVENT, e);
+                    error!("Error reading event: {:?}", e);
                     break;
                 }
                 _ => {}
@@ -98,8 +128,13 @@ async fn main() -> Result<()> {
         }
     });
 
-    shutdown_rx.await?;
+    // Await the shutdown signal
+    match shutdown_rx.await {
+        Ok(_) => info!("Shutdown signal received."),
+        Err(e) => error!("Failed to receive shutdown signal: {:?}", e),
+    };
 
+    // Clean up terminal
     queue!(stdout, cursor::MoveTo(0, 0))?;
     queue!(stdout, Clear(ClearType::FromCursorDown))?;
     stdout.write_all(SHUTDOWN_MESSAGE.as_bytes())?;
@@ -107,9 +142,14 @@ async fn main() -> Result<()> {
     stdout.flush()?;
     queue!(stdout, cursor::MoveTo(0, 1))?;
 
-    app.shutdown_all().await?;
-    info!("Shutdown complete.");
+    // Shutdown agents
+    if let Err(e) = app.shutdown_all().await {
+        error!("Error during agent shutdown: {:?}", e);
+    } else {
+        info!("All agents shut down successfully.");
+    }
 
+    info!("** App shutdown complete **");
     Ok(())
 }
 
@@ -118,22 +158,7 @@ static INIT: Once = Once::new();
 pub fn initialize_tracing() {
     INIT.call_once(|| {
         let filter = EnvFilter::new("")
-            .add_directive("replies=debug".parse().unwrap())
-            .add_directive("replies::printer=debug".parse().unwrap())
-            .add_directive("replies::shopping_cart=off".parse().unwrap())
-            .add_directive("replies::price_service=off".parse().unwrap())
-            .add_directive("acton_core::common::agent_handle=off".parse().unwrap())
-            .add_directive("acton_core::common::agent_broker=off".parse().unwrap())
-            .add_directive("acton_core::actor::managed_agent::idle[start]=off".parse().unwrap())
-            .add_directive("acton_core::actor::managed_agent::started[wake]=off".parse().unwrap())
-            .add_directive("acton_core::traits::actor[send_message]=off".parse().unwrap())
-            .add_directive("supervisor_tests=off".parse().unwrap())
-            .add_directive("broker_tests=off".parse().unwrap())
-            .add_directive("launchpad_tests=off".parse().unwrap())
-            .add_directive("lifecycle_tests=off".parse().unwrap())
-            .add_directive("actor_tests=off".parse().unwrap())
-            .add_directive("load_balancer_tests=off".parse().unwrap())
-            .add_directive("acton::tests::setup::actor::pool_item=off".parse().unwrap());
+            .add_directive("acton_cli=trace".parse().unwrap());
 
         let file_appender = RollingFileAppender::new(Rotation::DAILY, LOG_DIRECTORY, LOG_FILENAME);
 
@@ -142,7 +167,7 @@ pub fn initialize_tracing() {
             .with_max_level(Level::TRACE)
             .compact()
             .with_line_number(false)
-            .with_target(false)
+            .with_target(true)
             .without_time()
             .with_env_filter(filter)
             .with_writer(file_appender)

@@ -37,17 +37,17 @@ pub enum SystemSignal {
     // Failed,
 }
 
-impl SystemSignal {
-    /// Returns a string representation of the SystemSignal.
-    ///
-    /// This method is useful for logging and debugging purposes.
-    ///
-    /// # Returns
-    ///
-    /// A string slice representing the signal.
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            SystemSignal::Terminate => "Terminate",
-        }
-    }
-}
+// impl SystemSignal {
+//     /// Returns a string representation of the SystemSignal.
+//     ///
+//     /// This method is useful for logging and debugging purposes.
+//     ///
+//     /// # Returns
+//     ///
+//     /// A string slice representing the signal.
+//     pub fn as_str(&self) -> &'static str {
+//         match self {
+//             SystemSignal::Terminate => "Terminate",
+//         }
+//     }
+// }
