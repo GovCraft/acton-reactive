@@ -9,13 +9,17 @@
   outputs = { self, nixpkgs, flake-utils }:
   flake-utils.lib.eachDefaultSystem (system:
   let
-    pkgs = import nixpkgs { inherit system; };
+    pkgs = import nixpkgs {
+      inherit system;
+      config.allowUnfree = true; # Allow unfree packages
+    };
   in {
     devShell = pkgs.mkShell {
       buildInputs = [
         pkgs.rustup
         pkgs.cargo
-        pkgs.jetbrains.rust-rover # Direct access to rust-rover in the right path
+        pkgs.llvm
+        pkgs.jetbrains.rust-rover
         pkgs.rust-analyzer
         pkgs.clippy
         pkgs.cargo-tarpaulin
