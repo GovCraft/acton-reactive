@@ -1,155 +1,190 @@
-# Acton Reactive Application Framework
+# Acton: A Friendly Reactive Framework for Rust
 
-The Acton Reactive Application Framework provides an efficient way to build fast, reactive Rust applications. Designed around an agent-based model, it simplifies concurrency and allows developers to focus on writing scalable, maintainable code. Acton gets its name from the fact that it "acts on" messages you define.
+Welcome to Acton! This framework makes it easy to build fast, responsive Rust
+applications using a simple message-passing system. Think of Acton as a team of
+helpful workers (I call them "agents") who can pass messages to each other and
+handle different tasks independently. The name "Acton" comes from what these
+agents do - they "act on" the messages you send them!
 
-## Key Features
+## What Makes Acton Special?
 
-- **Agent-based Architecture**: Acton uses a Tokio-based agent model, enabling a lock-free and highly concurrent state management system. This architecture helps maintain a natural concurrency model and simplifies building complex systems.
-- **Asynchronous Messaging**: By leveraging Rust's async/await syntax, Acton ensures high-performance, non-blocking communication between components. This asynchronous model helps achieve responsive and efficient applications, even under heavy load.
-- **Extensibility**: The framework is designed to be adaptable, making it easy to extend for various use cases or integrate with existing systems. This flexibility allows developers to tailor the framework to fit specific requirements without compromising performance.
-- **Type-safe Message Handling**: Acton enforces type safety in message passing between agents, providing compile-time checks and reducing runtime errors. This feature ensures that the system remains robust and reliable, even as it scales.
-- **Built-in Instrumentation with Tracing**: Acton integrates with the Tracing crate, offering detailed insight into application behavior. This instrumentation makes it easier to monitor performance, debug issues, and gain visibility into your application's inner workings.
+- **Easy-to-Use Agents**: Agents are like independent workers in your
+  application. Each one can handle its own tasks and keep track of its own
+  information, making it natural to write programs that do many things at once.
+
+- **Simple Message Passing**: Agents communicate by sending messages to each
+  other, just like people passing notes. Thanks to Rust's async/await features,
+  these messages get delivered efficiently without blocking other work.
+
+- **Flexible and Adaptable**: You can easily customize Acton to fit your needs.
+  Whether you're building a small application or a large system, Acton grows
+  with you.
+
+- **Safe and Reliable**: Rust's type system helps ensure that messages get
+  delivered to the right places. This means fewer bugs and more reliable
+  applications.
+
+- **Built-in Monitoring**: Acton comes with tools to help you see what's
+  happening inside your application, making it easier to find and fix problems.
 
 ## Getting Started
 
-To get started with the Acton framework, add the following to your `Cargo.toml`:
+Add Acton to your project by putting this in your `Cargo.toml`:
 
 ```toml
 [dependencies]
 acton_reactive = { version = "1.1.0-beta.1" }
 ```
 
-## Example Usage
+## How to Use Acton
 
-### Creating and Managing Agents
+Let's walk through a simple example to see how Acton works!
 
-Here's a simple example of how to create and use agents in the Acton framework:
-- Import the prelude.
+### Step 1: Set Up Your Agent
+
+First, let's import what I need and create a simple agent:
+
 ```rust
 use acton_reactive::prelude::*;
-```
-- An agent can be any struct that implements the `Default` and `Debug` traits. Here's an example of a basic agent:
-```rust
-// agents must derive these traits
+
+// Create an agent that can keep track of a number
 #[derive(Debug, Default)]
-struct ABasicAgent {
-    some_state: usize,
+struct CounterAgent {
+    count: usize,
 }
 ```
-- Define messages that the agent can act on. Messages must implement the `Debug` and `Clone` traits. Here's an example:
+
+### Step 2: Define Your Messages
+
+Messages are how agents communicate. Let's create some simple ones:
+
 ```rust
-// messages must derive these traits
+// The traditional way:
 #[derive(Debug, Clone)]
 struct PingMsg;
-```
-- Here's another example of messages where the required traits are added using the `acton_message` macro:
-```rust
 
-// or save a few keystrokes and use the handy macro
+// Or use the helpful shortcut:
 #[acton_message]
 struct PongMsg;
 
 #[acton_message]
-struct BuhByeMsg;
+struct GoodbyeMsg;
 ```
-- Acton uses tokio and so must be operating under an existing tokio runtime. The `ActonApp` struct is used to launch the Acton system. Here's an example of launching the Acton system and creating an agent:
-```rust
 
+### Step 3: Create Your Application
+
+Here's how to set up your application and create an agent:
+
+```rust
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Start up Acton
     let mut app = ActonApp::launch();
-    let mut the_agent = app.new_agent::<ABasicAgent>().await;
+
+    // Create the counter agent
+    let mut counter = app.new_agent::<CounterAgent>().await;
 ```
-- Define message handling logic for the agent before the agent is started. 
-Here's an example of handling messages and replying to them:
+
+### Step 4: Tell Your Agent How to Handle Messages
+
+Now let's make the agent do something when it receives messages:
+
 ```rust
+counter
+    // When someone sends a Ping...
+    .act_on::<PingMsg>(|agent, context| {
+        println!("Got a ping! Adding to count...");
+        agent.model.count += 1;
 
-    the_agent
-        .act_on::<PingMsg>(|agent, context| {
-            println!("Pinged. You can mutate me!");
-            agent.model.some_state += 1;
-            // you can reply to the sender (in this case, the agent itself)
-            let envelope = context.reply_envelope();
-
-            // every handler must return a boxed future
-            Box::pin(async move {
-                envelope.send(PongMsg).await;
-            })
+        // Send a Pong back
+        let envelope = context.reply_envelope();
+        Box::pin(async move {
+            envelope.send(PongMsg).await;
         })
-```
-    Handlers can be chained together to handle multiple message types. Here's an example of chaining handlers:
-```rust
-
+    })
+    // When someone sends a Pong...
     .act_on::<PongMsg>(|agent, _envelope| {
-            println!("I got ponged!");
-            agent.model.some_state += 1;
-            //if you're replying to the same agent, you can use the agent's handle
-            let handle = agent.handle().clone(); // handle clones are cheap and need to be done when moving into the async boundary
+        println!("Got a pong! Adding to count...");
+        agent.model.count += 1;
 
-            // if you find the box pin syntax confusing, you use this helper function
-            AgentReply::from_async(async move {
-                handle.send(BuhByeMsg).await;
-            })
+        // Send a Goodbye to ourselves
+        let handle = agent.handle().clone();
+        AgentReply::from_async(async move {
+            handle.send(GoodbyeMsg).await;
         })
-        .act_on::<BuhByeMsg>(|agent, envelope| {
-            println!("Thanks for all the fish! Buh Bye!");
-            //if you don't have any async work to do, you can reply with an empty boxed future
-            //or just use this function
-            AgentReply::immediate()
-        })
+    })
+    // When someone says Goodbye...
+    .act_on::<GoodbyeMsg>(|_agent, _envelope| {
+        println!("Time to say goodbye!");
+        AgentReply::immediate()
+    });
 ```
-- Agents have lifecycle hooks that can be used to perform actions before or after the agent starts or stops. Here's an example of using lifecycle hooks:
+
+### Step 5: Start Your Agent and Send Messages
+
 ```rust
+    // Start the agent
+    let counter = counter.start().await;
 
-    .after_stop(|agent| {
-            println!("Agent stopped with state value: {}", agent.model.some_state);
-            debug_assert_eq!(agent.model.some_state, 2);
+    // Send it a message
+    counter.send(PingMsg).await;
 
-            AgentReply::immediate()
-        });
-```
-- Start your agent to spawn listening and get a handle to send messages to it:
-```rust
-
-    let the_agent = the_agent.start().await;
-
-    the_agent.send(PingMsg).await;
-```
-- Finally, shut down the Acton system:
-```rust
-
-    // shutdown tries to gracefully stop all agents and their children
+    // Shut everything down nicely
     app.shutdown_all().await?;
     Ok(())
 }
 ```
-You can view this example and run it from the examples `basic` folder.
 
-For more advanced usage, check out the **lifecycles**, **broadcast**, and **fruit_market** examples, which demonstrate other messaging patterns and system-wide coordination across agents.
+Want to see more? Check out the example projects:
 
-# FAQ
-## Why is this called an "agent-based" framework and not an "actor-based" one?
-While Acton is, at its core, an actor framework, I’ve chosen to use the term "agent" to focus on clarity and accessibility. The word "actor" comes with a lot of technical baggage from traditional actor models like Akka and Erlang, which may seem complex or intimidating to some developers.
+- **basic**: A simple example like the one above
+- **lifecycles**: See how agents start up and shut down
+- **broadcast**: Learn how to send messages to multiple agents
+- **fruit_market**: A fun example showing how to build a more complex system
 
-The term "agent" emphasizes the framework’s core principle: it acts on messages in a straightforward, scalable way. By avoiding the technical connotations of "actor," I hope to make Acton more approachable and easier to understand, especially for those who may be new to concurrency patterns. In essence, agents in Acton do the same things that actors do in other systems—handle state, process messages, and operate concurrently—but with a focus on flexibility and simplicity.
+## Common Questions
 
-## How does an agent differ from an actor in this framework?
-Functionally, agents in Acton perform the same role as actors in other frameworks. They:
+### Why do you call them "agents" instead of "actors"?
 
-Maintain independent state.
-Process incoming messages asynchronously.
-Operate in a concurrent, non-blocking environment.
-The difference is mainly in terminology. I want to make Acton more accessible to developers who may not be familiar with the traditional actor model. The term "agent" avoids preconceptions and focuses on what matters: acting on messages efficiently, without introducing unnecessary complexity.
+While Acton is similar to traditional actor frameworks (like Akka or Erlang), I
+use the term "agent" to keep things simple and friendly. An agent is just
+something that can receive messages and act on them - no complicated theory
+required!
 
-## Is Acton a traditional actor framework?
-Acton takes inspiration from traditional actor models, but it’s designed to be more flexible and user-friendly. It still provides the core benefits of actor-based concurrency—message passing, state isolation, and non-blocking processing—while also leveraging modern Rust features like async/await to ensure performance and safety.
+### What exactly is an agent?
 
-In short, Acton is an actor framework by design but optimized for modern Rust applications and with a focus on practicality rather than adhering to a strict actor model.
+An agent in Acton is like a helpful worker that can:
 
-## Contributing
+- Keep track of its own information
+- Receive and respond to messages
+- Work independently of other agents
+- Handle tasks without blocking others
 
-Contributions to the Acton Reactive Application Framework are welcome! Please feel free to submit issues, fork the repository, and send pull requests!
+Think of agents as team members who can work on their own tasks while
+communicating with each other when needed.
+
+### Is Acton complicated to use?
+
+Not at all! While Acton is powerful enough for complex applications, I've
+designed it to be easy to understand and use. It takes advantage of Rust's
+modern features (like async/await) to keep things simple while still being fast
+and reliable.
+
+## Want to Help?
+
+I'd love your help making Acton even better! Feel free to:
+
+- Report issues you find
+- Suggest new features
+- Send pull requests
+- Share how you're using Acton
 
 ## License
 
-This project is licensed under both the MIT and Apache-2.0 licenses. See the `LICENSE-MIT` and `LICENSE-APACHE` files for details.
+You can use Acton under either the MIT or Apache-2.0 license - whichever works
+better for you. Check out the `LICENSE-MIT` and `LICENSE-APACHE` files for the
+details.
+
+## Contact
+
+Find me on [Bluesky](https://bsky.app/profile/govcraft.ai)
