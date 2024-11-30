@@ -1,6 +1,6 @@
 [package]
 name = "acton-core"
-version = "3.0.0-alpha.1"
+version = "3.0.1-alpha.1"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 description = "Acton Core provides the core functionality and abstractions used by the Acton Reactive crate. It includes the essential building blocks for creating reactive and distributed systems."
