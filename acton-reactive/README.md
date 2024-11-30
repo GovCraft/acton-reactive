@@ -138,6 +138,8 @@ counter
 Want to see more? Check out the example projects:
 
 - **basic**: A simple example like the one above
+  ![Basic example of agents with message passing](https://github.com/GovCraft/acton-reactive/blob/522ba3f14f54528cc19148d6bec84440d473f40d/acton-reactive/examples/basic/basic_example.gif)
+
 - **lifecycles**: See how agents start up and shut down
 - **broadcast**: Learn how to send messages to multiple agents
 - **fruit_market**: A fun example showing how to build a more complex system
