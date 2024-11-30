@@ -138,9 +138,17 @@ counter
 Want to see more? Check out the example projects:
 
 - **basic**: A simple example like the one above
+
+  ![Basic example of agents with message passing](https://github.com/GovCraft/acton-reactive/blob/522ba3f14f54528cc19148d6bec84440d473f40d/acton-reactive/examples/basic/basic_example.gif)
+
 - **lifecycles**: See how agents start up and shut down
+  ![Example of handing agent lifecycle events](https://github.com/GovCraft/acton-reactive/blob/7a3ad6b3728276f73ff1aa1cc9d288b68ccba68e/acton-reactive/examples/lifecycles/lifecycles_example.gif)
+
 - **broadcast**: Learn how to send messages to multiple agents
+  ![Example of broadcasting messages to multiple agents at once](https://github.com/GovCraft/acton-reactive/blob/7a3ad6b3728276f73ff1aa1cc9d288b68ccba68e/acton-reactive/examples/broadcast/broadcast_example.gif)
+
 - **fruit_market**: A fun example showing how to build a more complex system
+  ![Example of a more complex system with multiple agents handling different responsibilities](https://github.com/GovCraft/acton-reactive/blob/7a3ad6b3728276f73ff1aa1cc9d288b68ccba68e/acton-reactive/examples/fruit_market/fruit_market_example.gif)
 
 ## Common Questions
 
