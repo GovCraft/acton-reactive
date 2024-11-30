@@ -23,6 +23,7 @@
       {
         devShell = pkgs.mkShell {
           buildInputs = [
+            pkgs.bashInteractive
             pkgs.rustup
             pkgs.cargo
             pkgs.llvm
@@ -32,6 +33,8 @@
             pkgs.cargo-tarpaulin
             pkgs.cargo-release
             pkgs.tokei
+            pkgs.ttyd
+            pkgs.ffmpeg
             pkgs.vhs
             pkgs.cargo-machete
             pkgs.rustfmt
