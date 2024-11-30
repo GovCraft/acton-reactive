@@ -186,6 +186,7 @@ I'd love your help making Acton even better! Feel free to:
 - Suggest new features
 - Send pull requests
 - Share how you're using Acton
+- Star this repo so others can find it!
 
 ## License
 
