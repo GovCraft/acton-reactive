@@ -5,7 +5,7 @@ members = [
     "acton-core",
     "acton-macro",
     "acton_test",
-    "acton-reactive", "acton-cli", "llvm",
+    "acton-reactive",
 ]
 
 

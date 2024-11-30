@@ -24,7 +24,9 @@ use tokio_util::task::TaskTracker;
 
 pub use idle::Idle;
 
-use crate::common::{AgentHandle, AsyncLifecycleHandler, BrokerRef, HaltSignal, ParentRef, ReactorMap};
+use crate::common::{
+    AgentHandle, AsyncLifecycleHandler, BrokerRef, HaltSignal, ParentRef, ReactorMap,
+};
 use crate::message::Envelope;
 use crate::prelude::AgentRuntime;
 
@@ -64,7 +66,9 @@ pub struct ManagedAgent<AgentState, ManagedAgent: Default + Send + Debug + 'stat
 }
 
 // implement getter functions for ManagedAgent
-impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> ManagedAgent<ActorState, ManagedEntity> {
+impl<ActorState, ManagedEntity: Default + Send + Debug + 'static>
+    ManagedAgent<ActorState, ManagedEntity>
+{
     /// Returns the unique identifier of the actor.
     pub fn id(&self) -> &Ern {
         &self.id
@@ -94,7 +98,7 @@ impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> ManagedAgent<A
 }
 
 impl<ActorState, ManagedEntity: Default + Send + Debug + 'static> Debug
-for ManagedAgent<ActorState, ManagedEntity>
+    for ManagedAgent<ActorState, ManagedEntity>
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("ManagedActor")

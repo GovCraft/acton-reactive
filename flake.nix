@@ -24,6 +24,7 @@
         pkgs.clippy
         pkgs.cargo-tarpaulin
         pkgs.cargo-release
+        pkgs.tokei
         pkgs.cargo-machete
         pkgs.rustfmt
         pkgs.pkg-config # Optional

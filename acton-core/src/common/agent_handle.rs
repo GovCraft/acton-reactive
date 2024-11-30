@@ -17,7 +17,7 @@ use std::fmt::Debug;
 use std::future::Future;
 use std::hash::{Hash, Hasher};
 
-use acton_ern::{Ern};
+use acton_ern::Ern;
 use async_trait::async_trait;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
@@ -130,7 +130,7 @@ impl AgentHandle {
 
 impl Broker for AgentHandle {
     #[instrument(skip(self), name = "broadcast")]
-    fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output=()> + Send + Sync + '_ {
+    fn broadcast(&self, message: impl ActonMessage) -> impl Future<Output = ()> + Send + Sync + '_ {
         trace!("Looking for a broker to broadcast message.");
         async move {
             if let Some(broker) = self.broker.as_ref() {
@@ -152,9 +152,9 @@ impl Actor for AgentHandle {
     /// Returns an envelope for the specified recipient and message, ready to send.
     #[instrument(skip(self))]
     fn create_envelope(&self, recipient_address: Option<MessageAddress>) -> OutboundEnvelope {
-        trace!( "self id is {}", self.id);
+        trace!("self id is {}", self.id);
         let return_address = self.reply_address();
-        trace!( "return_address is {}", return_address.sender.root);
+        trace!("return_address is {}", return_address.sender.root);
         if let Some(recipient) = recipient_address {
             OutboundEnvelope::new_with_recipient(return_address, recipient)
         } else {
@@ -169,9 +169,9 @@ impl Actor for AgentHandle {
     #[instrument(skip(self))]
     fn find_child(&self, arn: &Ern) -> Option<AgentHandle> {
         trace!("Searching for child with ARN: {}", arn);
-        self.children.get(&arn.to_string()).map(|item|
-        item.value().clone()
-        )
+        self.children
+            .get(&arn.to_string())
+            .map(|item| item.value().clone())
     }
 
     /// Returns the task tracker for the actor.
@@ -193,7 +193,7 @@ impl Actor for AgentHandle {
     #[allow(clippy::manual_async_fn)]
     #[instrument(skip(self))]
     /// Suspends the actor.
-    fn stop(&self) -> impl Future<Output=anyhow::Result<()>> + Send + Sync + '_ {
+    fn stop(&self) -> impl Future<Output = anyhow::Result<()>> + Send + Sync + '_ {
         async move {
             let tracker = self.tracker();
 

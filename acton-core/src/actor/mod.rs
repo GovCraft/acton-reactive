@@ -15,9 +15,9 @@
  */
 
 pub use agent_config::AgentConfig;
+pub use managed_agent::started::Started;
 pub use managed_agent::Idle;
 pub use managed_agent::ManagedAgent;
-pub use managed_agent::started::Started;
 
 mod managed_agent;
 

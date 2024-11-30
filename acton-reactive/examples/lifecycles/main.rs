@@ -1,5 +1,5 @@
-use tokio::time::{sleep, Duration};
 use acton_reactive::prelude::*;
+use tokio::time::{sleep, Duration};
 
 #[derive(Default, Debug)]
 struct ItemTracker {
@@ -57,5 +57,7 @@ async fn main() {
 
     tracker_handle.send(GetItems).await;
 
-    app.shutdown_all().await.expect("Failed to shut down system");
+    app.shutdown_all()
+        .await
+        .expect("Failed to shut down system");
 }

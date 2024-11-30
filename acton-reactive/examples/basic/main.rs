@@ -16,68 +16,93 @@
 
 use acton_reactive::prelude::*;
 
-// agents must derive these traits
+// Basic Example: A friendly counter that responds to messages
+//
+// This example shows the fundamental concepts of agents:
+// - Creating an agent with some state
+// - Sending messages between agents
+// - Handling different types of messages
+// - Updating agent state
+
+// An agent is like a worker that can receive messages and maintain its own state
 #[derive(Debug, Default)]
-struct ABasicAgent {
-    some_state: usize,
+struct CounterAgent {
+    // Agents can keep track of their own data
+    count: usize,
 }
 
-// messages must derive these traits
+// Messages are how we communicate with agents
+// Think of them like friendly notes we pass around
+
+// We can use derive macros to set up our messages
 #[derive(Debug, Clone)]
-struct PingMsg;
+struct HelloMsg;
 
-// or save a few keystrokes and use the handy macro
+// The #[acton_message] macro makes message setup easier
 #[acton_message]
-struct PongMsg;
+struct ThankYouMsg;
 
 #[acton_message]
-struct BuhByeMsg;
+struct GoodbyeMsg;
 
 #[tokio::main]
 async fn main() {
+    // Start up our application
     let mut app = ActonApp::launch();
-    let mut the_agent = app.new_agent::<ABasicAgent>().await;
 
-    the_agent
-        .act_on::<PingMsg>(|agent, context| {
-            println!("Pinged. You can mutate me!");
-            agent.model.some_state += 1;
-            // you can reply to the sender (in this case, the agent itself)
+    // Create a new counter agent
+    let mut counter = app.new_agent::<CounterAgent>().await;
+
+    // Tell our agent how to handle different messages
+    counter
+        // When we receive a Hello message...
+        .act_on::<HelloMsg>(|agent, context| {
+            println!("👋 Someone said hello! Counting up...");
+            agent.model.count += 1;
+
+            // We can reply back to whoever sent us the message
             let envelope = context.reply_envelope();
 
-            // every handler must return a boxed future
+            // Handlers need to return a pinned future (for async operations)
             Box::pin(async move {
-                envelope.send(PongMsg).await;
+                envelope.send(ThankYouMsg).await;
             })
         })
-        .act_on::<PongMsg>(|agent, _envelope| {
-            println!("I got ponged!");
-            agent.model.some_state += 1;
-            //if you're replying to the same agent, you can use the agent's handle
-            let handle = agent.handle().clone(); // handle clones are cheap and need to be done when moving into the async boundary
+        // When we receive a Thank You message...
+        .act_on::<ThankYouMsg>(|agent, _envelope| {
+            println!("🙏 Got a thank you! Counting up again...");
+            agent.model.count += 1;
 
-            // if you find the box pin syntax confusing, you use this helper function
+            // We can send a message to ourselves using our own handle
+            let handle = agent.handle().clone();
+
+            // This helper makes it easier to return a future
             AgentReply::from_async(async move {
-                handle.send(BuhByeMsg).await;
+                handle.send(GoodbyeMsg).await;
             })
         })
-        .act_on::<BuhByeMsg>(|agent, envelope| {
-            println!("Thanks for all the fish! Buh Bye!");
-            //if you don't have any async work to do, you can reply with an empty boxed future
-            //or just use this function
+        // When we receive a Goodbye message...
+        .act_on::<GoodbyeMsg>(|agent, _envelope| {
+            println!("👋 Time to say goodbye!");
+
+            // When we have no async work, we can return immediately
             AgentReply::immediate()
         })
+        // This runs when the agent stops
         .after_stop(|agent| {
-            println!("Agent stopped with state value: {}", agent.model.some_state);
-            debug_assert_eq!(agent.model.some_state, 2);
-
+            println!("Final count: {}", agent.model.count);
+            debug_assert_eq!(agent.model.count, 2);
             AgentReply::immediate()
         });
 
-    let the_agent = the_agent.start().await;
+    // Start our counter agent
+    let counter = counter.start().await;
 
-    the_agent.send(PingMsg).await;
+    // Send it a hello message to kick things off!
+    counter.send(HelloMsg).await;
 
     // shutdown tries to gracefully stop all agents and their children
-    app.shutdown_all().await.expect("Failed to shut down system");
+    app.shutdown_all()
+        .await
+        .expect("Failed to shut down system");
 }
